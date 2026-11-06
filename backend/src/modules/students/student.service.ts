@@ -334,7 +334,6 @@ export async function createStudentAccount(id: string, input: CreateAccountInput
     kind: "student",
     personId: id,
     email: input.email,
-    temporaryPassword: input.temporaryPassword,
   });
   await logAudit({
     userId: request?.user?.id,

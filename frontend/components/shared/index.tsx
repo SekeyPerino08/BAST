@@ -89,10 +89,11 @@ export function ConfirmDialog({ title, description, onConfirm, onClose, destruct
   </Modal>;
 }
 
-export function TemporaryPasswordPanel({ password, email, personType, onDismiss }: Readonly<{
-  password: string; email: string; personType: "student" | "teacher" | "admin"; onDismiss: () => void;
+export function TemporaryPasswordPanel({ password, email, loginId, personType, onDismiss }: Readonly<{
+  password: string; email: string; loginId: string; personType: "student" | "teacher" | "admin"; onDismiss: () => void;
 }>) {
   const [copied, setCopied] = useState(false);
+  const loginLabel = personType === "student" ? "Student LRN" : personType === "teacher" ? "Faculty ID Number" : "Custom Admin ID";
   async function copy() {
     try { await navigator.clipboard.writeText(password); setCopied(true); toast.success("Temporary password copied"); }
     catch { toast.error("Could not copy the password"); }
@@ -100,12 +101,13 @@ export function TemporaryPasswordPanel({ password, email, personType, onDismiss 
   return <div className="space-y-5">
     <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
       <div className="flex gap-3 text-sm font-semibold text-amber-950"><ShieldAlert className="shrink-0" size={19} />
-        This password is shown only once. Share it securely and ask the {personType} to change it.</div>
+        This password is shown only once. Share it securely. The user must change it at first sign-in.</div>
       <div className="mt-4 flex items-center gap-2"><code className="min-w-0 flex-1 break-all rounded-lg bg-white px-3 py-2 font-mono text-sm text-slate-900">{password}</code>
         <button type="button" onClick={() => void copy()} aria-label="Copy temporary password" className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-medium text-amber-950 hover:bg-amber-100">
           {copied ? <Check size={16} /> : <Copy size={16} />}{copied ? "Copied" : "Copy"}
         </button></div>
-      <p className="mt-3 text-xs text-slate-600">Login email: {email}</p>
+      <p className="mt-3 text-xs text-slate-700">{loginLabel}: <strong>{loginId}</strong></p>
+      <p className="mt-1 text-xs text-slate-600">Recovery email: {email}</p>
     </div>
     <div className="flex justify-end"><button type="button" onClick={onDismiss} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Done</button></div>
   </div>;
@@ -113,36 +115,39 @@ export function TemporaryPasswordPanel({ password, email, personType, onDismiss 
 
 export function CreateAccountDialog({ personType, onClose, createAccount, isPending }: Readonly<{
   personType: "student" | "teacher"; onClose: () => void;
-  createAccount: (input: { email: string; temporaryPassword?: string }) => Promise<{ temporaryPassword: string }>;
+  createAccount: (input: { email: string }) => Promise<{ temporaryPassword: string; user: { loginId: string } }>;
   isPending: boolean;
 }>) {
   const [email, setEmail] = useState("");
-  const [temporaryPassword, setTemporaryPassword] = useState("");
   const [passwordOnce, setPasswordOnce] = useState<string | null>(null);
+  const [loginId, setLoginId] = useState("");
   const [error, setError] = useState("");
   const person = personType === "student" ? "Student" : "Teacher";
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setError("");
     try {
-      const result = await createAccount({ email, ...(temporaryPassword ? { temporaryPassword } : {}) });
+      const result = await createAccount({ email });
       setPasswordOnce(result.temporaryPassword); toast.success(`${person} account created`);
+      setLoginId(result.user.loginId);
     } catch (cause) {
       setError(friendlyApiMessage(cause, `Could not create the ${personType} account`, {
         ACCOUNT_EXISTS: `This ${personType.toLowerCase()} already has an account.`,
         EMAIL_EXISTS: "This email address is already in use.",
+        LOGIN_ID_EXISTS: "This login ID is already in use. Contact support before issuing another account.",
       }));
     }
   }
-  function dismiss() { setPasswordOnce(null); setTemporaryPassword(""); onClose(); }
+  function dismiss() { setPasswordOnce(null); setLoginId(""); onClose(); }
   return <Modal title={passwordOnce ? "Account created" : "Create login account"}
     description={passwordOnce ? "Copy and share the credentials securely." : `Create a ${personType} login account.`}
     onClose={dismiss} disableClose={isPending || passwordOnce !== null} size="max-w-md">
-    {passwordOnce ? <TemporaryPasswordPanel password={passwordOnce} email={email.trim().toLowerCase()} personType={personType} onDismiss={dismiss} /> :
+    {passwordOnce ? <TemporaryPasswordPanel password={passwordOnce} email={email.trim().toLowerCase()} loginId={loginId} personType={personType} onDismiss={dismiss} /> :
       <form onSubmit={(event) => void submit(event)} className="space-y-5">
         <div><label htmlFor="shared-account-email" className="mb-1.5 block text-sm font-medium text-slate-700">Email address</label>
           <input id="shared-account-email" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-indigo-500" /></div>
-        <div><label htmlFor="shared-account-password" className="mb-1.5 block text-sm font-medium text-slate-700">Temporary password <span className="font-normal text-slate-400">(leave blank to generate)</span></label>
-          <input id="shared-account-password" type="password" minLength={8} maxLength={128} value={temporaryPassword} onChange={(event) => setTemporaryPassword(event.target.value)} autoComplete="new-password" className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-indigo-500" /></div>
+        <p className="rounded-lg bg-blue-50 p-3 text-sm text-blue-950">
+          The {personType} signs in with their {personType === "student" ? "LRN" : "ID number"} and a role-specific starter password. They must change it after signing in.
+        </p>
         {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
         <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
           <button type="button" disabled={isPending} onClick={dismiss} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-50">Cancel</button>

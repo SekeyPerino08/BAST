@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 export const loginSchema = z.object({
-  email: z.string().trim().email().transform((value) => value.toLowerCase()),
+  identifier: z.string().trim().min(1).max(128)
+    .transform((value) => value.includes("@") ? value.toLowerCase() : value.toUpperCase()),
   password: z.string().min(1),
 });
 

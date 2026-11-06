@@ -50,6 +50,7 @@ export async function listUsers(input: unknown) {
     const search = query.search;
     where.OR = [
       { email: { contains: search, mode: "insensitive" } },
+      { loginId: { contains: search, mode: "insensitive" } },
       {
         student: {
           is: {
@@ -87,6 +88,7 @@ export async function listUsers(input: unknown) {
       select: {
         id: true,
         email: true,
+        loginId: true,
         role: true,
         isActive: true,
         mustChangePassword: true,
@@ -122,6 +124,7 @@ export async function listUsers(input: unknown) {
       return {
         id: user.id,
         email: user.email,
+        loginId: user.loginId,
         role: user.role,
         isActive: user.isActive,
         mustChangePassword: user.mustChangePassword,
@@ -140,36 +143,57 @@ export async function createAdminUser(input: CreateAdminUserBody, actorId: strin
   const policyError = passwordPolicyError(temporaryPassword, "", input.email);
   if (policyError) throw new AppError(policyError, 400);
   const duplicate = await prisma.user.findFirst({
-    where: { email: { equals: input.email, mode: "insensitive" } },
+    where: {
+      OR: [
+        { email: { equals: input.email, mode: "insensitive" } },
+        { loginId: { equals: input.adminId, mode: "insensitive" } },
+      ],
+    },
     select: { id: true },
   });
-  if (duplicate) throw new AppError("Email is already in use", 409, "EMAIL_TAKEN");
+  if (duplicate) {
+    const emailInUse = await prisma.user.findFirst({
+      where: { email: { equals: input.email, mode: "insensitive" } },
+      select: { id: true },
+    });
+    throw emailInUse
+      ? new AppError("Email is already in use", 409, "EMAIL_TAKEN")
+      : new AppError("Admin ID is already in use", 409, "LOGIN_ID_EXISTS");
+  }
   try {
     const passwordHash = await bcrypt.hash(temporaryPassword, 12);
     const user = await prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
         data: {
           email: input.email,
+          loginId: input.adminId,
           passwordHash,
           role: Role.ADMIN,
           firstName: "Admin",
           lastName: "User",
           mustChangePassword: true,
         },
-        select: { id: true, email: true, role: true, isActive: true, mustChangePassword: true },
+        select: { id: true, email: true, loginId: true, role: true, isActive: true, mustChangePassword: true },
       });
       await logAudit({
         userId: actorId,
         action: "USER_CREATED",
         entity: "User",
         entityId: created.id,
-        details: { email: created.email, role: created.role },
+        details: { email: created.email, loginId: created.loginId, role: created.role },
         ipAddress,
       }, tx);
       return created;
     });
     return { user, temporaryPassword };
   } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002" &&
+      (Array.isArray(error.meta?.target) ? error.meta.target.includes("loginId") : String(error.meta?.target).includes("loginId"))
+    ) {
+      throw new AppError("Admin ID is already in use", 409, "LOGIN_ID_EXISTS");
+    }
     mapPrismaError(error);
   }
 }

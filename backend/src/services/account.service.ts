@@ -1,19 +1,18 @@
 import bcrypt from "bcryptjs";
-import { randomBytes } from "node:crypto";
 import { Prisma, Role } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { AppError } from "../utils/AppError.js";
 
 type PersonAccountInput =
-  | { kind: "student"; personId: string; email: string; temporaryPassword?: string }
-  | { kind: "teacher"; personId: string; email: string; temporaryPassword?: string };
+  | { kind: "student"; personId: string; email: string }
+  | { kind: "teacher"; personId: string; email: string };
 
 function isKnownError(error: unknown, code: string): error is Prisma.PrismaClientKnownRequestError {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === code;
 }
 
 export async function createPersonAccount(input: PersonAccountInput) {
-  const temporaryPassword = input.temporaryPassword ?? randomBytes(24).toString("base64url");
+  const temporaryPassword = input.kind === "student" ? "student1234" : "faculty1234";
   const passwordHash = await bcrypt.hash(temporaryPassword, 12);
 
   try {
@@ -27,6 +26,7 @@ export async function createPersonAccount(input: PersonAccountInput) {
                 userId: true,
                 firstName: true,
                 lastName: true,
+                studentNo: true,
                 status: true,
               },
             })
@@ -37,6 +37,7 @@ export async function createPersonAccount(input: PersonAccountInput) {
                 userId: true,
                 firstName: true,
                 lastName: true,
+                employeeNo: true,
                 isActive: true,
               },
             });
@@ -73,6 +74,11 @@ export async function createPersonAccount(input: PersonAccountInput) {
       return transaction.user.create({
         data: {
           email: input.email,
+          loginId: input.kind === "student" && "studentNo" in person
+            ? person.studentNo.toUpperCase()
+            : input.kind === "teacher" && "employeeNo" in person
+              ? person.employeeNo.toUpperCase()
+              : null,
           passwordHash,
           role,
           isActive,
@@ -81,7 +87,7 @@ export async function createPersonAccount(input: PersonAccountInput) {
           lastName: person.lastName,
           ...relation,
         },
-        select: { id: true, email: true, role: true, isActive: true },
+        select: { id: true, email: true, loginId: true, role: true, isActive: true },
       });
     });
 
@@ -92,6 +98,12 @@ export async function createPersonAccount(input: PersonAccountInput) {
     }
     if (isKnownError(error, "P2002")) {
       const target = error.meta?.target;
+      if (
+        (Array.isArray(target) && target.includes("loginId")) ||
+        (typeof target === "string" && target.includes("loginId"))
+      ) {
+        throw new AppError("This login ID is already in use", 409, "LOGIN_ID_EXISTS");
+      }
       if (
         (Array.isArray(target) && target.includes("email")) ||
         (typeof target === "string" && target.includes("email"))

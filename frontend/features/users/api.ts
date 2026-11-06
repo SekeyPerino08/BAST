@@ -9,8 +9,8 @@ export function fetchUsers(params: UsersParams) {
   return apiFetch<UsersResponse>(`/api/users?${query.toString()}`);
 }
 
-export function createAdminUser(input: { email: string; temporaryPassword?: string }) {
-  return apiFetch<{ user: { id: string; email: string }; temporaryPassword: string }>("/api/users", {
+export function createAdminUser(input: { email: string; adminId: string; temporaryPassword?: string }) {
+  return apiFetch<{ user: { id: string; email: string; loginId: string }; temporaryPassword: string }>("/api/users", {
     method: "POST",
     body: JSON.stringify(input),
   });

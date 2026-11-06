@@ -41,7 +41,6 @@ export const updateTeacherStatusSchema = z.object({
 
 export const createTeacherAccountSchema = z.object({
   email: z.string().trim().email().transform((value) => value.toLowerCase()),
-  temporaryPassword: z.string().min(8).max(128).optional(),
 });
 
 export type CreateTeacherInput = z.infer<typeof createTeacherSchema>;

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -16,10 +16,8 @@ import {
   GraduationCap,
   LayoutDashboard,
   Menu,
-  Moon,
   School,
   Settings,
-  Sun,
   UserRound,
   Users,
   X,
@@ -34,14 +32,14 @@ const navigation: Record<Role, { label: string; href: string; comingSoon?: boole
   ADMIN: [
     { label: "Dashboard", href: "/admin" },
     { label: "Students", href: "/admin/students" },
-    { label: "Teachers", href: "/admin/teachers" },
-    { label: "Sections", href: "/admin/sections" },
-    { label: "Courses", href: "/courses" },
+    { label: "Teachers / Faculty", href: "/admin/teachers" },
+    { label: "Classes & Sections", href: "/admin/sections" },
+    { label: "Subjects", href: "/admin/subjects" },
     { label: "School Years", href: "/admin/school-years" },
     { label: "Enrollment", href: "/admin/enrollment" },
     { label: "Data sync", href: "/admin/sync" },
     { label: "Profile", href: "/profile" },
-    { label: "Users", href: "/admin/users", group: "Administration" },
+    { label: "User Management", href: "/admin/users", group: "Administration" },
     { label: "Audit log", href: "/admin/audit-logs", group: "Administration" },
     { label: "Import", href: "/admin/imports", group: "Administration" },
     { label: "Reports", href: "/admin/reports", group: "Administration" },
@@ -49,19 +47,17 @@ const navigation: Record<Role, { label: string; href: string; comingSoon?: boole
   TEACHER: [
     { label: "Dashboard", href: "/teacher" },
     { label: "My Classes", href: "/teacher/classes" },
-    { label: "Courses", href: "/courses" },
     { label: "Attendance", href: "/teacher/attendance" },
-    { label: "Grades", href: "/teacher/grades" },
+    { label: "Gradebook", href: "/teacher/grades" },
+    { label: "Student List", href: "/teacher/advisory/report-cards" },
     { label: "Reports", href: "/teacher/reports" },
     { label: "Profile", href: "/profile" },
   ],
   STUDENT: [
     { label: "Dashboard", href: "/student" },
-    { label: "My Subjects", href: "/student/subjects" },
-    { label: "Courses", href: "/courses" },
-    { label: "My Grades", href: "/student/grades" },
-    { label: "My Data", href: "/student/integrations" },
-    { label: "My Attendance", href: "/student/attendance" },
+    { label: "My Classes", href: "/student/subjects" },
+    { label: "Grades", href: "/student/grades" },
+    { label: "Attendance", href: "/student/attendance" },
     { label: "Report Card", href: "/student/report-card" },
     { label: "Profile", href: "/profile" },
   ],
@@ -77,19 +73,25 @@ const navigationIcons: Record<string, LucideIcon> = {
   Dashboard: LayoutDashboard,
   Students: Users,
   Teachers: GraduationCap,
+  "Teachers / Faculty": GraduationCap,
   Sections: School,
+  "Classes & Sections": School,
   Courses: BookOpen,
+  Subjects: BookOpen,
   "School Years": CalendarCheck,
   Enrollment: ClipboardList,
   "Data sync": LayoutDashboard,
   Profile: UserRound,
   Users,
+  "User Management": Users,
   "Audit log": FileClock,
   Import: ClipboardList,
   Reports: BarChart3,
   "My Classes": School,
+  "Student List": Users,
   Attendance: CalendarCheck,
   Grades: ClipboardList,
+  Gradebook: ClipboardList,
   "My Subjects": BookOpen,
   "My Grades": ClipboardList,
   "My Data": LayoutDashboard,
@@ -97,21 +99,11 @@ const navigationIcons: Record<string, LucideIcon> = {
   "Report Card": FileClock,
 };
 
-function subscribeToTheme(onChange: () => void) {
-  window.addEventListener("campushub-theme-change", onChange);
-  return () => window.removeEventListener("campushub-theme-change", onChange);
-}
-
-function getThemeSnapshot() {
-  return document.documentElement.classList.contains("dark");
-}
-
 export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>) {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const darkMode = useSyncExternalStore(subscribeToTheme, getThemeSnapshot, () => false);
   const pathname = usePathname();
   const menuRef = useRef<HTMLDetailsElement>(null);
   const mobileNavigationRef = useRef<HTMLDivElement>(null);
@@ -213,8 +205,7 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
         >
           <Image src="/MNHS%20logo.png" alt="Marigondon National High School seal" width={56} height={56} priority className={`size-14 shrink-0 object-contain ${sidebarCollapsed ? "lg:size-12" : ""}`} />
           <span className={`min-w-0 ${sidebarCollapsed ? "lg:hidden" : ""}`}>
-            <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-[#f3c64e]">CampusHub</span>
-            <span className="mt-1 block max-w-40 text-sm font-bold leading-tight text-white">Marigondon National High School</span>
+            <span className="block max-w-40 text-sm font-bold leading-tight text-white">Marigondon National High School</span>
           </span>
         </button>
         <button
@@ -227,20 +218,10 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
           <X size={20} />
         </button>
       </div>
-      <div className={`flex items-center gap-2 border-b border-white/10 p-3 ${sidebarCollapsed ? "lg:flex-col lg:px-2" : ""}`}>
+      <div className={`flex items-center gap-2 border-b border-white/10 p-3 ${sidebarCollapsed ? "lg:flex-col lg:items-center lg:px-2" : ""}`}>
         <GlobalSearch compact={sidebarCollapsed} />
-        <button type="button" onClick={() => {
-          const next = !document.documentElement.classList.contains("dark");
-          document.documentElement.classList.toggle("dark", next);
-          window.localStorage.setItem("campushub-theme", next ? "dark" : "light");
-          window.dispatchEvent(new Event("campushub-theme-change"));
-        }} aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-          title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-          className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg border border-white/15 text-slate-200 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f3c64e]">
-          {darkMode ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
-        </button>
       </div>
-      <nav className={`flex-1 space-y-1 overflow-y-auto p-3 ${sidebarCollapsed ? "lg:px-2" : ""}`} aria-label="Main navigation">
+      <nav className={`sidebar-navigation-scroll flex-1 space-y-1 overflow-y-auto p-3 ${sidebarCollapsed ? "lg:px-2" : ""}`} aria-label="Main navigation">
         {primaryLinks.map((link) => {
           const isActive = pathname === link.href || (link.href !== "/admin" && link.href !== "/teacher" && link.href !== "/student" && pathname.startsWith(`${link.href}/`));
           const Icon = navigationIcons[link.label] ?? LayoutDashboard;
@@ -256,7 +237,7 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
               isActive
                 ? "bg-[#285487] text-white shadow-sm before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-full before:bg-[#f3c64e]"
                 : "text-slate-300 hover:bg-white/10 hover:text-white"
-            }`}
+            } ${sidebarCollapsed ? "lg:justify-center lg:px-0" : ""}`}
           >
             <Icon aria-hidden="true" size={19} className={isActive ? "text-[#f3c64e]" : "text-slate-300"} />
             <span className={sidebarCollapsed ? "lg:hidden" : ""}>{link.label}</span>
@@ -272,7 +253,7 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
             const Icon = navigationIcons[link.label] ?? Settings;
             return <Link key={link.href} href={link.href} aria-label={sidebarCollapsed ? link.label : undefined} title={sidebarCollapsed ? link.label : undefined} onClick={() => setMenuOpen(false)}
               aria-current={isActive ? "page" : undefined}
-              className={`relative mb-1 flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold ${isActive ? "bg-[#285487] text-white before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-full before:bg-[#f3c64e]" : "text-slate-300 hover:bg-white/10 hover:text-white"}`}>
+              className={`relative mb-1 flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold ${isActive ? "bg-[#285487] text-white before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-full before:bg-[#f3c64e]" : "text-slate-300 hover:bg-white/10 hover:text-white"} ${sidebarCollapsed ? "lg:justify-center lg:px-0" : ""}`}>
               <Icon aria-hidden="true" size={19} className={isActive ? "text-[#f3c64e]" : "text-slate-300"} />
               <span className={sidebarCollapsed ? "lg:hidden" : ""}>{link.label}</span>
             </Link>;

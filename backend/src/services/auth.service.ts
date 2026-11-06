@@ -67,14 +67,20 @@ export function toPublicUser(user: AuthUser): PublicUser {
 }
 
 export async function login(
-  email: string,
+  identifier: string,
   password: string,
   request?: Pick<Request, "user" | "ip">,
 ): Promise<{ user: PublicUser; token: string }> {
+  const normalizedIdentifier = identifier.trim();
   const user = await prisma.user.findUnique({
-    where: { email: email.toLowerCase() },
+    where: { loginId: normalizedIdentifier.toUpperCase() },
     include: authUserInclude,
-  });
+  }) ?? (normalizedIdentifier.includes("@")
+    ? await prisma.user.findUnique({
+        where: { email: normalizedIdentifier.toLowerCase() },
+        include: authUserInclude,
+      })
+    : null);
   const now = new Date();
   if (!user) {
     await bcrypt.compare(password, await dummyPasswordHash);
@@ -83,12 +89,12 @@ export async function login(
         await audit(tx, request, {
           action: "LOGIN_FAILED",
           entityType: "User",
-          after: { email: email.toLowerCase() },
+          after: { identifier: normalizedIdentifier },
         });
       }
-      await logAudit({ action: "LOGIN_FAILED", entity: "User", details: { email: email.toLowerCase() }, ipAddress: request?.ip }, tx);
+      await logAudit({ action: "LOGIN_FAILED", entity: "User", details: { identifier: normalizedIdentifier }, ipAddress: request?.ip }, tx);
     });
-    throw new AppError("Invalid email or password", 401);
+    throw new AppError("Invalid login ID or password", 401);
   }
 
   if (!user.isActive || isAccountLocked(user.lockedUntil, now)) {
@@ -99,7 +105,7 @@ export async function login(
           action: "LOGIN_FAILED",
           entityType: "User",
           entityId: user.id,
-          after: { email: email.toLowerCase(), reason: "account_unavailable" },
+          after: { identifier: normalizedIdentifier, reason: "account_unavailable" },
         });
       }
       await logAudit({
@@ -110,7 +116,7 @@ export async function login(
         ipAddress: request?.ip,
       }, tx);
     });
-    throw new AppError("Invalid email or password", 401);
+    throw new AppError("Invalid login ID or password", 401);
   }
 
   if (!(await bcrypt.compare(password, user.passwordHash))) {
@@ -133,7 +139,7 @@ export async function login(
         action: "LOGIN_FAILED",
         entity: "User",
         entityId: user.id,
-        details: { email: email.toLowerCase() },
+        details: { identifier: normalizedIdentifier },
         ipAddress: request?.ip,
       }, tx);
       if (request) {
@@ -141,7 +147,7 @@ export async function login(
           action: "LOGIN_FAILED",
           entityType: "User",
           entityId: user.id,
-          after: { email: email.toLowerCase() },
+          after: { identifier: normalizedIdentifier },
         });
       }
       if (shouldLock) {
@@ -154,7 +160,7 @@ export async function login(
         }, tx);
       }
     });
-    throw new AppError("Invalid email or password", 401);
+    throw new AppError("Invalid login ID or password", 401);
   }
 
   const signedInUser = await prisma.$transaction(async (tx) => {
@@ -175,7 +181,7 @@ export async function login(
         action: "LOGIN",
         entityType: "User",
         entityId: user.id,
-        after: { email: user.email },
+        after: { identifier: normalizedIdentifier },
       });
     }
     return updated;

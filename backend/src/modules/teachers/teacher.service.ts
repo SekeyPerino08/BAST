@@ -206,7 +206,6 @@ export async function createTeacherAccount(id: string, input: CreateTeacherAccou
     kind: "teacher",
     personId: id,
     email: input.email,
-    temporaryPassword: input.temporaryPassword,
   });
   await logAudit({
     userId: request?.user?.id,

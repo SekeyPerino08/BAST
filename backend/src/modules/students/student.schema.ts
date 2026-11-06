@@ -105,7 +105,6 @@ export const updateStatusSchema = z.object({
 
 export const createAccountSchema = z.object({
   email: z.string().trim().email().transform((value) => value.toLowerCase()),
-  temporaryPassword: z.string().min(8).max(128).optional(),
 });
 
 export type CreateStudentInput = z.infer<typeof createStudentSchema>;

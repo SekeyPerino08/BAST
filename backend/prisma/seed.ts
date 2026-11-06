@@ -15,6 +15,7 @@ async function seed(): Promise<void> {
     where: { email: "admin@uni.edu" },
     update: {
       passwordHash: passwordHashes.admin,
+      loginId: "ADMIN-0001",
       role: Role.ADMIN,
       firstName: "School",
       lastName: "Administrator",
@@ -22,6 +23,7 @@ async function seed(): Promise<void> {
     },
     create: {
       email: "admin@uni.edu",
+      loginId: "ADMIN-0001",
       passwordHash: passwordHashes.admin,
       role: Role.ADMIN,
       firstName: "School",
@@ -40,6 +42,7 @@ async function seed(): Promise<void> {
       where: { email: details.email },
       update: {
         passwordHash: passwordHashes.teacher,
+        loginId: details.employeeNo,
         role: Role.TEACHER,
         isActive: true,
         firstName: details.firstName,
@@ -48,6 +51,7 @@ async function seed(): Promise<void> {
       },
       create: {
         email: details.email,
+        loginId: details.employeeNo,
         passwordHash: passwordHashes.teacher,
         role: Role.TEACHER,
         firstName: details.firstName,
@@ -185,6 +189,7 @@ async function seed(): Promise<void> {
             where: { email: studentEmail },
             update: {
               passwordHash: passwordHashes.student,
+              loginId: studentNo,
               role: index === 8 ? Role.ALUMNI : Role.STUDENT,
               isActive: true,
               firstName,
@@ -193,6 +198,7 @@ async function seed(): Promise<void> {
             },
             create: {
               email: studentEmail,
+              loginId: studentNo,
               passwordHash: passwordHashes.student,
               role: index === 8 ? Role.ALUMNI : Role.STUDENT,
               isActive: true,

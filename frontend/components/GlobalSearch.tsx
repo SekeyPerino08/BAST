@@ -135,7 +135,7 @@ export function GlobalSearch({ compact = false }: Readonly<{ compact?: boolean }
       onClick={() => setOpen(true)}
       aria-label="Search (Control or Command K)"
       title={compact ? "Search" : undefined}
-      className={`inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/15 bg-white/[0.07] px-3 text-sm text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f3c64e] ${compact ? "justify-center px-0 lg:w-10" : ""}`}
+      className={`inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/15 bg-white/[0.07] px-3 text-sm text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f3c64e] ${compact ? "justify-center px-0 lg:w-10" : "w-full justify-start"}`}
     >
       <Search size={16} aria-hidden="true" className="shrink-0" />
       <span className={compact ? "lg:hidden" : "hidden sm:inline"}>Search</span>

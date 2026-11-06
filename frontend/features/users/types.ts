@@ -3,6 +3,7 @@ import type { Role } from "../../types/auth";
 export interface ManagedUser {
   id: string;
   email: string;
+  loginId: string | null;
   role: Role;
   isActive: boolean;
   mustChangePassword: boolean;

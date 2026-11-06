@@ -65,7 +65,7 @@ export function useCreateStudentAccount() {
   const [isPending, setIsPending] = useState(false);
   const createAccount = async (variables: {
     id: string;
-    input: { email: string; temporaryPassword?: string };
+    input: { email: string };
   }) => {
     setIsPending(true);
     try {

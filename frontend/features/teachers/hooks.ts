@@ -37,7 +37,7 @@ export function useUpdateTeacherStatus() {
 export function useCreateTeacherAccount() {
   const client = useQueryClient();
   const [isPending, setPending] = useState(false);
-  async function createAccount(id: string, input: { email: string; temporaryPassword?: string }) {
+  async function createAccount(id: string, input: { email: string }) {
     setPending(true);
     try {
       const result = (await createTeacherAccount(id, input)).data;

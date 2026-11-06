@@ -22,6 +22,15 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
+.sidebar-navigation-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sidebar-navigation-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 :focus-visible {
   outline: 2px solid #4f46e5;
   outline-offset: 2px;
@@ -153,4 +162,34 @@ html.dark {
   table {
     font-size: 0.8125rem;
   }
+}
+
+.dark .login-page .login-form-panel {
+  background-color: #fff !important;
+  color: #0f172a !important;
+}
+
+.dark .login-page .login-form-panel [class~="text-slate-950"],
+.dark .login-page .login-form-panel [class~="text-slate-800"] {
+  color: #17365d !important;
+}
+
+.dark .login-page .login-form-panel [class~="text-slate-600"],
+.dark .login-page .login-form-panel [class~="text-slate-500"],
+.dark .login-page .login-form-panel [class~="text-slate-400"] {
+  color: #526783 !important;
+}
+
+.dark .login-page .login-form-panel input {
+  border-color: #cbd5e1 !important;
+  background-color: #fff !important;
+  color: #0f172a !important;
+}
+
+.dark .login-page .login-form-panel input::placeholder {
+  color: #64748b !important;
+}
+
+.dark .login-page .login-form-panel [class~="border-slate-200"] {
+  border-color: #e2e8f0 !important;
 }

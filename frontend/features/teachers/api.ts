@@ -18,8 +18,8 @@ export async function updateTeacher(id: string, input: Partial<Omit<TeacherInput
 export async function updateTeacherStatus(id: string, input: { isActive: boolean; reason?: string }) {
   return apiFetch<{ data: Teacher }>(`/api/teachers/${encodeURIComponent(id)}/status`, { method: "PATCH", body: JSON.stringify(input) });
 }
-export async function createTeacherAccount(id: string, input: { email: string; temporaryPassword?: string }) {
-  return apiFetch<{ data: { teacherId: string; user: { id: string; email: string; role: "TEACHER"; isActive: boolean }; temporaryPassword: string } }>(
+export async function createTeacherAccount(id: string, input: { email: string }) {
+  return apiFetch<{ data: { teacherId: string; user: { id: string; email: string; loginId: string; role: "TEACHER"; isActive: boolean }; temporaryPassword: string } }>(
     `/api/teachers/${encodeURIComponent(id)}/account`, { method: "POST", body: JSON.stringify(input) },
   );
 }

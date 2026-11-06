@@ -37,12 +37,14 @@ Never point automated tests or local development at the production Neon branch.
 
 Open `http://localhost:3000`. Browser API requests use the Next.js `/api` rewrite. The API permits only exact origins listed in `CORS_ORIGIN`; write requests must include an allowed `Origin` or `Referer`.
 
-The demo seed currently creates these accounts with `password123`; change those credentials immediately outside isolated local/test data:
+The demo seed currently creates these accounts with `password123`; these are for isolated local/test data only. Log in using the listed ID (email also remains accepted for these seeded legacy accounts):
 
-- Admin: `admin@uni.edu`
-- Faculty: `reyes@uni.edu`, `tan@uni.edu`
-- Student: `ben.ocampo@uni.edu`
+- Admin: `ADMIN-0001` (`admin@uni.edu`)
+- Faculty: `TCH-0002` (Reyes), `TCH-0001` (Tan)
+- Student: `STU-2025-0002` (Ben)
 - Alumni: `iris.co@uni.edu`
+
+Newly provisioned student accounts use their student number/LRN and the one-time starter password `student1234`; faculty use their employee ID and `faculty1234`. Both must change the starter password before accessing the rest of the system. New admin accounts use the custom Admin ID set during creation and a generated or admin-supplied temporary password, which must also be changed on first sign-in. Share all temporary credentials securely. `studentNo` is the current database field used as the student LRN/login ID.
 
 ## Environment variables
 

@@ -19,7 +19,13 @@ import type { ManagedUser, UsersParams } from "../types";
 const defaults = { page: "1", pageSize: "25", sortBy: "createdAt", order: "desc" };
 const sortKeys = ["email", "createdAt", "lastLoginAt"] as const;
 const emailSchema = z.object({ email: z.string().trim().email("Enter a valid email").transform((email) => email.toLowerCase()) });
-const adminSchema = emailSchema.extend({ temporaryPassword: z.string().max(128, "Password is too long").optional() });
+const adminSchema = emailSchema.extend({
+  adminId: z.string().trim().min(3, "Admin ID must be at least 3 characters")
+    .max(32, "Admin ID must be at most 32 characters")
+    .regex(/^[A-Za-z0-9_-]+$/, "Use letters, numbers, hyphens, or underscores")
+    .transform((value) => value.toUpperCase()),
+  temporaryPassword: z.string().max(128, "Password is too long").optional(),
+});
 type EmailValues = z.infer<typeof emailSchema>;
 type AdminValues = z.infer<typeof adminSchema>;
 type DialogState =
@@ -112,6 +118,7 @@ export function UsersPage() {
       setCreatePending(true);
       const created = await createAdminUser({
         email: values.email,
+        adminId: values.adminId,
         ...(values.temporaryPassword ? { temporaryPassword: values.temporaryPassword } : {}),
       });
       await queryClient.invalidateQueries({ queryKey: userKeys.all });
@@ -121,6 +128,8 @@ export function UsersPage() {
       if (error instanceof ApiError && error.code === "EMAIL_TAKEN") {
         setEmailError("This email is already in use.");
         adminForm.setError("email", { message: "This email is already in use." });
+      } else if (error instanceof ApiError && error.code === "LOGIN_ID_EXISTS") {
+        adminForm.setError("adminId", { message: "This Admin ID is already in use." });
       } else adminForm.setError("root.server", { message: apiMessage(error, "Could not create the admin account.") });
     } finally { setCreatePending(false); }
   }
@@ -235,12 +244,13 @@ export function UsersPage() {
     </section>
 
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      {users.isError ? <ErrorState title="Could not load users" error={users.error} retry={() => void users.refetch()} /> : users.isLoading ? <div className="overflow-x-auto"><table className="w-full min-w-[1050px]"><TableSkeleton columns={7} /></table></div> : !users.data?.data.length ? <EmptyState title="No user accounts found" description="Adjust your filters or create an admin account." /> : <>
+      {users.isError ? <ErrorState title="Could not load users" error={users.error} retry={() => void users.refetch()} /> : users.isLoading ? <div className="overflow-x-auto"><table className="w-full min-w-[1180px]"><TableSkeleton columns={8} /></table></div> : !users.data?.data.length ? <EmptyState title="No user accounts found" description="Adjust your filters or create an admin account." /> : <>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1050px] text-left text-sm">
+          <table className="w-full min-w-[1180px] text-left text-sm">
             <thead className="bg-slate-50">
               <tr>
                 <SortableHeader label="Email" sortKey="email" current={params.sortBy} order={params.order} onSort={(key) => url.update({ sortBy: key, order: params.order === "asc" ? "desc" : "asc" })} />
+                <th scope="col" className="px-4 py-3 text-xs font-semibold uppercase text-slate-500">Login ID</th>
                 <th scope="col" className="px-4 py-3 text-xs font-semibold uppercase text-slate-500">Role</th>
                 <th scope="col" className="px-4 py-3 text-xs font-semibold uppercase text-slate-500">Linked person</th>
                 <th scope="col" className="px-4 py-3 text-xs font-semibold uppercase text-slate-500">Status</th>
@@ -252,6 +262,7 @@ export function UsersPage() {
             <tbody className="divide-y divide-slate-100">
               {users.data.data.map((entry) => <tr key={entry.id} className="align-top">
                 <td className="px-4 py-4 font-medium text-slate-900">{entry.email}</td>
+                <td className="px-4 py-4 font-mono text-xs font-semibold text-slate-700">{entry.loginId ?? "—"}</td>
                 <td className="px-4 py-4"><StatusBadge label={entry.role} color="indigo" /></td>
                 <td className="px-4 py-4">{entry.person ? <Link href={`/admin/${entry.person.type === "STUDENT" ? "students" : "teachers"}/${encodeURIComponent(entry.person.id)}`} className="inline-flex items-start gap-2 text-indigo-700 hover:underline"><UserRound size={16} className="mt-0.5" /><span>{entry.person.name}<span className="block text-xs text-slate-500">{entry.person.number}</span></span></Link> : <span className="text-slate-400">—</span>}</td>
                 <td className="px-4 py-4"><StatusBadge label={entry.isActive ? "Active" : "Inactive"} color={entry.isActive ? "green" : "gray"} /></td>
@@ -283,9 +294,10 @@ export function UsersPage() {
     </section>
 
     {dialog?.type === "add" && <Modal title={passwordOnce ? "Admin account created" : "Add admin account"} onClose={closeDialog} disableClose={pending || passwordOnce !== null} size="max-w-md">
-      {passwordOnce ? <TemporaryPasswordPanel password={passwordOnce} email={adminForm.getValues("email")} personType="admin" onDismiss={closeDialog} /> :
+      {passwordOnce ? <TemporaryPasswordPanel password={passwordOnce} email={adminForm.getValues("email")} loginId={adminForm.getValues("adminId")} personType="admin" onDismiss={closeDialog} /> :
         <form onSubmit={adminForm.handleSubmit((values) => void submitAdmin(values))} className="space-y-4" noValidate>
           <FormField label="Email address" name="admin-email" errorId="admin-email-error" error={emailError || adminForm.formState.errors.email?.message}><input id="admin-email" type="email" autoComplete="email" aria-invalid={Boolean(emailError || adminForm.formState.errors.email)} aria-describedby={emailError || adminForm.formState.errors.email ? "admin-email-error" : undefined} {...adminForm.register("email")} className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm" /></FormField>
+          <FormField label="Custom Admin ID" name="admin-id" errorId="admin-id-error" error={adminForm.formState.errors.adminId?.message}><input id="admin-id" autoComplete="username" aria-invalid={Boolean(adminForm.formState.errors.adminId)} aria-describedby={adminForm.formState.errors.adminId ? "admin-id-error" : undefined} {...adminForm.register("adminId")} className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm uppercase" /></FormField>
           <FormField label="Temporary password (optional; blank generates one)" name="admin-password" errorId="admin-password-error" error={adminForm.formState.errors.temporaryPassword?.message}><input id="admin-password" type="password" autoComplete="new-password" aria-describedby={adminForm.formState.errors.temporaryPassword ? "admin-password-error" : undefined} {...adminForm.register("temporaryPassword")} className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm" /></FormField>
           {adminForm.formState.errors.root?.server && <p role="alert" className="text-sm text-rose-700">{adminForm.formState.errors.root.server.message}</p>}
           <DialogActions busy={createPending} submitLabel="Create admin" onCancel={closeDialog} />

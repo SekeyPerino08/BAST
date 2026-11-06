@@ -20,7 +20,7 @@ import { clearAuthCookie, setAuthCookie } from "../utils/cookies.js";
 
 export const loginController: RequestHandler<object, unknown, LoginBody> = async (req, res, next) => {
   try {
-    const result = await login(req.body.email, req.body.password, req);
+    const result = await login(req.body.identifier, req.body.password, req);
     setAuthCookie(res, result.token);
     res.status(200).json({ user: result.user });
   } catch (error) {

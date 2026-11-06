@@ -50,13 +50,13 @@ export async function updateStudentStatus(
 
 export interface StudentAccountResult {
   studentId: string;
-  user: { id: string; email: string; role: "STUDENT"; isActive: boolean };
+  user: { id: string; email: string; loginId: string; role: "STUDENT"; isActive: boolean };
   temporaryPassword: string;
 }
 
 export async function createStudentAccount(
   id: string,
-  input: { email: string; temporaryPassword?: string },
+  input: { email: string },
 ): Promise<StudentAccountResult> {
   const response = await apiFetch<{ data: StudentAccountResult }>(
     `/api/students/${encodeURIComponent(id)}/account`,

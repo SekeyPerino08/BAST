@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { EnrollmentStatus, Role, Sex } from "@prisma/client";
 import request from "supertest";
 import { loginSchema, passwordResetCompleteSchema, passwordResetRequestSchema } from "../src/schemas/auth.schema.js";
+import { createAdminUserSchema } from "../src/modules/users/user.schema.js";
 import { createStudentSchema, updateStatusSchema } from "../src/modules/students/student.schema.js";
 import { saveGradesSchema } from "../src/modules/grades/grades.schema.js";
 import {
@@ -27,8 +28,18 @@ describe("security and data quality rules", () => {
     expect(parsed.firstName).toBe("Jane Marie");
     expect(parsed.lastName).toBe("Doe");
     expect(parsed).not.toHaveProperty("unexpected");
-    expect(loginSchema.parse({ email: "  USER@Example.COM ", password: "x" }).email)
+    expect(loginSchema.parse({ identifier: "  USER@Example.COM ", password: "x" }).identifier)
       .toBe("user@example.com");
+    expect(loginSchema.parse({ identifier: " stu-123 ", password: "x" }).identifier)
+      .toBe("STU-123");
+    expect(createAdminUserSchema.parse({
+      email: " ADMIN@SCHOOL.EDU ",
+      adminId: " admin-001 ",
+    })).toMatchObject({ email: "admin@school.edu", adminId: "ADMIN-001" });
+    expect(createAdminUserSchema.safeParse({
+      email: "admin@school.edu",
+      adminId: "admin@school.edu",
+    }).success).toBe(false);
   });
 
   it("validates grade ranges, precision, feed values, and enrollment states", () => {
@@ -115,17 +126,17 @@ integrationDescribe("API authorization and integration coverage", () => {
     app = loadedApp;
     prisma = db.prisma;
     const credentials = [
-      ["admin@uni.edu", "admin"],
-      ["reyes@uni.edu", "teacher"],
-      ["ben.ocampo@uni.edu", "student"],
+      ["ADMIN-0001", "admin"],
+      ["TCH-0002", "teacher"],
+      ["STU-2025-0002", "student"],
       ["iris.co@uni.edu", "alumni"],
     ] as const;
-    for (const [email, key] of credentials) {
+    for (const [identifier, key] of credentials) {
       const response = await request(app)
         .post("/api/auth/login")
         .set("Origin", "http://localhost:3000")
-        .send({ email, password: "password123" });
-      expect(response.status, `login ${email}`).toBe(200);
+        .send({ identifier, password: "password123" });
+      expect(response.status, `login ${identifier}`).toBe(200);
       sessionCookies.set(key, response.headers["set-cookie"][0].split(";")[0]);
     }
 
@@ -282,10 +293,10 @@ integrationDescribe("API authorization and integration coverage", () => {
   });
 
   it("requires a trusted origin for state-changing requests", async () => {
-    expect((await request(app).post("/api/auth/login").send({ email: "admin@uni.edu", password: "password123" })).status).toBe(403);
+    expect((await request(app).post("/api/auth/login").send({ identifier: "ADMIN-0001", password: "password123" })).status).toBe(403);
     expect((await request(app).post("/api/auth/login")
       .set("Origin", "https://attacker.example")
-      .send({ email: "admin@uni.edu", password: "password123" })).status).toBe(403);
+      .send({ identifier: "ADMIN-0001", password: "password123" })).status).toBe(403);
   });
 
   it("does not create grade audit entries for rejected writes", async () => {
