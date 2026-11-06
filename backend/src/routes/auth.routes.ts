@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { rateLimit } from "express-rate-limit";
+import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 import { createHmac } from "node:crypto";
 import { CHANGE_PASSWORD_RATE_LIMIT, LOGIN_RATE_LIMIT } from "../config/limits.js";
 import {
@@ -45,7 +45,7 @@ const loginIdentifierLimiter = rateLimit({
   limit: LOGIN_RATE_LIMIT,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => identifierKey(req.body?.identifier, req.ip ?? "unknown"),
+  keyGenerator: (req) => identifierKey(req.body?.identifier, ipKeyGenerator(req.ip ?? "unknown")),
   handler: (req, res) => {
     res.status(429).json({ message: "Too many sign-in attempts. Try again later.", code: "RATE_LIMITED", requestId: String(req.id) });
   },
@@ -64,7 +64,7 @@ const resetEmailLimiter = rateLimit({
   limit: 5,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => identifierKey(req.body?.email, req.ip ?? "unknown"),
+  keyGenerator: (req) => identifierKey(req.body?.email, ipKeyGenerator(req.ip ?? "unknown")),
   handler: (req, res) => {
     res.status(429).json({ message: "Too many password reset attempts. Try again later.", code: "RATE_LIMITED", requestId: String(req.id) });
   },

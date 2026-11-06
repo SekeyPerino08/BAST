@@ -105,7 +105,7 @@ export default function LoginPage() {
             <form onSubmit={onSubmit} noValidate className="space-y-5">
               <div>
                 <label htmlFor="identifier" className="mb-2 block text-sm font-semibold text-slate-800">
-                  School login ID
+                  LRN / ID Number
                 </label>
                 <div className="relative">
                   <UserRound size={18} aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -119,14 +119,14 @@ export default function LoginPage() {
                     aria-invalid={Boolean(errors.identifier)}
                     aria-describedby={errors.identifier ? "identifier-error" : "identifier-help"}
                     className="min-h-12 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-4 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-[#285487] focus:ring-4 focus:ring-[#285487]/10 aria-[invalid=true]:border-rose-500"
-                    placeholder="Enter your LRN, Faculty ID, or Admin ID"
+                    placeholder="Enter your LRN or ID Number"
                   />
                 </div>
                 {errors.identifier ? (
                   <p id="identifier-error" className="mt-1.5 text-sm text-rose-700">
                     {errors.identifier.message}
                   </p>
-                ) : <p id="identifier-help" className="mt-1.5 text-xs text-slate-600">Students: LRN · Faculty: ID number · Admins: custom Admin ID</p>}
+                ) : <p id="identifier-help" className="mt-1.5 text-xs text-slate-600">Enter your LRN or ID number.</p>}
               </div>
 
               <div>
