@@ -15,8 +15,8 @@ export function dashboardPath(role: Role): string {
 
 export function userDisplayName(user: {
   email: string;
+  firstName?: string;
   profile: { firstName?: string; lastName?: string } | null;
 }): string {
-  const name = [user.profile?.firstName, user.profile?.lastName].filter(Boolean).join(" ");
-  return name || user.email;
+  return user.profile?.firstName || user.firstName || user.email;
 }

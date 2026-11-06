@@ -100,7 +100,7 @@ async function findStudents(role: Role, query: string): Promise<SearchStudent[]>
   return [];
 }
 
-export function GlobalSearch() {
+export function GlobalSearch({ compact = false }: Readonly<{ compact?: boolean }>) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -134,11 +134,12 @@ export function GlobalSearch() {
       type="button"
       onClick={() => setOpen(true)}
       aria-label="Search (Control or Command K)"
-      className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-700"
+      title={compact ? "Search" : undefined}
+      className={`inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/15 bg-white/[0.07] px-3 text-sm text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f3c64e] ${compact ? "justify-center px-0 lg:w-10" : ""}`}
     >
-      <Search size={16} aria-hidden="true" />
-      <span className="hidden sm:inline">Search</span>
-      <kbd className="hidden rounded border border-slate-300 bg-white px-1.5 py-0.5 text-xs text-slate-600 sm:inline-flex">Ctrl/⌘ K</kbd>
+      <Search size={16} aria-hidden="true" className="shrink-0" />
+      <span className={compact ? "lg:hidden" : "hidden sm:inline"}>Search</span>
+      <kbd className={`rounded border border-white/15 bg-black/10 px-1.5 py-0.5 text-xs text-slate-300 ${compact ? "lg:hidden" : "hidden sm:inline-flex"}`}>Ctrl/⌘ K</kbd>
     </button>
     {open && <Dialog title="Search CampusHub" description="Find a student you are allowed to view, or jump to a page." onClose={close} size="max-w-2xl">
       <label className="relative block">

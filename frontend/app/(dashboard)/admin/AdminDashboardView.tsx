@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRef, useState } from "react";
 import {
   Activity,
   ArrowUpRight,
@@ -15,6 +16,7 @@ import {
   UserRoundX,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { TouchEvent } from "react";
 import { EmptyState, ErrorState } from "../../../components/shared";
 import { userDisplayName } from "../../../lib/auth";
 import { useAuth } from "../../../providers/AuthProvider";
@@ -115,6 +117,9 @@ function ProgressCard({
 export function AdminDashboardView() {
   const { user } = useAuth();
   const dashboard = useAdminDashboard();
+  const touchStartY = useRef<number | null>(null);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [gestureRefreshing, setGestureRefreshing] = useState(false);
   const data = dashboard.data;
   const gradeProgress = data?.gradeProgress.expectedEntries
     ? Math.min(100, data.gradeProgress.percentComplete)
@@ -123,8 +128,46 @@ export function AdminDashboardView() {
     ? Math.round((data.attendanceToday.classesWithRecords / data.attendanceToday.classesExpected) * 100)
     : 0;
 
+  const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    touchStartY.current = window.scrollY <= 0 ? event.touches[0]?.clientY ?? null : null;
+    setPullDistance(0);
+  };
+  const handleTouchMove = (event: TouchEvent<HTMLDivElement>) => {
+    if (touchStartY.current === null || dashboard.isFetching || gestureRefreshing) return;
+    setPullDistance(Math.min(100, Math.max(0, (event.touches[0]?.clientY ?? touchStartY.current) - touchStartY.current)));
+  };
+  const handleTouchEnd = () => {
+    const shouldRefresh = pullDistance >= 72 && !dashboard.isFetching && !gestureRefreshing;
+    touchStartY.current = null;
+    setPullDistance(0);
+    if (shouldRefresh) {
+      setGestureRefreshing(true);
+      void dashboard.refetch().finally(() => setGestureRefreshing(false));
+    }
+  };
+  const handleTouchCancel = () => {
+    touchStartY.current = null;
+    setPullDistance(0);
+  };
+
   return (
-    <div className="mx-auto max-w-[1500px] space-y-6">
+    <div
+      className="mx-auto max-w-[1500px] space-y-6"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchCancel}
+    >
+      {(pullDistance > 0 || gestureRefreshing) && (
+        <div
+          className="fixed left-1/2 top-[4.75rem] z-30 inline-flex -translate-x-1/2 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-[#17365d] shadow-lg dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+          role="status"
+          aria-live="polite"
+        >
+          <RefreshCw size={14} aria-hidden="true" className={gestureRefreshing ? "animate-spin" : ""} />
+          {gestureRefreshing ? "Refreshing dashboard…" : pullDistance >= 72 ? "Release to refresh" : "Pull down to refresh"}
+        </div>
+      )}
       <section className="relative overflow-hidden rounded-3xl bg-[#102747] px-5 py-6 text-white shadow-[0_10px_30px_rgba(16,39,71,0.14)] sm:px-8 sm:py-8">
         <div aria-hidden="true" className="pointer-events-none absolute -right-14 -top-24 size-72 rounded-full border-[34px] border-white/[0.045]" />
         <div aria-hidden="true" className="pointer-events-none absolute -bottom-28 right-40 size-64 rounded-full border-[24px] border-[#f3c64e]/[0.09]" />
@@ -132,7 +175,7 @@ export function AdminDashboardView() {
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#f3c64e]">School administration</p>
             <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
-              Welcome back{user ? `, ${userDisplayName(user)}` : ""}
+              Welcome back{user ? `, ${user.profile?.firstName ?? user.firstName ?? userDisplayName(user)}` : ""}
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-blue-100">
               A clear view of school operations, student enrollment, and today&apos;s priorities.
@@ -143,11 +186,6 @@ export function AdminDashboardView() {
               {data?.context?.currentTerm && <><span className="text-white/40">/</span>{data.context.currentTerm.name}</>}
             </div>
           </div>
-          <button type="button" onClick={() => void dashboard.refetch()} disabled={dashboard.isFetching}
-            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f3c64e] disabled:opacity-60">
-            <RefreshCw size={16} aria-hidden="true" className={dashboard.isFetching ? "animate-spin" : ""} />
-            {dashboard.isFetching ? "Refreshing…" : "Refresh"}
-          </button>
         </div>
       </section>
 

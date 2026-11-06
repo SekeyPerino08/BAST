@@ -26,6 +26,7 @@ const dummyPasswordHash = bcrypt.hash("invalid-login-dummy-value", 12);
 export interface PublicUser {
   id: string;
   email: string;
+  firstName: string;
   role: Role;
   mustChangePassword: boolean;
   profile:
@@ -39,6 +40,7 @@ export function toPublicUser(user: AuthUser): PublicUser {
     return {
       id: user.id,
       email: user.email,
+      firstName: user.firstName,
       role: user.role,
       mustChangePassword: user.mustChangePassword,
       profile: { type: "student", ...user.student },
@@ -48,6 +50,7 @@ export function toPublicUser(user: AuthUser): PublicUser {
     return {
       id: user.id,
       email: user.email,
+      firstName: user.firstName,
       role: user.role,
       mustChangePassword: user.mustChangePassword,
       profile: { type: "teacher", ...user.teacher },
@@ -56,6 +59,7 @@ export function toPublicUser(user: AuthUser): PublicUser {
   return {
     id: user.id,
     email: user.email,
+    firstName: user.firstName,
     role: user.role,
     mustChangePassword: user.mustChangePassword,
     profile: null,

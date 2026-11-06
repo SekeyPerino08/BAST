@@ -104,7 +104,7 @@ export function PageHeader({
 }: Readonly<{ eyebrow?: string; title: string; description?: string; actions?: ReactNode }>) {
   return <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
     <div className="min-w-0">
-      {eyebrow && <p className="text-sm font-semibold uppercase tracking-wide text-indigo-800">{eyebrow}</p>}
+      {eyebrow && <p className="text-sm font-semibold uppercase tracking-wide text-[#285487] dark:text-blue-200">{eyebrow}</p>}
       <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">{title}</h1>
       {description && <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">{description}</p>}
     </div>

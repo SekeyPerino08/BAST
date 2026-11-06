@@ -105,7 +105,7 @@ export function StudentsList() {
             <Link href="/admin/imports?type=students" className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
               Import CSV
             </Link>
-            <button type="button" onClick={() => { setSelected(null); setDialog("create"); }} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+            <button type="button" onClick={() => { setSelected(null); setDialog("create"); }} className="inline-flex items-center gap-2 rounded-xl bg-[#17365d] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#214978] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285487]">
               <CirclePlus size={18} aria-hidden="true" /> Add student
             </button>
           </>} />
@@ -115,17 +115,17 @@ export function StudentsList() {
             <label className="relative block">
               <span className="sr-only">Search students</span>
               <Search size={18} aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input key={values.search ?? ""} defaultValue={values.search ?? ""} onChange={(event) => updateSearch(event.target.value)} placeholder="Search name or student number" className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10" />
+              <input key={values.search ?? ""} defaultValue={values.search ?? ""} onChange={(event) => updateSearch(event.target.value)} placeholder="Search name or student number" className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[#285487] focus:ring-2 focus:ring-[#285487]/10" />
             </label>
             <label>
               <span className="sr-only">Filter by status</span>
-              <select value={params.status ?? ""} onChange={(event) => updateQuery({ status: event.target.value || null })} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-indigo-500">
+              <select value={params.status ?? ""} onChange={(event) => updateQuery({ status: event.target.value || null })} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-[#285487]">
                 {statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
               </select>
             </label>
             <label>
               <span className="sr-only">Filter by grade level</span>
-              <select value={params.gradeLevel ?? ""} onChange={(event) => updateQuery({ gradeLevel: event.target.value || null })} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-indigo-500">
+              <select value={params.gradeLevel ?? ""} onChange={(event) => updateQuery({ gradeLevel: event.target.value || null })} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-[#285487]">
                 <option value="">All grades</option>
                 {[7, 8, 9, 10, 11, 12].map((grade) => <option key={grade} value={grade}>Grade {grade}</option>)}
               </select>
@@ -161,10 +161,10 @@ export function StudentsList() {
                   {query.isLoading && !response
                     ? <TableSkeleton columns={8} rows={pageSize} />
                     : <tbody className="divide-y divide-slate-100">{response?.data.map((item) => (
-                        <tr key={item.id} className="hover:bg-slate-50/70">
+                        <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800">
                           {visibleColumns.studentNo && <td className="whitespace-nowrap px-4 py-4 font-medium text-slate-700">{item.studentNo}</td>}
                           {visibleColumns.name && <td className="whitespace-nowrap px-4 py-4">
-                            <Link href={`/admin/students/${item.id}`} className="font-semibold text-slate-900 hover:text-indigo-700">
+                            <Link href={`/admin/students/${item.id}`} className="font-semibold text-slate-900 hover:text-[#285487] dark:hover:text-blue-200">
                               {item.lastName}, {item.firstName}{item.middleName ? ` ${item.middleName.charAt(0)}.` : ""}
                             </Link>
                           </td>}

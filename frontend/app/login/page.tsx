@@ -68,7 +68,7 @@ export default function LoginPage() {
               <GraduationCap size={28} aria-hidden="true" />
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              School Management System
+              Marigondon National High School System
             </h1>
             <p className="mt-2 text-sm text-slate-500">Sign in to continue</p>
           </div>

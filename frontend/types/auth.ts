@@ -12,6 +12,7 @@ export interface AuthProfile {
 export interface AuthUser {
   id: string;
   email: string;
+  firstName?: string;
   role: Role;
   mustChangePassword: boolean;
   profile: AuthProfile | null;

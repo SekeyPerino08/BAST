@@ -11,13 +11,10 @@ import {
   BookOpen,
   CalendarCheck,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   ClipboardList,
   FileClock,
   GraduationCap,
   LayoutDashboard,
-  LogOut,
   Menu,
   Moon,
   School,
@@ -31,7 +28,6 @@ import type { LucideIcon } from "lucide-react";
 import { useAuth } from "../providers/AuthProvider";
 import { userDisplayName } from "../lib/auth";
 import type { Role } from "../types/auth";
-import { useCurrentSchoolYear } from "../features/school-years/hooks";
 import { GlobalSearch } from "./GlobalSearch";
 
 const navigation: Record<Role, { label: string; href: string; comingSoon?: boolean; group?: string }[]> = {
@@ -113,13 +109,38 @@ function getThemeSnapshot() {
 export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>) {
   const { user, logout } = useAuth();
   const router = useRouter();
-  const currentSchoolYear = useCurrentSchoolYear();
   const [menuOpen, setMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const darkMode = useSyncExternalStore(subscribeToTheme, getThemeSnapshot, () => false);
   const pathname = usePathname();
   const menuRef = useRef<HTMLDetailsElement>(null);
   const mobileNavigationRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const collapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearCollapseTimer = () => {
+    if (collapseTimerRef.current) clearTimeout(collapseTimerRef.current);
+    collapseTimerRef.current = null;
+  };
+  const scheduleCollapse = () => {
+    clearCollapseTimer();
+    collapseTimerRef.current = setTimeout(() => {
+      const sidebar = sidebarRef.current;
+      if (sidebar?.matches(":hover") || sidebar?.contains(document.activeElement)) return;
+      setSidebarCollapsed(true);
+    }, 3000);
+  };
+  useEffect(() => {
+    if (sidebarCollapsed) {
+      clearCollapseTimer();
+      return;
+    }
+    collapseTimerRef.current = setTimeout(() => {
+      const sidebar = sidebarRef.current;
+      if (sidebar?.matches(":hover") || sidebar?.contains(document.activeElement)) return;
+      setSidebarCollapsed(true);
+    }, 3000);
+    return clearCollapseTimer;
+  }, [sidebarCollapsed]);
   useEffect(() => {
     if (user?.mustChangePassword) router.replace("/change-password");
   }, [router, user]);
@@ -168,22 +189,34 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
   const primaryLinks = links.filter((link) => !("group" in link));
   const administrationLinks = links.filter((link) => "group" in link);
   const sidebar = (
-    <aside className={`flex h-full w-72 flex-col border-r border-[#263d60] bg-[#102747] text-white transition-[width] duration-200 ${sidebarCollapsed ? "lg:w-[5.5rem]" : "lg:w-72"}`}>
-      <div className={`flex h-24 items-center gap-3 border-b border-white/10 px-4 ${sidebarCollapsed ? "lg:justify-center" : "sm:px-5"}`}>
-        <Link
-          href={user.role === "ADMIN" ? "/admin" : user.role === "TEACHER" ? "/teacher" : user.role === "ALUMNI" ? "/alumni" : "/student"}
-          onClick={() => setMenuOpen(false)}
-          aria-label="Marigondon National High School home"
-          className="flex min-w-0 items-center gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f3c64e]"
+    <aside
+      ref={sidebarRef}
+      onMouseEnter={clearCollapseTimer}
+      onMouseLeave={scheduleCollapse}
+      onFocus={clearCollapseTimer}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) scheduleCollapse();
+      }}
+      className={`flex h-full w-72 flex-col border-r border-[#263d60] bg-[#102747] text-white transition-[width] duration-200 ${sidebarCollapsed ? "lg:w-[5.5rem]" : "lg:w-72"}`}
+    >
+      <div className={`flex h-24 items-center gap-3 border-b border-white/10 px-4 ${sidebarCollapsed ? "lg:justify-center lg:px-0" : "sm:px-5"}`}>
+        <button
+          type="button"
+          onClick={() => {
+            setSidebarCollapsed((collapsed) => !collapsed);
+            setMenuOpen(false);
+          }}
+          aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-pressed={sidebarCollapsed}
+          title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="flex min-w-0 items-center gap-3 rounded-lg text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f3c64e]"
         >
-          <span className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#fffdf5] p-1.5 shadow-sm">
-            <Image src="/MNHS%20logo.jpg" alt="Marigondon National High School seal" width={52} height={54} priority className="size-full object-contain" />
-          </span>
+          <Image src="/MNHS%20logo.png" alt="Marigondon National High School seal" width={56} height={56} priority className={`size-14 shrink-0 object-contain ${sidebarCollapsed ? "lg:size-12" : ""}`} />
           <span className={`min-w-0 ${sidebarCollapsed ? "lg:hidden" : ""}`}>
             <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-[#f3c64e]">CampusHub</span>
             <span className="mt-1 block max-w-40 text-sm font-bold leading-tight text-white">Marigondon National High School</span>
           </span>
-        </Link>
+        </button>
         <button
           type="button"
           className="ml-auto rounded-lg p-2 text-slate-300 hover:bg-white/10 lg:hidden"
@@ -192,6 +225,19 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
           tabIndex={menuOpen ? 0 : -1}
         >
           <X size={20} />
+        </button>
+      </div>
+      <div className={`flex items-center gap-2 border-b border-white/10 p-3 ${sidebarCollapsed ? "lg:flex-col lg:px-2" : ""}`}>
+        <GlobalSearch compact={sidebarCollapsed} />
+        <button type="button" onClick={() => {
+          const next = !document.documentElement.classList.contains("dark");
+          document.documentElement.classList.toggle("dark", next);
+          window.localStorage.setItem("campushub-theme", next ? "dark" : "light");
+          window.dispatchEvent(new Event("campushub-theme-change"));
+        }} aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+          title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+          className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg border border-white/15 text-slate-200 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f3c64e]">
+          {darkMode ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
         </button>
       </div>
       <nav className={`flex-1 space-y-1 overflow-y-auto p-3 ${sidebarCollapsed ? "lg:px-2" : ""}`} aria-label="Main navigation">
@@ -233,16 +279,33 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
           })}
         </div>}
       </nav>
-      <div className={`border-t border-white/10 p-3 ${sidebarCollapsed ? "lg:flex lg:justify-center" : ""}`}>
-        <div className={`flex min-w-0 items-center gap-3 rounded-xl bg-white/[0.07] p-3 ${sidebarCollapsed ? "lg:justify-center" : ""}`}>
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#285487] text-sm font-bold text-[#f3c64e]" aria-hidden="true">
-            {userDisplayName(user).split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}
-          </span>
-          <span className={`min-w-0 ${sidebarCollapsed ? "lg:hidden" : ""}`}>
-            <span className="block truncate text-xs font-semibold text-white">{userDisplayName(user)}</span>
-            <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-wide text-slate-400">{user.role.toLowerCase()}</span>
-          </span>
-        </div>
+      <div className="border-t border-white/10 p-3">
+        <details ref={menuRef} className="relative">
+          <summary aria-label="Open user menu" className={`flex min-h-12 cursor-pointer list-none items-center gap-3 rounded-xl bg-white/[0.07] p-2 text-left hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#f3c64e] [&::-webkit-details-marker]:hidden ${sidebarCollapsed ? "lg:justify-center" : ""}`}>
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#285487] text-sm font-bold text-[#f3c64e]" aria-hidden="true">
+              {userDisplayName(user).split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}
+            </span>
+            <span className={`min-w-0 flex-1 ${sidebarCollapsed ? "lg:hidden" : ""}`}>
+              <span className="block truncate text-xs font-semibold text-white">{userDisplayName(user)}</span>
+              <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-wide text-slate-400">{user.role.toLowerCase()}</span>
+            </span>
+            <ChevronDown size={15} aria-hidden="true" className={`text-slate-400 ${sidebarCollapsed ? "lg:hidden" : ""}`} />
+          </summary>
+          <div className={`absolute bottom-full left-0 z-30 mb-2 w-full rounded-xl border border-white/15 bg-[#17365d] p-2 shadow-xl ${sidebarCollapsed ? "lg:left-full lg:ml-2 lg:w-64" : ""}`}>
+            <div className="border-b border-white/10 px-3 py-2">
+              <p className="truncate text-sm font-semibold text-white">{user.email}</p>
+              <p className="mt-1 text-xs text-slate-300">{user.role}</p>
+            </div>
+            <Link href="/profile" onClick={() => { if (menuRef.current) menuRef.current.open = false; }}
+              className="mt-1 block rounded-lg px-3 py-2 text-sm text-slate-100 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#f3c64e]">
+              Profile
+            </Link>
+            <button type="button" onClick={() => void logout()}
+              className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-100 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#f3c64e]">
+              Log out
+            </button>
+          </div>
+        </details>
       </div>
     </aside>
   );
@@ -269,71 +332,17 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
           </div>
         </div>
       )}
+      {!menuOpen && <button
+        type="button"
+        className="fixed left-3 top-3 z-30 inline-flex size-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-[#17365d] shadow-sm hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-[#285487] lg:hidden dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
+        onClick={() => setMenuOpen(true)}
+        aria-label="Open navigation menu"
+        aria-expanded={menuOpen}
+      >
+        <Menu size={22} />
+      </button>}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-[4.5rem] items-center justify-between border-b border-slate-200 bg-white/95 px-3 shadow-[0_1px_3px_rgba(16,39,71,0.04)] backdrop-blur sm:px-6 dark:border-slate-800 dark:bg-slate-900/95">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
-              onClick={() => setMenuOpen(true)}
-              aria-label="Open navigation menu"
-              aria-expanded={menuOpen}
-            >
-              <Menu size={22} />
-            </button>
-            <button type="button" onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
-              className="hidden size-9 items-center justify-center rounded-lg border border-slate-200 text-[#17365d] transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-[#285487] lg:inline-flex dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-              aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"} aria-pressed={sidebarCollapsed}>
-              {sidebarCollapsed ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}
-            </button>
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
-              <div className="hidden text-sm font-semibold text-[#17365d] sm:block dark:text-slate-100">Marigondon National High School</div>
-              {user.role === "ADMIN" && <span className="hidden rounded-full bg-[#fff7df] px-2.5 py-1 text-xs font-semibold text-[#77570a] sm:inline-flex" aria-label="Current school year">
-                {currentSchoolYear.data?.data.name ?? (currentSchoolYear.isLoading ? "Loading school year…" : "No current school year")}
-              </span>}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <GlobalSearch />
-            <button type="button" onClick={() => {
-              const next = !document.documentElement.classList.contains("dark");
-              document.documentElement.classList.toggle("dark", next);
-              window.localStorage.setItem("campushub-theme", next ? "dark" : "light");
-              window.dispatchEvent(new Event("campushub-theme-change"));
-            }} aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-              className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg border border-slate-300 text-[#17365d] hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#285487] dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
-              {darkMode ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
-            </button>
-            <button type="button" onClick={() => void logout()} className="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-[#17365d] hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#285487] dark:text-slate-200 dark:hover:bg-slate-800">
-              <LogOut size={17} aria-hidden="true" /><span className="hidden sm:inline">Sign out</span>
-            </button>
-            <details ref={menuRef} className="relative">
-              <summary aria-label="Open user menu" className="flex cursor-pointer list-none items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-left hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-[#285487] [&::-webkit-details-marker]:hidden">
-                <span className="hidden text-right sm:block">
-                  <span className="block max-w-48 truncate text-sm font-semibold text-slate-900">{userDisplayName(user)}</span>
-                  <span className="block text-xs text-slate-500">{user.role}</span>
-                </span>
-                <UserRound size={18} aria-hidden="true" className="text-[#285487]" />
-                <ChevronDown size={15} aria-hidden="true" className="text-slate-500" />
-              </summary>
-              <div className="absolute right-0 z-30 mt-2 w-64 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
-                <div className="border-b border-slate-100 px-3 py-2">
-                  <p className="truncate text-sm font-semibold text-slate-900">{user.email}</p>
-                  <p className="mt-1 text-xs text-slate-500">{user.role}</p>
-                </div>
-                <Link href="/profile" onClick={() => { if (menuRef.current) menuRef.current.open = false; }}
-                  className="mt-1 block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-[#285487]">
-                  Profile
-                </Link>
-                <button type="button" onClick={() => void logout()}
-                  className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-[#285487]">
-                  Log out
-                </button>
-              </div>
-            </details>
-          </div>
-        </header>
-        <main id="main-content" tabIndex={-1} className="w-full flex-1 p-4 focus:outline-none sm:p-8">{children}</main>
+        <main id="main-content" tabIndex={-1} className="w-full flex-1 p-4 pt-16 focus:outline-none sm:p-8 sm:pt-8">{children}</main>
       </div>
     </div>
   );

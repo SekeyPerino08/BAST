@@ -1,13 +1,16 @@
 "use client";
 
 import { Suspense } from "react";
+import { DashboardLayout } from "../../../../components/DashboardLayout";
 import { StudentsList } from "../../../../features/students/components/StudentsList";
 
 export default function AdminStudentsPage() {
   return (
-    <Suspense fallback={<StudentsPageSkeleton />}>
-      <StudentsList />
-    </Suspense>
+    <DashboardLayout>
+      <Suspense fallback={<StudentsPageSkeleton />}>
+        <StudentsList />
+      </Suspense>
+    </DashboardLayout>
   );
 }
 
