@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CampusHub | School Portal",
-  description: "CampusHub school information system",
+  title: "Marigondon National High School | CampusHub",
+  description: "Marigondon National High School management dashboard",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

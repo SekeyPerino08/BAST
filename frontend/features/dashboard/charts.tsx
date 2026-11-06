@@ -18,7 +18,7 @@ import { formatDisplayDate } from "../../lib/dates";
 import type { AdminDashboardData, TeacherDashboardData } from "../../types/dashboard";
 import { ChartCard } from "./components";
 
-const COLORS = ["#4338ca", "#0e7490", "#b45309", "#be123c", "#15803d", "#6d28d9"];
+const COLORS = ["#17365d", "#285487", "#d5a928", "#bd5b5b", "#56856b", "#6486aa"];
 const gridColor = "#cbd5e1";
 const axisColor = "#64748b";
 const tooltipStyle = { backgroundColor: "#fff", border: "1px solid #cbd5e1", borderRadius: 10, color: "#0f172a" };
@@ -32,7 +32,7 @@ export function EnrollmentChart({ data }: Readonly<{ data: AdminDashboardData["e
       columns={[{ key: "grade", label: "Grade" }, { key: "sections", label: "Sections" }, { key: "students", label: "Students" }]}
       rows={rows}
       rowHref={() => "/admin/students"}
-      action={<Link href="/admin/students" className="text-xs font-semibold text-indigo-700 hover:underline dark:text-indigo-300">View students</Link>}
+      action={<Link href="/admin/students" className="text-xs font-semibold text-[#285487] hover:underline dark:text-blue-200">View students</Link>}
     >
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={rows} margin={{ top: 18, right: 12, left: -15, bottom: 0 }} accessibilityLayer>
@@ -58,7 +58,7 @@ export function AttendanceTrendChart({ data }: Readonly<{ data: AdminDashboardDa
       columns={[{ key: "day", label: "Date" }, { key: "present", label: "Present" }, { key: "absent", label: "Absent" }, { key: "late", label: "Late" }, { key: "excused", label: "Excused" }, { key: "rate", label: "Rate (%)" }]}
       rows={rows.map((row) => ({ ...row, rate: row.rate ?? "N/A" }))}
       rowHref={() => "/admin/sections"}
-      action={<Link href="/admin/sections" className="text-xs font-semibold text-indigo-700 hover:underline dark:text-indigo-300">View sections</Link>}
+      action={<Link href="/admin/sections" className="text-xs font-semibold text-[#285487] hover:underline dark:text-blue-200">View sections</Link>}
     >
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={rows} margin={{ top: 18, right: 12, left: -15, bottom: 34 }} accessibilityLayer>
@@ -82,7 +82,7 @@ export function SectionSizesChart({ data }: Readonly<{ data: AdminDashboardData[
       columns={[{ key: "section", label: "Section" }, { key: "students", label: "Students" }, { key: "adviser", label: "Adviser" }]}
       rows={rows}
       rowHref={(row) => typeof row.sectionId === "string" ? `/admin/sections/${encodeURIComponent(row.sectionId)}` : "/admin/sections"}
-      action={<Link href="/admin/sections" className="text-xs font-semibold text-indigo-700 hover:underline dark:text-indigo-300">View sections</Link>}
+      action={<Link href="/admin/sections" className="text-xs font-semibold text-[#285487] hover:underline dark:text-blue-200">View sections</Link>}
     >
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 24, left: 16, bottom: 4 }} accessibilityLayer>
@@ -116,7 +116,7 @@ export function GradeDistributionChart({ data }: Readonly<{ data: TeacherDashboa
       columns={[{ key: "range", label: "Score range" }, { key: "count", label: "Entries" }]}
       rows={rows}
       rowHref={() => "/teacher/grades"}
-      action={<Link href="/teacher/grades" className="text-xs font-semibold text-indigo-700 hover:underline dark:text-indigo-300">View grades</Link>}
+      action={<Link href="/teacher/grades" className="text-xs font-semibold text-[#285487] hover:underline dark:text-blue-200">View grades</Link>}
     >
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={rows} margin={{ top: 18, right: 12, left: -15, bottom: 0 }} accessibilityLayer>
