@@ -22,6 +22,6 @@ export const importHistoryQuerySchema = z.object({
 
 export const commitImportSchema = z.object({
   includeWarnings: z.boolean().default(false),
-}).default({});
+}).default({ includeWarnings: false });
 
 export type PreviewOptionsInput = z.infer<typeof previewOptionsSchema>;

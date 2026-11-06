@@ -3,18 +3,20 @@ import type { Role } from "../../types/auth";
 export interface AuditActor {
   id: string;
   email: string;
-  role: Role;
+  role: Role | null;
 }
 
 export interface AuditEntry {
   id: string;
+  at: string;
   action: string;
-  entity: string;
+  entityType: string;
   entityId: string | null;
-  createdAt: string;
-  ipAddress: string | null;
+  studentId: string | null;
+  ip: string | null;
   actor: AuditActor | null;
-  details: unknown;
+  before: unknown;
+  after: unknown;
 }
 
 export interface AuditResponse {
@@ -26,9 +28,9 @@ export interface AuditParams {
   page: number;
   pageSize: number;
   action?: string;
-  entity?: string;
-  actorId?: string;
-  q?: string;
+  entity_type?: string;
+  actor?: string;
+  student?: string;
   from?: string;
   to?: string;
 }

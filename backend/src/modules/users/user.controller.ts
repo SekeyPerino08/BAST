@@ -13,7 +13,6 @@ import {
 import type {
   ChangeEmailBody,
   CreateAdminUserBody,
-  ResetPasswordBody,
   UpdateUserStatusBody,
 } from "./user.schema.js";
 
@@ -45,12 +44,8 @@ export const changeUserEmailController = asyncHandler<
   });
 });
 
-export const resetUserPasswordController = asyncHandler<
-  ParamsDictionary,
-  unknown,
-  ResetPasswordBody
->(async (req, res) => {
-  res.status(200).json(await resetUserPassword(req.params.id, req.body, actorId(req), req.ip));
+export const resetUserPasswordController = asyncHandler<ParamsDictionary>(async (req, res) => {
+  res.status(200).json(await resetUserPassword(req.params.id, actorId(req), req));
 });
 
 export const updateUserStatusController = asyncHandler<

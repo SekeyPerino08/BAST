@@ -9,11 +9,21 @@
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "test:unit": "tsx scripts/attendance.unit.ts && tsx scripts/grading.unit.ts && tsx scripts/report-card.unit.ts && tsx scripts/dashboard.unit.ts && tsx scripts/security-governance.unit.ts && tsx scripts/import-csv.unit.ts && tsx scripts/reports.unit.ts"
+    "seed": "prisma db seed",
+    "test:unit": "tsx scripts/attendance.unit.ts && tsx scripts/grading.unit.ts && tsx scripts/report-card.unit.ts && tsx scripts/dashboard.unit.ts && tsx scripts/security-governance.unit.ts && tsx scripts/import-csv.unit.ts && tsx scripts/reports.unit.ts && tsx scripts/integrations.unit.ts && tsx scripts/audit.unit.ts",
+    "test:security": "vitest run tests/security.test.ts",
+    "test:types": "tsc --noEmit -p tsconfig.test.json",
+    "test:integrations": "tsx scripts/integrations.integration.ts",
+    "test:audit-integration": "tsx scripts/audit.integration.ts",
+    "test:ci": "npm run build && npm run test:types && npm run test:unit && npm run test:security && npm run test:integrations && npm run test:audit-integration"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
+  },
+  "overrides": {
+    "deepmerge-ts": "^8.0.0"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",
@@ -30,7 +40,7 @@
     "pino": "^10.4.0",
     "pino-http": "^11.0.0",
     "pino-pretty": "^13.2.0",
-    "zod": "^3.24.1"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -40,8 +50,11 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.3.0",
     "@types/node": "^22.10.5",
+    "@types/supertest": "^7.2.1",
     "prisma": "^6.0.0",
+    "supertest": "^7.3.1",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^5.1.0"
   }
 }

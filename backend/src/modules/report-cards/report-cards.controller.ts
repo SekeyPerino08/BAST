@@ -1,5 +1,7 @@
 import type { ParamsDictionary } from "express-serve-static-core";
 import { Role } from "@prisma/client";
+import { audit } from "../../audit.js";
+import { prisma } from "../../lib/prisma.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { AppError } from "../../utils/AppError.js";
 import { logAudit } from "../../services/audit.service.js";
@@ -18,6 +20,12 @@ export const getStudentReportCardController = asyncHandler<ParamsDictionary>(asy
   if (!req.user) throw new AppError("Not authenticated", 401);
   const result = await getStudentReportCard(req.params.id, req.query.schoolYearId as string | undefined, req.query, req.user);
   if (req.user.role !== Role.STUDENT) {
+    await prisma.$transaction((transaction) => audit(transaction, req, {
+      action: "VIEW_STUDENT",
+      entityType: "Student",
+      entityId: req.params.id,
+      studentId: req.params.id,
+    }));
     await logAudit({
       userId: req.user.id,
       action: "REPORT_CARD_VIEW",

@@ -8,6 +8,8 @@ export function dashboardPath(role: Role): string {
       return "/teacher";
     case "STUDENT":
       return "/student";
+    case "ALUMNI":
+      return "/alumni";
   }
 }
 

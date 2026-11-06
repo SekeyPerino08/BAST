@@ -1,7 +1,7 @@
 import { EnrollmentStatus, Prisma, StudentStatus } from "@prisma/client";
 import type { Request } from "express";
 import { prisma } from "../../lib/prisma.js";
-import { logAudit } from "../../services/audit.service.js";
+import { audit } from "../../audit.js";
 import { AppError } from "../../utils/AppError.js";
 import { buildPaginationMeta, parsePagination } from "../../utils/pagination.js";
 import {
@@ -110,16 +110,18 @@ async function getSectionForEnrollment(sectionId: string) {
 export async function createEnrollment(input: CreateEnrollmentInput, request?: Request) {
   const section = await getSectionForEnrollment(input.sectionId);
   try {
-    const enrollment = await prisma.$transaction((transaction) =>
-      enrollOne(transaction, input.studentId, section),
-    );
-    await logAudit({
-      userId: request?.user?.id,
-      action: "ENROLL",
-      entity: "Enrollment",
-      entityId: enrollment.id,
-      details: { studentId: input.studentId, sectionId: section.id, schoolYearId: section.schoolYearId },
-      ipAddress: request?.ip,
+    const enrollment = await prisma.$transaction(async (transaction) => {
+      const result = await enrollOne(transaction, input.studentId, section);
+      if (request) {
+        await audit(transaction, request, {
+          action: "ENROLL",
+          entityType: "Enrollment",
+          entityId: result.id,
+          studentId: input.studentId,
+          after: { studentId: input.studentId, sectionId: section.id, schoolYearId: section.schoolYearId, status: result.status },
+        });
+      }
+      return result;
     });
     return enrollment;
   } catch (error) {
@@ -174,9 +176,19 @@ export async function bulkEnroll(
   const results = await Promise.all(
     input.studentIds.map(async (studentId) => {
       try {
-        const enrollment = await prisma.$transaction((transaction) =>
-          enrollOne(transaction, studentId, section),
-        );
+        const enrollment = await prisma.$transaction(async (transaction) => {
+          const result = await enrollOne(transaction, studentId, section);
+          if (request) {
+            await audit(transaction, request, {
+              action: "ENROLL",
+              entityType: "Enrollment",
+              entityId: result.id,
+              studentId,
+              after: { studentId, sectionId: section.id, schoolYearId: section.schoolYearId, status: result.status },
+            });
+          }
+          return result;
+        });
         return { enrollment };
       } catch (error) {
         if (
@@ -193,14 +205,6 @@ export async function bulkEnroll(
   );
   const enrolled = results.flatMap((result) => ("enrollment" in result ? [result.enrollment] : []));
   const skipped = results.flatMap((result) => ("skipped" in result ? [result.skipped] : []));
-  await logAudit({
-    userId: request?.user?.id,
-    action: "BULK_ENROLL",
-    entity: "Section",
-    entityId: section.id,
-    details: { enrolledCount: enrolled.length, skippedCount: skipped.length },
-    ipAddress: request?.ip,
-  });
   return { enrolled, skipped };
 }
 
@@ -231,18 +235,17 @@ export async function transferEnrollment(id: string, sectionId: string, request?
         where: { id },
         data: { sectionId: nextSection.id },
       });
+      if (request) {
+        await audit(transaction, request, {
+          action: "TRANSFER",
+          entityType: "Enrollment",
+          entityId: id,
+          studentId: enrollment.studentId,
+          before: { sectionId: enrollment.sectionId, status: enrollment.status },
+          after: { sectionId: nextSection.id, status: updated.status },
+        });
+      }
       return { updated, oldSection: enrollment.section, nextSection };
-    });
-    await logAudit({
-      userId: request?.user?.id,
-      action: "TRANSFER",
-      entity: "Enrollment",
-      entityId: id,
-      details: {
-        oldSection: result.oldSection,
-        newSection: { id: result.nextSection.id, name: result.nextSection.name },
-      },
-      ipAddress: request?.ip,
     });
     return result.updated;
   } catch (error) {
@@ -259,26 +262,24 @@ export async function updateEnrollmentStatus(
     const result = await prisma.$transaction(async (transaction) => {
       const existing = await transaction.enrollment.findUnique({
         where: { id },
-        select: { status: true },
+        select: { status: true, studentId: true },
       });
       if (!existing) throw new AppError("Enrollment not found", 404);
       const updated = await transaction.enrollment.update({
         where: { id },
         data: { status: input.status },
       });
+      if (request) {
+        await audit(transaction, request, {
+          action: "STATUS_CHANGE",
+          entityType: "Enrollment",
+          entityId: id,
+          studentId: existing.studentId,
+          before: { status: existing.status },
+          after: { status: input.status, reason: input.reason ?? null },
+        });
+      }
       return { updated, previousStatus: existing.status };
-    });
-    await logAudit({
-      userId: request?.user?.id,
-      action: "STATUS_CHANGE",
-      entity: "Enrollment",
-      entityId: id,
-      details: {
-        before: result.previousStatus,
-        after: input.status,
-        reason: input.reason ?? null,
-      },
-      ipAddress: request?.ip,
     });
     return result.updated;
   } catch (error) {
@@ -286,7 +287,7 @@ export async function updateEnrollmentStatus(
   }
 }
 
-export async function listEnrollments(rawQuery: unknown) {
+export async function listEnrollments(rawQuery: unknown, request?: Request) {
   const query = parseQuery(listEnrollmentsQuerySchema, rawQuery);
   const { skip, take } = parsePagination(query);
   const schoolYearId = await resolveSchoolYearId(query.schoolYearId);
@@ -316,8 +317,9 @@ export async function listEnrollments(rawQuery: unknown) {
         : { [query.sortBy]: query.order },
     { id: "asc" },
   ];
-  const [data, total] = await prisma.$transaction([
-    prisma.enrollment.findMany({
+  const result = await prisma.$transaction(async (transaction) => {
+    const [data, total] = await Promise.all([
+      transaction.enrollment.findMany({
       where,
       skip,
       take,
@@ -336,10 +338,25 @@ export async function listEnrollments(rawQuery: unknown) {
         section: { select: { id: true, name: true, gradeLevel: true } },
         schoolYear: { select: { id: true, name: true, isCurrent: true } },
       },
-    }),
-    prisma.enrollment.count({ where }),
-  ]);
-  return { data, meta: buildPaginationMeta(query.page, query.pageSize, total) };
+      }),
+      transaction.enrollment.count({ where }),
+    ]);
+    if (request) {
+      for (const enrollment of data) {
+        await audit(transaction, request, {
+          action: "VIEW_ENROLLMENTS",
+          entityType: "Enrollment",
+          entityId: enrollment.id,
+          studentId: enrollment.student.id,
+        });
+      }
+    }
+    return { data, total };
+  });
+  return {
+    data: result.data,
+    meta: buildPaginationMeta(query.page, query.pageSize, result.total),
+  };
 }
 
 export async function listUnassignedStudents(rawQuery: unknown) {

@@ -10,6 +10,7 @@ import { CreateAccountDialog } from "./CreateAccountDialog";
 import { StudentFormDialog } from "./StudentFormDialog";
 import { StudentStatusBadge } from "./StudentStatusBadge";
 import { QuickEnrollDialog } from "../../enrollment/components/EnrollmentDialogs";
+import { StudentIntegrations } from "../../integrations/components/StudentIntegrations";
 
 export function StudentDetailView({ id }: Readonly<{ id: string }>) {
   const query = useStudent(id);
@@ -116,6 +117,10 @@ export function StudentDetailView({ id }: Readonly<{ id: string }>) {
             </table>
           </div>
         ) : <p className="px-5 py-6 text-sm text-slate-500">No enrollment history.</p>}
+      </section>
+
+      <section className="mt-5">
+        <StudentIntegrations studentId={student.id} />
       </section>
 
       {dialog === "edit" && <StudentFormDialog student={student} onClose={() => { setDialog(null); void query.refetch(); }} />}

@@ -22,7 +22,8 @@ export const csrfGuard: RequestHandler = (req, res, next) => {
   const referer = req.get("Referer");
   const refererOrigin = referer ? originFromReferer(referer) : undefined;
   const requestOrigin = origin ?? refererOrigin;
-  if ((referer && origin === undefined && !refererOrigin)
+  if (!requestOrigin
+    || (referer && origin === undefined && !refererOrigin)
     || (origin !== undefined && !allowedOrigins.has(origin))
     || (origin === undefined && requestOrigin !== undefined && !allowedOrigins.has(requestOrigin))) {
     res.status(403).json({

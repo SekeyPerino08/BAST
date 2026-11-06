@@ -20,9 +20,7 @@ export const createAdminUserSchema = z.object({
 });
 
 export const changeEmailSchema = z.object({ email });
-export const resetPasswordSchema = z.object({
-  temporaryPassword: z.string().min(8).max(128).optional(),
-});
+export const resetPasswordSchema = z.object({});
 export const updateUserStatusSchema = z.object({
   isActive: z.boolean(),
   reason: z.string().trim().max(500).optional(),
@@ -30,5 +28,4 @@ export const updateUserStatusSchema = z.object({
 
 export type CreateAdminUserBody = z.infer<typeof createAdminUserSchema>;
 export type ChangeEmailBody = z.infer<typeof changeEmailSchema>;
-export type ResetPasswordBody = z.infer<typeof resetPasswordSchema>;
 export type UpdateUserStatusBody = z.infer<typeof updateUserStatusSchema>;

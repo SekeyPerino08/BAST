@@ -18,7 +18,14 @@ function shutdown(signal: NodeJS.Signals): void {
   isShuttingDown = true;
   logger.info({ signal }, "Shutting down");
 
+  const forceCloseTimer = setTimeout(() => {
+    logger.warn("Shutdown grace period elapsed; closing remaining connections");
+    server.closeAllConnections();
+  }, 10_000);
+  forceCloseTimer.unref();
+  server.closeIdleConnections();
   server.close((serverError) => {
+    clearTimeout(forceCloseTimer);
     void (async () => {
       try {
         await prisma.$disconnect();

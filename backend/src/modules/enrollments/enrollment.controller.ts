@@ -15,7 +15,7 @@ import type {
 } from "./enrollment.schema.js";
 
 export const listEnrollmentsController = asyncHandler(async (req, res) => {
-  res.status(200).json(await listEnrollments(req.query));
+  res.status(200).json(await listEnrollments(req.query, req));
 });
 
 export const listUnassignedStudentsController = asyncHandler(async (req, res) => {

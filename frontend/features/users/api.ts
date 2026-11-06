@@ -23,10 +23,10 @@ export function changeUserEmail(id: string, email: string) {
   });
 }
 
-export function resetUserPassword(id: string, temporaryPassword?: string) {
-  return apiFetch<{ temporaryPassword: string }>(`/api/users/${encodeURIComponent(id)}/reset-password`, {
+export function resetUserPassword(id: string) {
+  return apiFetch<{ message: string }>(`/api/users/${encodeURIComponent(id)}/reset-password`, {
     method: "POST",
-    body: JSON.stringify(temporaryPassword ? { temporaryPassword } : {}),
+    body: JSON.stringify({}),
   });
 }
 

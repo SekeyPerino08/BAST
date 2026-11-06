@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import type { Request } from "express";
 import { prisma } from "../../lib/prisma.js";
-import { logAudit } from "../../services/audit.service.js";
+import { audit } from "../../audit.js";
 import { AppError } from "../../utils/AppError.js";
 import { buildPaginationMeta, parsePagination } from "../../utils/pagination.js";
 import { listSubjectsQuerySchema, type CreateSubjectInput, type UpdateSubjectInput } from "./subject.schema.js";
@@ -63,14 +63,17 @@ export async function getSubjectById(id: string) {
 
 export async function createSubject(input: CreateSubjectInput, request?: Request) {
   try {
-    const subject = await prisma.subject.create({ data: input });
-    await logAudit({
-      userId: request?.user?.id,
-      action: "CREATE",
-      entity: "Subject",
-      entityId: subject.id,
-      details: input as Prisma.InputJsonObject,
-      ipAddress: request?.ip,
+    const subject = await prisma.$transaction(async (transaction) => {
+      const created = await transaction.subject.create({ data: input });
+      if (request) {
+        await audit(transaction, request, {
+          action: "CREATE",
+          entityType: "Course",
+          entityId: created.id,
+          after: input,
+        });
+      }
+      return created;
     });
     return subject;
   } catch (error) {
@@ -80,16 +83,27 @@ export async function createSubject(input: CreateSubjectInput, request?: Request
 
 export async function updateSubject(id: string, input: UpdateSubjectInput, request?: Request) {
   try {
-    const before = await prisma.subject.findUnique({ where: { id } });
-    if (!before) throw new AppError("Subject not found", 404);
-    const subject = await prisma.subject.update({ where: { id }, data: input });
-    await logAudit({
-      userId: request?.user?.id,
-      action: "UPDATE",
-      entity: "Subject",
-      entityId: id,
-      details: auditDiff(before as unknown as Record<string, unknown>, input as Record<string, unknown>),
-      ipAddress: request?.ip,
+    const subject = await prisma.$transaction(async (transaction) => {
+      const before = await transaction.subject.findUnique({ where: { id } });
+      if (!before) throw new AppError("Subject not found", 404);
+      const updated = await transaction.subject.update({ where: { id }, data: input });
+      if (request) {
+        const changes = auditDiff(
+          before as unknown as Record<string, unknown>,
+          input as Record<string, unknown>,
+        );
+        const beforeValues = Object.fromEntries(
+          Object.keys(changes).map((key) => [key, before[key as keyof typeof before] ?? null]),
+        );
+        await audit(transaction, request, {
+          action: "UPDATE",
+          entityType: "Course",
+          entityId: id,
+          before: beforeValues,
+          after: input,
+        });
+      }
+      return updated;
     });
     return subject;
   } catch (error) {
@@ -100,21 +114,22 @@ export async function updateSubject(id: string, input: UpdateSubjectInput, reque
 export async function deleteSubject(id: string, request?: Request) {
   try {
     const subject = await prisma.$transaction(async (transaction) => {
-      const existing = await transaction.subject.findUnique({ where: { id }, select: { id: true } });
+      const existing = await transaction.subject.findUnique({ where: { id } });
       if (!existing) throw new AppError("Subject not found", 404);
       const offeringCount = await transaction.classOffering.count({ where: { subjectId: id } });
       if (offeringCount) {
         throw new AppError(`This subject is used by ${offeringCount} classes and cannot be deleted`, 409, "SUBJECT_IN_USE", { count: offeringCount });
       }
-      return transaction.subject.delete({ where: { id } });
-    });
-    await logAudit({
-      userId: request?.user?.id,
-      action: "DELETE",
-      entity: "Subject",
-      entityId: id,
-      details: { code: subject.code, name: subject.name },
-      ipAddress: request?.ip,
+      const deleted = await transaction.subject.delete({ where: { id } });
+      if (request) {
+        await audit(transaction, request, {
+          action: "DELETE",
+          entityType: "Course",
+          entityId: id,
+          before: { code: existing.code, name: existing.name },
+        });
+      }
+      return deleted;
     });
     return subject;
   } catch (error) {

@@ -1,6 +1,7 @@
 import { EnrollmentStatus, Prisma, Role } from "@prisma/client";
 import type { Request } from "express";
 import { prisma } from "../../lib/prisma.js";
+import { audit } from "../../audit.js";
 import { assertCanAccessClassOffering, getTeacherIdForUser } from "../../services/access.service.js";
 import { logAudit } from "../../services/audit.service.js";
 import { AppError } from "../../utils/AppError.js";
@@ -216,6 +217,16 @@ export async function saveClassGrades(
           studentId: record.studentId,
           oldScore,
           newScore: record.score,
+        });
+      }
+      for (const change of changes) {
+        await audit(transaction, request, {
+          action: "GRADE_CHANGE",
+          entityType: "Grade",
+          entityId: change.entityId,
+          studentId: change.studentId,
+          before: { score: change.oldScore },
+          after: { score: change.newScore },
         });
       }
       return { counts, changes };

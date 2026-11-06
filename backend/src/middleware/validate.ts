@@ -1,8 +1,8 @@
 import type { RequestHandler } from "express";
-import type { ZodType, ZodTypeDef } from "zod";
+import type { ZodType } from "zod";
 
 export function validateBody<Output, Input>(
-  schema: ZodType<Output, ZodTypeDef, Input>,
+  schema: ZodType<Output, Input>,
 ): RequestHandler {
   return (req, res, next) => {
     const result = schema.safeParse(req.body);

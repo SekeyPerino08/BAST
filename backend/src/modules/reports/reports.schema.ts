@@ -10,11 +10,10 @@ const dateFilter = z.string()
     return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
   }, "Use a real calendar date in YYYY-MM-DD format");
 
-const booleanFilter: z.ZodType<boolean, z.ZodTypeDef, unknown> = z.preprocess((value: unknown) => {
-  if (value === true || value === "true") return true;
-  if (value === false || value === "false") return false;
-  return value;
-}, z.boolean());
+const booleanFilter = z.union([
+  z.boolean(),
+  z.enum(["true", "false"]).transform((value) => value === "true"),
+]);
 
 const optionalBoolean = booleanFilter.optional().default(false);
 

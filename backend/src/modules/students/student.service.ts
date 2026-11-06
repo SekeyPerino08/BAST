@@ -1,5 +1,6 @@
 import { EnrollmentStatus, Prisma, StudentStatus } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
+import { audit } from "../../audit.js";
 import { createPersonAccount, setLinkedUserActive } from "../../services/account.service.js";
 import { logAudit } from "../../services/audit.service.js";
 import { AppError } from "../../utils/AppError.js";
@@ -157,20 +158,30 @@ export async function listStudents(rawQuery: unknown): Promise<{
   };
 }
 
-export async function getStudentById(id: string) {
-  const student = await prisma.student.findUnique({
-    where: { id },
-    include: studentHistoryInclude,
+export async function getStudentById(id: string, request?: Request) {
+  return prisma.$transaction(async (transaction) => {
+    const student = await transaction.student.findUnique({
+      where: { id },
+      include: studentHistoryInclude,
+    });
+    if (!student) {
+      throw new AppError("Student not found", 404);
+    }
+    if (request) {
+      await audit(transaction, request, {
+        action: "VIEW_STUDENT",
+        entityType: "Student",
+        entityId: id,
+        studentId: id,
+      });
+    }
+    const currentEnrollment =
+      student.enrollments.find(
+        (enrollment) =>
+          enrollment.status === EnrollmentStatus.ENROLLED && enrollment.schoolYear.isCurrent,
+      ) ?? null;
+    return { ...student, currentEnrollment };
   });
-  if (!student) {
-    throw new AppError("Student not found", 404);
-  }
-  const currentEnrollment =
-    student.enrollments.find(
-      (enrollment) =>
-        enrollment.status === EnrollmentStatus.ENROLLED && enrollment.schoolYear.isCurrent,
-    ) ?? null;
-  return { ...student, currentEnrollment };
 }
 
 export async function createStudent(
@@ -225,14 +236,18 @@ export async function createStudent(
       });
     }
 
-    const student = await prisma.student.create({ data: studentData });
-    await logAudit({
-      userId: request?.user?.id,
-      action: "CREATE",
-      entity: "Student",
-      entityId: student.id,
-      details: studentAuditDetails(studentData),
-      ipAddress: getRequestIp(request),
+    const student = await prisma.$transaction(async (transaction) => {
+      const created = await transaction.student.create({ data: studentData });
+      if (request) {
+        await audit(transaction, request, {
+          action: "CREATE",
+          entityType: "Student",
+          entityId: created.id,
+          studentId: created.id,
+          after: studentAuditDetails(studentData),
+        });
+      }
+      return created;
     });
     return student;
   } catch (error) {
@@ -242,37 +257,27 @@ export async function createStudent(
 
 export async function updateStudent(id: string, input: UpdateStudentInput, request?: Request) {
   try {
-    const before = await prisma.student.findUnique({ where: { id } });
-    if (!before) {
-      throw new AppError("Student not found", 404);
-    }
-    const after = await prisma.student.update({ where: { id }, data: input });
-    const changes = Object.fromEntries(
-      Object.entries(input)
-        .filter(([key, value]) => {
-          const previous = before[key as keyof typeof before];
-          return previous instanceof Date && value instanceof Date
-            ? previous.getTime() !== value.getTime()
-            : previous !== value;
-        })
-        .map(([key, value]) => {
-          const previous = before[key as keyof typeof before];
-          return [
-            key,
-            {
-              before: previous instanceof Date ? previous.toISOString() : previous,
-              after: value instanceof Date ? value.toISOString() : value,
-            },
-          ];
-        }),
-    );
-    await logAudit({
-      userId: request?.user?.id,
-      action: "UPDATE",
-      entity: "Student",
-      entityId: id,
-      details: changes as Prisma.InputJsonObject,
-      ipAddress: getRequestIp(request),
+    const after = await prisma.$transaction(async (transaction) => {
+      const before = await transaction.student.findUnique({ where: { id } });
+      if (!before) throw new AppError("Student not found", 404);
+      const updated = await transaction.student.update({ where: { id }, data: input });
+      if (request) {
+        const oldValues = Object.fromEntries(Object.keys(input).map((key) => [
+          key,
+          before[key as keyof typeof before] instanceof Date
+            ? (before[key as keyof typeof before] as Date).toISOString()
+            : before[key as keyof typeof before],
+        ]));
+        await audit(transaction, request, {
+          action: "UPDATE",
+          entityType: "Student",
+          entityId: id,
+          studentId: id,
+          before: oldValues,
+          after: studentAuditDetails(input),
+        });
+      }
+      return updated;
     });
     return after;
   } catch (error) {
@@ -295,6 +300,16 @@ export async function updateStudentStatus(id: string, input: UpdateStatusInput, 
         where: { id },
         data: { status: input.status },
       });
+      if (request) {
+        await audit(transaction, request, {
+          action: "STATUS_CHANGE",
+          entityType: "Student",
+          entityId: id,
+          studentId: id,
+          before: { status: student.status },
+          after: { status: input.status, reason: input.reason ?? null },
+        });
+      }
       if (student.userId && input.status === StudentStatus.ACTIVE) {
         await setLinkedUserActive(transaction, student.userId, true);
       } else if (
@@ -308,18 +323,6 @@ export async function updateStudentStatus(id: string, input: UpdateStatusInput, 
       return { student: result, previousStatus: student.status };
     });
 
-    await logAudit({
-      userId: request?.user?.id,
-      action: "STATUS_CHANGE",
-      entity: "Student",
-      entityId: id,
-      details: {
-        before: updated.previousStatus,
-        after: input.status,
-        reason: input.reason ?? null,
-      },
-      ipAddress: getRequestIp(request),
-    });
     return updated.student;
   } catch (error) {
     rethrowStudentError(error);

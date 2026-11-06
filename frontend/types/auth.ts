@@ -1,4 +1,4 @@
-export type Role = "ADMIN" | "TEACHER" | "STUDENT";
+export type Role = "ADMIN" | "TEACHER" | "STUDENT" | "ALUMNI";
 
 export interface AuthProfile {
   type?: "student" | "teacher";

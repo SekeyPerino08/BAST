@@ -26,7 +26,7 @@ app.use(requestIdMiddleware);
 app.use(httpLogger);
 app.use(helmet());
 app.use(cors({
-  origin: (origin, callback) => callback(null, !origin || allowedOrigins.has(origin)),
+  origin: (origin, callback) => callback(null, origin === undefined || allowedOrigins.has(origin)),
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Accept", "Authorization", "Content-Type", "X-Request-Id"],

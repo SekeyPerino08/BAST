@@ -6,9 +6,9 @@ export function fetchAuditLogs(params: AuditParams) {
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== "") query.set(key, String(value));
   }
-  return apiFetch<AuditResponse>(`/api/audit-logs?${query.toString()}`);
+  return apiFetch<AuditResponse>(`/api/audit?${query.toString()}`);
 }
 
 export function fetchAuditFacets() {
-  return apiFetch<AuditFacets>("/api/audit-logs/facets");
+  return apiFetch<AuditFacets>("/api/audit/facets");
 }

@@ -13,6 +13,7 @@ enum Role {
   ADMIN
   TEACHER
   STUDENT
+  ALUMNI
 }
 
 enum Sex {
@@ -53,35 +54,54 @@ enum ImportStatus {
   EXPIRED
 }
 
+enum LmsEventType {
+  LOGIN
+  SUBMISSION
+  QUIZ
+}
+
+enum AlumniRecordKind {
+  DONATION
+  EVENT
+  MENTORING
+}
+
+enum FeedImportMode {
+  PREVIEW
+  COMMIT
+}
+
 model User {
-  id                 String       @id @default(cuid())
-  email              String       @unique
+  id                 String          @id @default(cuid())
+  email              String          @unique
   passwordHash       String
   role               Role
   firstName          String
   lastName           String
-  isActive           Boolean      @default(true)
-  mustChangePassword Boolean      @default(false)
+  isActive           Boolean         @default(true)
+  mustChangePassword Boolean         @default(false)
   passwordChangedAt  DateTime?
-  tokenVersion       Int          @default(0)
-  failedLoginCount   Int          @default(0)
+  tokenVersion       Int             @default(0)
+  failedLoginCount   Int             @default(0)
   lockedUntil        DateTime?
   lastLoginAt        DateTime?
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
   student            Student?
   teacher            Teacher?
   auditLogs          AuditLog[]
-  attendanceRecords  Attendance[] @relation("AttendanceRecorder")
-  recordedGrades     Grade[]      @relation("GradeRecorder")
-  lockedTerms        Term[]       @relation("TermLocker")
+  attendanceRecords  Attendance[]    @relation("AttendanceRecorder")
+  recordedGrades     Grade[]         @relation("GradeRecorder")
+  lockedTerms        Term[]          @relation("TermLocker")
   importJobs         ImportJob[]
+  feedImportRuns     FeedImportRun[]
+  passwordResetTokens PasswordResetToken[]
 }
 
 model Student {
-  id                String        @id @default(cuid())
-  studentNo         String        @unique
-  userId            String?       @unique
+  id                String         @id @default(cuid())
+  studentNo         String         @unique
+  userId            String?        @unique
   firstName         String
   middleName        String?
   lastName          String
@@ -90,13 +110,16 @@ model Student {
   address           String?
   guardianName      String?
   guardianContact   String?
-  status            StudentStatus @default(ACTIVE)
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  user              User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  status            StudentStatus  @default(ACTIVE)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  user              User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
   enrollments       Enrollment[]
   attendanceRecords Attendance[]
   grades            Grade[]
+  lmsEvents         LmsEvent[]
+  libraryLoans      LibraryLoan[]
+  alumniRecords     AlumniRecord[]
 
   @@index([userId])
 }
@@ -164,6 +187,7 @@ model Subject {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   classOfferings ClassOffering[]
+  lmsEvents      LmsEvent[]
 }
 
 model Section {
@@ -284,6 +308,37 @@ model AuditLog {
   @@index([entity, entityId])
 }
 
+model AuditEntry {
+  id          String    @id @default(cuid())
+  at          DateTime  @default(now()) @db.Timestamptz(6)
+  actorUserId String?   @map("actor_user_id")
+  actorRole   Role?     @map("actor_role")
+  action      String
+  entityType  String    @map("entity_type")
+  entityId    String?   @map("entity_id")
+  studentId   String?   @map("student_id")
+  before      Json?
+  after       Json?
+  ip          String?
+  @@index([studentId, at])
+  @@index([actorUserId, at])
+  @@index([at])
+  @@map("audit_log")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime  @db.Timestamptz(6)
+  consumedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+}
+
 model ImportJob {
   id          String       @id @default(cuid())
   type        ImportType
@@ -302,4 +357,85 @@ model ImportJob {
 
   @@index([createdById])
   @@index([status, expiresAt])
+}
+
+model LmsEvent {
+  id         String       @id @default(cuid())
+  studentId  String       @map("student_id")
+  courseId   String?      @map("course_id")
+  type       LmsEventType
+  occurredAt DateTime     @map("occurred_at")
+  score      Decimal?     @db.Decimal(5, 2)
+  onTime     Boolean?     @map("on_time")
+  externalId String       @map("external_id")
+  source     String
+  student    Student      @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  course     Subject?     @relation(fields: [courseId], references: [id], onDelete: SetNull)
+
+  @@unique([source, externalId])
+  @@index([studentId, occurredAt])
+  @@map("lms_events")
+}
+
+model LibraryLoan {
+  id         String    @id @default(cuid())
+  studentId  String    @map("student_id")
+  bookTitle  String    @map("book_title")
+  loanedOn   DateTime  @map("loaned_on") @db.Date
+  dueOn      DateTime  @map("due_on") @db.Date
+  returnedOn DateTime? @map("returned_on") @db.Date
+  externalId String    @map("external_id")
+  source     String
+  student    Student   @relation(fields: [studentId], references: [id], onDelete: Restrict)
+
+  @@unique([source, externalId])
+  @@index([studentId, dueOn])
+  @@map("library_loans")
+}
+
+model AlumniRecord {
+  id         String           @id @default(cuid())
+  studentId  String           @map("student_id")
+  kind       AlumniRecordKind
+  amount     Decimal?         @db.Decimal(12, 2)
+  occurredOn DateTime         @map("occurred_on") @db.Date
+  detail     String?
+  externalId String           @map("external_id")
+  source     String
+  student    Student          @relation(fields: [studentId], references: [id], onDelete: Restrict)
+
+  @@unique([source, externalId])
+  @@index([studentId, occurredOn])
+  @@map("alumni_records")
+}
+
+model FeedImportRun {
+  id         String             @id @default(cuid())
+  source     String
+  mode       FeedImportMode
+  startedAt  DateTime           @default(now()) @map("started_at")
+  finishedAt DateTime?          @map("finished_at")
+  received   Int                @default(0)
+  accepted   Int                @default(0)
+  rejected   Int                @default(0)
+  runById    String?            @map("run_by")
+  runBy      User?              @relation(fields: [runById], references: [id], onDelete: SetNull)
+  rejects    FeedImportReject[]
+
+  @@index([source, startedAt])
+  @@index([runById])
+  @@map("import_runs")
+}
+
+model FeedImportReject {
+  id        String        @id @default(cuid())
+  runId     String        @map("run_id")
+  rowNumber Int           @map("row_number")
+  raw       Json
+  reason    String
+  run       FeedImportRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, rowNumber])
+  @@index([runId])
+  @@map("import_rejects")
 }

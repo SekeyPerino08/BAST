@@ -17,6 +17,7 @@ import usersRouter from "../modules/users/user.routes.js";
 import auditLogsRouter from "../modules/audit-logs/audit-log.routes.js";
 import importsRouter from "../modules/imports/imports.routes.js";
 import reportsRouter from "../modules/reports/reports.routes.js";
+import syncRouter from "../modules/integrations/sync.routes.js";
 
 const apiRouter = Router();
 
@@ -27,7 +28,9 @@ apiRouter.use(reportCardsRouter);
 apiRouter.use("/dashboard", dashboardRouter);
 apiRouter.use("/users", usersRouter);
 apiRouter.use("/audit-logs", auditLogsRouter);
+apiRouter.use("/audit", auditLogsRouter);
 apiRouter.use("/imports", importsRouter);
+apiRouter.use("/sync", syncRouter);
 apiRouter.use("/reports", reportsRouter);
 apiRouter.use("/students", studentRouter);
 apiRouter.use("/teachers", teacherRouter);

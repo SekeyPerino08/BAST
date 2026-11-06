@@ -1,16 +1,17 @@
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { Prisma, Role } from "@prisma/client";
+import type { Request } from "express";
 import { prisma } from "../../lib/prisma.js";
 import { logAudit } from "../../services/audit.service.js";
 import { canDeactivateLastActiveAdmin, canDeactivateUser } from "../../utils/account-governance.js";
 import { AppError } from "../../utils/AppError.js";
 import { buildPaginationMeta, parsePagination } from "../../utils/pagination.js";
 import { passwordPolicyError } from "../../utils/password-policy.js";
+import { requestPasswordReset } from "../../services/auth.service.js";
 import type {
   ChangeEmailBody,
   CreateAdminUserBody,
-  ResetPasswordBody,
   UpdateUserStatusBody,
 } from "./user.schema.js";
 import { listUsersQuerySchema } from "./user.schema.js";
@@ -211,32 +212,17 @@ export async function changeUserEmail(
 
 export async function resetUserPassword(
   id: string,
-  input: ResetPasswordBody,
   actorId: string,
-  ipAddress?: string,
+  request: Pick<Request, "ip" | "user">,
 ) {
   if (id === actorId) throw new AppError("Use the change-password endpoint for your own account", 400, "USE_CHANGE_PASSWORD");
-  const target = await prisma.user.findUnique({ where: { id }, select: { email: true } });
+  const target = await prisma.user.findUnique({ where: { id }, select: { email: true, isActive: true } });
   if (!target) throw new AppError("User not found", 404);
-  const temporaryPassword = input.temporaryPassword ?? makeTemporaryPassword(target.email);
-  const policyError = passwordPolicyError(temporaryPassword, "", target.email);
-  if (policyError) throw new AppError(policyError, 400);
+  if (!target.isActive) throw new AppError("Cannot reset an inactive account", 409, "ACCOUNT_INACTIVE");
+  await requestPasswordReset(target.email, request);
   try {
-    const passwordHash = await bcrypt.hash(temporaryPassword, 12);
-    await prisma.$transaction(async (tx) => {
-      await tx.user.update({
-        where: { id },
-        data: {
-          passwordHash,
-          mustChangePassword: true,
-          lockedUntil: null,
-          failedLoginCount: 0,
-          tokenVersion: { increment: 1 },
-        },
-      });
-      await logAudit({ userId: actorId, action: "PASSWORD_RESET", entity: "User", entityId: id, ipAddress }, tx);
-    });
-    return { temporaryPassword };
+    await logAudit({ userId: actorId, action: "PASSWORD_RESET_REQUESTED", entity: "User", entityId: id, ipAddress: request.ip });
+    return { message: "Password reset instructions have been sent." };
   } catch (error) {
     mapPrismaError(error);
   }

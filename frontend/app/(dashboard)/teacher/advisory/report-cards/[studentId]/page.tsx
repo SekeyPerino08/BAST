@@ -9,6 +9,7 @@ import { PrintToolbar } from "../../../../../../features/report-card/components/
 import { ReportCardView } from "../../../../../../features/report-card/components/ReportCard";
 import { useStudentReportCard } from "../../../../../../features/report-card/hooks";
 import { mapReportCardError } from "../../../../../../features/report-card/components/PrintToolbar";
+import { StudentIntegrations } from "../../../../../../features/integrations/components/StudentIntegrations";
 
 export default function TeacherStudentReportCardPage({ params }: { params: Promise<{ studentId: string }> }) {
   const [studentId, setStudentId] = useState<string | null>(null);
@@ -47,6 +48,7 @@ export default function TeacherStudentReportCardPage({ params }: { params: Promi
             <>
               <PrintToolbar />
               <ReportCardView data={reportCard.data} />
+              <StudentIntegrations studentId={studentId} />
             </>
           )}
         </div>

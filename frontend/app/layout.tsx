@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "../providers/AuthProvider";
 import { QueryProvider } from "../providers/QueryProvider";
 import { Toaster } from "sonner";
+import { ThemeInitializer } from "../components/ThemeInitializer";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "School Management System",
-  description: "School Management System portal",
+  title: "CampusHub | School Portal",
+  description: "CampusHub school information system",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <QueryProvider>
+          <ThemeInitializer />
           <AuthProvider>{children}</AuthProvider>
           <Toaster position="top-right" richColors />
         </QueryProvider>

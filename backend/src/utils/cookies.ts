@@ -4,7 +4,7 @@ import { durationToMilliseconds } from "./duration.js";
 
 const cookieOptions = {
   httpOnly: true,
-  secure: env.NODE_ENV === "production" || env.COOKIE_SAMESITE === "none",
+  secure: env.NODE_ENV === "production",
   sameSite: env.COOKIE_SAMESITE,
   path: "/",
 };

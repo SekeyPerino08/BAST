@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { PrismaClient, Role, Sex } from "@prisma/client";
+import { AlumniRecordKind, LmsEventType, PrismaClient, Role, Sex } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -7,12 +7,12 @@ const date = (value: string): Date => new Date(`${value}T00:00:00.000Z`);
 
 async function seed(): Promise<void> {
   const passwordHashes = {
-    admin: await bcrypt.hash("admin1234", 12),
-    teacher: await bcrypt.hash("teacher1234", 12),
-    student: await bcrypt.hash("student1234", 12),
+    admin: await bcrypt.hash("password123", 12),
+    teacher: await bcrypt.hash("password123", 12),
+    student: await bcrypt.hash("password123", 12),
   };
   await prisma.user.upsert({
-    where: { email: "admin@mnhs.local" },
+    where: { email: "admin@uni.edu" },
     update: {
       passwordHash: passwordHashes.admin,
       role: Role.ADMIN,
@@ -21,7 +21,7 @@ async function seed(): Promise<void> {
       mustChangePassword: false,
     },
     create: {
-      email: "admin@mnhs.local",
+      email: "admin@uni.edu",
       passwordHash: passwordHashes.admin,
       role: Role.ADMIN,
       firstName: "School",
@@ -31,8 +31,8 @@ async function seed(): Promise<void> {
   });
 
   const teacherDetails = [
-    { employeeNo: "TCH-0001", email: "teacher1@mnhs.local", firstName: "Maria", lastName: "Santos" },
-    { employeeNo: "TCH-0002", email: "teacher2@mnhs.local", firstName: "Jose", lastName: "Reyes" },
+    { employeeNo: "TCH-0001", email: "tan@uni.edu", firstName: "Maria", lastName: "Tan" },
+    { employeeNo: "TCH-0002", email: "reyes@uni.edu", firstName: "Jose", lastName: "Reyes" },
   ];
   const teachers = [];
   for (const details of teacherDetails) {
@@ -142,13 +142,24 @@ async function seed(): Promise<void> {
         name: "Rizal",
       },
     },
-    update: {},
+    update: { adviserId: teachers[1].id },
     create: { name: "Rizal", gradeLevel: 7, schoolYearId: schoolYear.id },
+  });
+  const secondSection = await prisma.section.upsert({
+    where: {
+      schoolYearId_gradeLevel_name: {
+        schoolYearId: schoolYear.id,
+        gradeLevel: 7,
+        name: "Bonifacio",
+      },
+    },
+    update: { adviserId: teachers[0].id },
+    create: { name: "Bonifacio", gradeLevel: 7, schoolYearId: schoolYear.id, adviserId: teachers[0].id },
   });
 
   const studentDetails = [
     ["STU-2025-0001", "Ana", "Dela Cruz", Sex.FEMALE],
-    ["STU-2025-0002", "Ben", "Garcia", Sex.MALE],
+    ["STU-2025-0002", "Ben", "Ocampo", Sex.MALE],
     ["STU-2025-0003", "Carla", "Mendoza", Sex.FEMALE],
     ["STU-2025-0004", "Daniel", "Ramos", Sex.MALE],
     ["STU-2025-0005", "Ella", "Torres", Sex.FEMALE],
@@ -161,22 +172,29 @@ async function seed(): Promise<void> {
 
   const students = [];
   for (const [index, [studentNo, firstName, lastName, sex]] of studentDetails.entries()) {
+    const studentEmail = index === 1
+      ? "ben.ocampo@uni.edu"
+      : index === 8
+        ? "iris.co@uni.edu"
+        : index === 0
+          ? "student1@school.test"
+          : null;
     const studentAccount =
-      index < 2
+      studentEmail
         ? await prisma.user.upsert({
-            where: { email: `student${index + 1}@school.test` },
+            where: { email: studentEmail },
             update: {
               passwordHash: passwordHashes.student,
-              role: Role.STUDENT,
+              role: index === 8 ? Role.ALUMNI : Role.STUDENT,
               isActive: true,
               firstName,
               lastName,
               mustChangePassword: false,
             },
             create: {
-              email: `student${index + 1}@school.test`,
+              email: studentEmail,
               passwordHash: passwordHashes.student,
-              role: Role.STUDENT,
+              role: index === 8 ? Role.ALUMNI : Role.STUDENT,
               isActive: true,
               firstName,
               lastName,
@@ -190,7 +208,7 @@ async function seed(): Promise<void> {
         firstName,
         lastName,
         sex,
-        status: "ACTIVE",
+        status: index === 8 ? "GRADUATED" : "ACTIVE",
         ...(studentAccount ? { userId: studentAccount.id } : {}),
       },
       create: {
@@ -198,42 +216,85 @@ async function seed(): Promise<void> {
         firstName,
         lastName,
         sex,
+        status: index === 8 ? "GRADUATED" : "ACTIVE",
         ...(studentAccount ? { userId: studentAccount.id } : {}),
       },
     });
     students.push(student);
+    const studentSection = index < 6 ? section : secondSection;
     await prisma.enrollment.upsert({
       where: { studentId_schoolYearId: { studentId: student.id, schoolYearId: schoolYear.id } },
-      update: { sectionId: section.id, status: "ENROLLED" },
+      update: { sectionId: studentSection.id, status: index === 8 ? "COMPLETED" : "ENROLLED" },
       create: {
         studentId: student.id,
         schoolYearId: schoolYear.id,
-        sectionId: section.id,
+        sectionId: studentSection.id,
+        status: index === 8 ? "COMPLETED" : "ENROLLED",
       },
     });
   }
 
-  for (const [subjectIndex, subject] of subjects.entries()) {
-    const teacher = teachers[subjectIndex % teachers.length];
-    await prisma.classOffering.upsert({
-      where: {
-        subjectId_sectionId_schoolYearId: {
+  for (const offeringSection of [section, secondSection]) {
+    const adviser = offeringSection.id === section.id ? teachers[1] : teachers[0];
+    for (const [subjectIndex, subject] of subjects.entries()) {
+      const teacher = subjectIndex % 2 === 0 ? adviser : teachers.find(({ id }) => id !== adviser.id)!;
+      await prisma.classOffering.upsert({
+        where: {
+          subjectId_sectionId_schoolYearId: {
+            subjectId: subject.id,
+            sectionId: offeringSection.id,
+            schoolYearId: schoolYear.id,
+          },
+        },
+        update: { teacherId: teacher.id },
+        create: {
           subjectId: subject.id,
-          sectionId: section.id,
+          sectionId: offeringSection.id,
+          teacherId: teacher.id,
           schoolYearId: schoolYear.id,
         },
-      },
-      update: { teacherId: teacher.id },
-      create: {
-        subjectId: subject.id,
-        sectionId: section.id,
-        teacherId: teacher.id,
-        schoolYearId: schoolYear.id,
-      },
-    });
+      });
+    }
   }
 
-  console.log(`Seeded ${students.length} students in section ${section.name}.`);
+  const [ana, ben, iris] = [students[0], students[1], students[8]];
+  const lmsEvents = [
+    { externalId: "seed-lms-login-ben", studentId: ben.id, type: LmsEventType.LOGIN, occurredAt: date("2026-10-28") },
+    { externalId: "seed-lms-submit-ben", studentId: ben.id, type: LmsEventType.SUBMISSION, occurredAt: date("2026-10-29"), onTime: true },
+    { externalId: "seed-lms-quiz-ben", studentId: ben.id, type: LmsEventType.QUIZ, occurredAt: date("2026-10-30"), score: 88 },
+    { externalId: "seed-lms-login-ana", studentId: ana.id, type: LmsEventType.LOGIN, occurredAt: date("2026-10-27") },
+  ];
+  for (const event of lmsEvents) {
+    await prisma.lmsEvent.upsert({
+      where: { source_externalId: { source: "seed", externalId: event.externalId } },
+      update: event,
+      create: { source: "seed", ...event },
+    });
+  }
+  const loans = [
+    { externalId: "seed-library-ben", studentId: ben.id, bookTitle: "The Little Prince", loanedOn: date("2026-10-01"), dueOn: date("2026-10-15") },
+    { externalId: "seed-library-ana", studentId: ana.id, bookTitle: "Philippine History", loanedOn: date("2026-10-10"), dueOn: date("2026-11-10") },
+  ];
+  for (const loan of loans) {
+    await prisma.libraryLoan.upsert({
+      where: { source_externalId: { source: "seed", externalId: loan.externalId } },
+      update: loan,
+      create: { source: "seed", ...loan },
+    });
+  }
+  await prisma.alumniRecord.upsert({
+    where: { source_externalId: { source: "seed", externalId: "seed-alumni-iris-donation" } },
+    update: {
+      studentId: iris.id, kind: AlumniRecordKind.DONATION, amount: 2500,
+      occurredOn: date("2026-10-10"), detail: "Library fund",
+    },
+    create: {
+      source: "seed", externalId: "seed-alumni-iris-donation", studentId: iris.id,
+      kind: AlumniRecordKind.DONATION, amount: 2500, occurredOn: date("2026-10-10"), detail: "Library fund",
+    },
+  });
+
+  console.log(`Seeded ${students.length} students in sections ${section.name} and ${secondSection.name}.`);
 }
 
 seed()

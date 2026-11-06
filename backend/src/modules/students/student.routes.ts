@@ -19,12 +19,20 @@ import {
   updateStudentSchema,
 } from "./student.schema.js";
 import { getStudentAttendanceController } from "../attendance/attendance.controller.js";
+import {
+  getStudentAlumniController,
+  getStudentLibraryController,
+  getStudentLmsController,
+} from "../integrations/integration.controller.js";
 
 const studentRouter = Router();
 studentRouter.param("id", validateIdParams("id"));
-const adminOnly = [authenticate, authorize(Role.ADMIN)];
 
-studentRouter.use(...adminOnly);
+studentRouter.use(authenticate);
+studentRouter.get("/:id/lms", authorize(Role.ADMIN, Role.TEACHER, Role.STUDENT, Role.ALUMNI), getStudentLmsController);
+studentRouter.get("/:id/library", authorize(Role.ADMIN, Role.TEACHER, Role.STUDENT, Role.ALUMNI), getStudentLibraryController);
+studentRouter.get("/:id/alumni", authorize(Role.ADMIN, Role.TEACHER, Role.STUDENT, Role.ALUMNI), getStudentAlumniController);
+studentRouter.use(authorize(Role.ADMIN));
 studentRouter.get("/", listStudentsController);
 studentRouter.get("/:id/attendance", getStudentAttendanceController);
 studentRouter.get("/:id", getStudentController);

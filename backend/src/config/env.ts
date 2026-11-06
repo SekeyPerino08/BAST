@@ -43,26 +43,47 @@ const jwtExpirationSchema = z
 
 const envSchema = z.object({
   DATABASE_URL: z
-    .string({ required_error: "Missing required environment variable: DATABASE_URL" })
+    .string()
     .min(1, "Missing required environment variable: DATABASE_URL")
     .url("DATABASE_URL must be a valid PostgreSQL connection URL"),
   DIRECT_URL: z
-    .string({ required_error: "Missing required environment variable: DIRECT_URL" })
+    .string()
     .min(1, "Missing required environment variable: DIRECT_URL")
     .url("DIRECT_URL must be a valid PostgreSQL connection URL"),
   PORT: z.coerce.number().int().positive().default(4000),
   CORS_ORIGIN: corsOriginsSchema,
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   JWT_SECRET: z
-    .string({ required_error: "Missing required environment variable: JWT_SECRET" })
+    .string()
     .min(32, "JWT_SECRET must be at least 32 characters"),
   JWT_EXPIRES_IN: jwtExpirationSchema,
   COOKIE_NAME: z.string().min(1, "COOKIE_NAME must not be empty").default("school_token"),
-  COOKIE_SAMESITE: z.enum(["lax", "none"]).default("lax"),
+  COOKIE_SAMESITE: z.literal("lax").default("lax"),
+  PASSWORD_RESET_DELIVERY_URL: z.preprocess(
+    (value) => value === "" ? undefined : value,
+    z.string().url().optional(),
+  ),
+  PASSWORD_RESET_DELIVERY_SECRET: z.preprocess(
+    (value) => value === "" ? undefined : value,
+    z.string().min(32).optional(),
+  ),
   TRUST_PROXY: z.coerce.number().int().nonnegative().default(0),
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(300),
 }).superRefine((values, context) => {
   if (values.NODE_ENV !== "production") return;
+  if (!values.PASSWORD_RESET_DELIVERY_URL || !values.PASSWORD_RESET_DELIVERY_SECRET) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["PASSWORD_RESET_DELIVERY_URL"],
+      message: "Production password resets require a delivery webhook URL and secret",
+    });
+  } else if (!values.PASSWORD_RESET_DELIVERY_URL.startsWith("https://")) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["PASSWORD_RESET_DELIVERY_URL"],
+      message: "Production password reset delivery must use HTTPS",
+    });
+  }
   if (values.JWT_SECRET.length < 48 || /placeholder|replace|example|changeme|your[_ -]?secret/i.test(values.JWT_SECRET)) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["JWT_SECRET"], message: "Production JWT_SECRET must be at least 48 characters and not a placeholder" });
   }
@@ -80,6 +101,9 @@ const envSchema = z.object({
   }
   if (new URL(values.DATABASE_URL).searchParams.get("sslmode") !== "require") {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["DATABASE_URL"], message: "Production DATABASE_URL must include sslmode=require" });
+  }
+  if (new URL(values.DIRECT_URL).searchParams.get("sslmode") !== "require") {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["DIRECT_URL"], message: "Production DIRECT_URL must include sslmode=require" });
   }
 });
 

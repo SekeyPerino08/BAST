@@ -9,7 +9,6 @@ import { addDays, manilaToday } from "../../../lib/dates";
 import { DataTablePagination, EmptyState, ErrorState, TableSkeleton } from "../../../components/shared";
 import { useAuditFacets, useAuditLogs } from "../hooks";
 import type { AuditEntry, AuditParams } from "../types";
-import { ReportExportLink } from "../../reports/components/ReportExportLink";
 
 const defaults = { page: "1", pageSize: "25" };
 const ACTION_LABELS: Record<string, string> = {
@@ -23,6 +22,7 @@ const ACTION_LABELS: Record<string, string> = {
   ATTENDANCE_SAVE: "Saved attendance", GRADES_SAVE: "Saved grades", GRADE_CHANGE: "Changed a grade",
   TERM_LOCK: "Locked grading term", TERM_UNLOCK: "Unlocked grading term",
   REPORT_CARD_VIEW: "Viewed report card", REPORT_CARD_BATCH_VIEW: "Viewed report card batch",
+  VIEW_STUDENT: "Viewed student record", VIEW_ENROLLMENTS: "Viewed enrollments", SYNC_COMMIT: "Committed data sync",
 };
 
 const SECURITY_ACTIONS = new Set([
@@ -39,9 +39,9 @@ function asParams(values: Record<string, string | undefined>): AuditParams {
     page: Math.max(1, Number(values.page) || 1),
     pageSize: [10, 25, 50, 100].includes(Number(values.pageSize)) ? Number(values.pageSize) : 25,
     ...(values.action ? { action: values.action } : {}),
-    ...(values.entity ? { entity: values.entity } : {}),
-    ...(values.actorId ? { actorId: values.actorId } : {}),
-    ...(values.q ? { q: values.q } : {}),
+    ...(values.entity_type ? { entity_type: values.entity_type } : {}),
+    ...(values.actor ? { actor: values.actor } : {}),
+    ...(values.student ? { student: values.student } : {}),
     ...(values.from ? { from: values.from } : {}),
     ...(values.to ? { to: values.to } : {}),
   };
@@ -57,22 +57,31 @@ function formatExactTime(value: string) {
 
 function entityHref(entry: AuditEntry): string | null {
   if (!entry.entityId) return null;
-  const entity = entry.entity.toLowerCase();
+  const entity = entry.entityType.toLowerCase();
   if (entity === "student") return `/admin/students/${encodeURIComponent(entry.entityId)}`;
   if (entity === "teacher") return `/admin/teachers/${encodeURIComponent(entry.entityId)}`;
   if (entity === "section") return `/admin/sections/${encodeURIComponent(entry.entityId)}`;
   return null;
 }
 
-function DetailValues({ value }: Readonly<{ value: unknown }>) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return <p className="whitespace-pre-wrap break-words text-sm text-slate-700">{typeof value === "string" ? value : JSON.stringify(value)}</p>;
+function renderValue(value: unknown) {
+  if (value === undefined || value === null) return "—";
+  return typeof value === "object" ? JSON.stringify(value, null, 2) : String(value);
+}
+
+function DetailValues({ before, after }: Readonly<{ before: unknown; after: unknown }>) {
+  const oldFields = before && typeof before === "object" && !Array.isArray(before) ? before as Record<string, unknown> : {};
+  const newFields = after && typeof after === "object" && !Array.isArray(after) ? after as Record<string, unknown> : {};
+  const fields = [...new Set([...Object.keys(oldFields), ...Object.keys(newFields)])];
+  if (!fields.length) {
+    return <p className="whitespace-pre-wrap break-words text-sm text-slate-700">{renderValue(after ?? before)}</p>;
   }
-  const pairs = Object.entries(value);
-  if (!pairs.length) return <p className="text-sm text-slate-500">No details recorded.</p>;
-  return <dl className="grid gap-3 sm:grid-cols-2">{pairs.map(([key, entry]) => <div key={key} className="min-w-0">
+  return <dl className="grid gap-3 sm:grid-cols-2">{fields.map((key) => <div key={key} className="min-w-0">
     <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">{key.replaceAll("_", " ")}</dt>
-    <dd className="mt-1 break-words text-sm text-slate-800">{typeof entry === "object" && entry !== null ? <code className="whitespace-pre-wrap">{JSON.stringify(entry, null, 2)}</code> : String(entry ?? "—")}</dd>
+    <dd className="mt-1 grid gap-1 break-words text-sm text-slate-800">
+      <span><span className="font-medium text-slate-500">Old: </span><code className="whitespace-pre-wrap">{renderValue(oldFields[key])}</code></span>
+      <span><span className="font-medium text-slate-500">New: </span><code className="whitespace-pre-wrap">{renderValue(newFields[key])}</code></span>
+    </dd>
   </div>)}</dl>;
 }
 
@@ -96,14 +105,8 @@ export function AuditPage() {
       <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">Administration</p>
       <h1 className="mt-1 text-3xl font-bold text-slate-900">Audit log</h1>
       <p className="mt-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">The audit log is read-only. Entries cannot be edited or deleted.</p>
-      <div className="mt-4">
-        <ReportExportLink report="audit-log" filters={
-          url.values.from && url.values.to && dateRangeDays(url.values.from, url.values.to) <= 30
-            ? { from: url.values.from, to: url.values.to }
-            : {}
-        } locked={url.values.from && url.values.to && dateRangeDays(url.values.from, url.values.to) <= 30 ? ["from", "to"] : []}
-        label="Export" className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700" />
-      </div>
+      <a href={`/api/audit?${new URLSearchParams({ ...Object.fromEntries(Object.entries(params).map(([key, value]) => [key, String(value)])), format: "csv" })}`}
+        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Export CSV</a>
     </header>
 
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -111,10 +114,11 @@ export function AuditPage() {
         <label className="text-sm font-medium text-slate-700">Action<select value={url.values.action ?? ""} onChange={(event) => url.update({ action: event.target.value || null })} className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
           <option value="">All actions</option>{(facets.data?.actions ?? []).map((action) => <option key={action} value={action}>{humanize(action)}</option>)}
         </select></label>
-        <label className="text-sm font-medium text-slate-700">Entity<select value={url.values.entity ?? ""} onChange={(event) => url.update({ entity: event.target.value || null })} className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
+        <label className="text-sm font-medium text-slate-700">Entity type<select value={url.values.entity_type ?? ""} onChange={(event) => url.update({ entity_type: event.target.value || null })} className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
           <option value="">All entities</option>{(facets.data?.entities ?? []).map((entity) => <option key={entity} value={entity}>{entity}</option>)}
         </select></label>
-        <label className="text-sm font-medium text-slate-700">Actor email<input value={url.values.q ?? ""} onChange={(event) => url.updateSearch(event.target.value, 400, "q")} placeholder="Search actor" className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
+        <label className="text-sm font-medium text-slate-700">Actor<input value={url.values.actor ?? ""} onChange={(event) => url.updateSearch(event.target.value, 400, "actor")} placeholder="Email or user ID" className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
+        <label className="text-sm font-medium text-slate-700">Student ID<input value={url.values.student ?? ""} onChange={(event) => url.updateSearch(event.target.value, 400, "student")} placeholder="Student ID" className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
         <label className="text-sm font-medium text-slate-700">From<input type="date" value={url.values.from ?? ""} max={url.values.to ?? today} onChange={(event) => url.update({ from: event.target.value || null })} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
         <label className="text-sm font-medium text-slate-700">To<input type="date" value={url.values.to ?? ""} min={url.values.from} max={today} onChange={(event) => url.update({ to: event.target.value || null })} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
       </div>
@@ -153,15 +157,11 @@ export function AuditPage() {
   </div>;
 }
 
-function dateRangeDays(from: string, to: string): number {
-  return (new Date(`${to}T00:00:00Z`).getTime() - new Date(`${from}T00:00:00Z`).getTime()) / 86_400_000;
-}
-
 function AuditRow({ entry, expanded, onToggle }: Readonly<{ entry: AuditEntry; expanded: boolean; onToggle: () => void }>) {
   const href = entityHref(entry);
   async function copyDetails() {
     try {
-      await navigator.clipboard.writeText(JSON.stringify(entry.details ?? null, null, 2));
+      await navigator.clipboard.writeText(JSON.stringify({ before: entry.before, after: entry.after }, null, 2));
       toast.success("Audit details copied");
     } catch {
       toast.error("Could not copy audit details");
@@ -169,23 +169,23 @@ function AuditRow({ entry, expanded, onToggle }: Readonly<{ entry: AuditEntry; e
   }
   return <>
     <tr>
-      <td className="whitespace-nowrap px-4 py-4 text-slate-600"><time dateTime={entry.createdAt} title={formatExactTime(entry.createdAt)}>{formatExactTime(entry.createdAt)}</time></td>
+      <td className="whitespace-nowrap px-4 py-4 text-slate-600"><time dateTime={entry.at} title={formatExactTime(entry.at)}>{formatExactTime(entry.at)}</time></td>
       <td className="px-4 py-4"><span title={entry.action}><ActionText entry={entry} /></span></td>
-      <td className="px-4 py-4 text-slate-700"><span className="font-medium">{entry.entity}</span><span className="block max-w-48 truncate font-mono text-xs text-slate-500" title={entry.entityId ?? undefined}>{entry.entityId ?? "—"}</span></td>
+      <td className="px-4 py-4 text-slate-700"><span className="font-medium">{entry.entityType}</span><span className="block max-w-48 truncate font-mono text-xs text-slate-500" title={entry.entityId ?? undefined}>{entry.entityId ?? "—"}</span></td>
       <td className="px-4 py-4">{entry.actor ? <><span className="block text-slate-800">{entry.actor.email}</span><span className="text-xs text-slate-500">{entry.actor.role}</span></> : <span className="text-slate-500">System / unknown</span>}</td>
-      <td className="px-4 py-4 text-slate-600">{entry.ipAddress ?? "—"}</td>
+      <td className="px-4 py-4 text-slate-600">{entry.ip ?? "—"}</td>
       <td className="px-4 py-4"><button type="button" aria-expanded={expanded} onClick={onToggle} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">{expanded ? "Hide details" : "Details"}</button></td>
     </tr>
     {expanded && <tr><td colSpan={6} className="bg-slate-50 px-5 py-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div><h3 className="font-semibold text-slate-900">Audit entry details</h3>
           <p className="mt-1 text-xs text-slate-600">Entity ID: <code className="break-all">{entry.entityId ?? "—"}</code></p>
-          <p className="mt-1 text-xs text-slate-600">IP address: {entry.ipAddress ?? "—"} · <time dateTime={entry.createdAt}>{formatExactTime(entry.createdAt)}</time></p>
+          <p className="mt-1 text-xs text-slate-600">IP address: {entry.ip ?? "—"} · <time dateTime={entry.at}>{formatExactTime(entry.at)}</time></p>
         </div>
         <button type="button" onClick={() => void copyDetails()} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"><ClipboardCopy size={14} />Copy JSON</button>
       </div>
-      {href && <Link href={href} className="mt-3 inline-block text-sm font-semibold text-indigo-700 hover:underline">Open {entry.entity.toLowerCase()} page</Link>}
-      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4"><DetailValues value={entry.details} /></div>
+      {href && <Link href={href} className="mt-3 inline-block text-sm font-semibold text-indigo-700 hover:underline">Open {entry.entityType.toLowerCase()} page</Link>}
+      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4"><DetailValues before={entry.before} after={entry.after} /></div>
     </td></tr>}
   </>;
 }

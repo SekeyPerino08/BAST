@@ -20,10 +20,8 @@ const defaults = { page: "1", pageSize: "25", sortBy: "createdAt", order: "desc"
 const sortKeys = ["email", "createdAt", "lastLoginAt"] as const;
 const emailSchema = z.object({ email: z.string().trim().email("Enter a valid email").transform((email) => email.toLowerCase()) });
 const adminSchema = emailSchema.extend({ temporaryPassword: z.string().max(128, "Password is too long").optional() });
-const tempPasswordSchema = z.object({ temporaryPassword: z.string().max(128, "Password is too long").optional() });
 type EmailValues = z.infer<typeof emailSchema>;
 type AdminValues = z.infer<typeof adminSchema>;
-type TempValues = z.infer<typeof tempPasswordSchema>;
 type DialogState =
   | { type: "add" }
   | { type: "reset"; user: ManagedUser }
@@ -82,19 +80,19 @@ export function UsersPage() {
   const [actionError, setActionError] = useState<{ message: string; href?: string } | null>(null);
   const [createPending, setCreatePending] = useState(false);
   const [resetPending, setResetPending] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const adminForm = useForm<AdminValues>({ resolver: zodResolver(adminSchema) });
   const emailForm = useForm<EmailValues>({ resolver: zodResolver(emailSchema) });
-  const resetForm = useForm<TempValues>({ resolver: zodResolver(tempPasswordSchema) });
 
   function closeDialog() {
     setDialog(null);
     setPasswordOnce(null);
+    setResetSent(false);
     setEmailError("");
     setReason("");
     setActionError(null);
     adminForm.reset();
     emailForm.reset();
-    resetForm.reset();
   }
 
   function openDialog(next: DialogState) {
@@ -102,9 +100,9 @@ export function UsersPage() {
     setActionError(null);
     setReason("");
     setPasswordOnce(null);
+    setResetSent(false);
     adminForm.reset();
     emailForm.reset();
-    resetForm.reset();
     setDialog(next);
   }
 
@@ -127,16 +125,16 @@ export function UsersPage() {
     } finally { setCreatePending(false); }
   }
 
-  async function submitReset(values: TempValues) {
+  async function submitReset() {
     if (dialog?.type !== "reset") return;
     try {
       setResetPending(true);
-      const result = await resetUserPassword(dialog.user.id, values.temporaryPassword);
+      await resetUserPassword(dialog.user.id);
       await queryClient.invalidateQueries({ queryKey: userKeys.all });
-      setPasswordOnce(result.temporaryPassword);
-      toast.success("Password reset");
+      setResetSent(true);
+      toast.success("Password reset instructions sent");
     } catch (error) {
-      resetForm.setError("root.server", { message: error instanceof ApiError && error.code === "USE_CHANGE_PASSWORD" ? "Use the profile password form to change your own password." : apiMessage(error, "Could not reset the password.") });
+      setActionError({ message: error instanceof ApiError && error.code === "USE_CHANGE_PASSWORD" ? "Use the profile password form to change your own password." : apiMessage(error, "Could not send password reset instructions.") });
     } finally { setResetPending(false); }
   }
 
@@ -294,13 +292,14 @@ export function UsersPage() {
         </form>}
     </Modal>}
 
-    {dialog?.type === "reset" && <Modal title={passwordOnce ? "Password reset" : "Reset password"} onClose={closeDialog} disableClose={pending || passwordOnce !== null} size="max-w-md">
-      {passwordOnce ? <TemporaryPasswordPanel password={passwordOnce} email={dialog.user.email} personType="admin" onDismiss={closeDialog} /> :
-        <form onSubmit={resetForm.handleSubmit((values) => void submitReset(values))} className="space-y-4" noValidate>
-          <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-950">The user will be signed out everywhere and must choose a new password at next login.</p>
-          <FormField label="Temporary password (optional; blank generates one)" name="reset-password" errorId="reset-password-error" error={resetForm.formState.errors.temporaryPassword?.message}><input id="reset-password" type="password" autoComplete="new-password" aria-describedby={resetForm.formState.errors.temporaryPassword ? "reset-password-error" : undefined} {...resetForm.register("temporaryPassword")} className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm" /></FormField>
-          {resetForm.formState.errors.root?.server && <p role="alert" className="text-sm text-rose-700">{resetForm.formState.errors.root.server.message}</p>}
-          <DialogActions busy={resetPending} submitLabel="Reset password" onCancel={closeDialog} />
+    {dialog?.type === "reset" && <Modal title={resetSent ? "Instructions sent" : "Send password reset link"} onClose={closeDialog} disableClose={resetPending} size="max-w-md">
+      {resetSent ? <div className="space-y-4">
+        <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">A single-use reset link was sent to {dialog.user.email}. Active sessions are invalidated after the user completes the reset.</p>
+        <div className="flex justify-end"><button type="button" onClick={closeDialog} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">Done</button></div>
+      </div> : <form onSubmit={(event) => { event.preventDefault(); void submitReset(); }} className="space-y-4">
+          <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-950">The user will receive a short-lived reset link by email. The link can be used once; all existing sessions are invalidated when the password changes.</p>
+          {actionError && <p role="alert" className="text-sm text-rose-700">{actionError.message}</p>}
+          <DialogActions busy={resetPending} submitLabel="Send reset link" onCancel={closeDialog} />
         </form>}
     </Modal>}
 

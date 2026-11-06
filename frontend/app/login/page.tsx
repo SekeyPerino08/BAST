@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, GraduationCap } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -152,6 +153,11 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+          <p className="mt-4 text-center text-sm">
+            <Link href="/forgot-password" className="font-medium text-indigo-700 hover:underline">
+              Forgot your password?
+            </Link>
+          </p>
           <HealthStatus />
         </section>
         <p className="mt-6 text-center text-xs text-slate-400">
