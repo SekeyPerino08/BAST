@@ -1,4 +1,4 @@
-# CampusHub / MNHS School System
+# Benthel Asia School of Technology School System
 
 CampusHub is a role-based school information system. The API is an Express + TypeScript service backed by Prisma and Neon Postgres; the web application is Next.js.
 
