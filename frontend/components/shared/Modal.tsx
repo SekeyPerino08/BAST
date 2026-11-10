@@ -52,8 +52,8 @@ export function Modal({
         aria-describedby={description ? "shared-modal-description" : undefined}
         className={`max-h-[92vh] w-full ${size} overflow-y-auto rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl`}>
         <header className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
-          <div><h2 id="shared-modal-title" className="text-lg font-semibold text-slate-900">{title}</h2>
-            {description && <p id="shared-modal-description" className="mt-1 text-sm text-slate-500">{description}</p>}</div>
+         <div><h2 id="shared-modal-title" className="text-lg font-semibold text-slate-900">{title}</h2>
+           {description && <p id="shared-modal-description" className="mt-1 text-sm text-slate-500">{description}</p>}</div>
           <button type="button" onClick={onClose} disabled={disableClose} aria-label="Close dialog"
             className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-40"><X size={19} /></button>
         </header>
