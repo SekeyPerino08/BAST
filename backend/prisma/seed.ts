@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { AlumniRecordKind, LmsEventType, PrismaClient, Role, Sex } from "@prisma/client";
+import { AlumniRecordKind, EnrollmentStatus, LmsEventType, PrismaClient, Role, Sex, StudentStatus } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -214,7 +214,7 @@ async function seed(): Promise<void> {
         firstName,
         lastName,
         sex,
-        status: index === 8 ? "GRADUATED" : "ACTIVE",
+        status: index === 8 ? StudentStatus.GRADUATED : StudentStatus.ACTIVE,
         ...(studentAccount ? { userId: studentAccount.id } : {}),
       },
       create: {
@@ -222,7 +222,7 @@ async function seed(): Promise<void> {
         firstName,
         lastName,
         sex,
-        status: index === 8 ? "GRADUATED" : "ACTIVE",
+        status: index === 8 ? StudentStatus.GRADUATED : StudentStatus.ACTIVE,
         ...(studentAccount ? { userId: studentAccount.id } : {}),
       },
     });
@@ -230,12 +230,12 @@ async function seed(): Promise<void> {
     const studentSection = index < 6 ? section : secondSection;
     await prisma.enrollment.upsert({
       where: { studentId_schoolYearId: { studentId: student.id, schoolYearId: schoolYear.id } },
-      update: { sectionId: studentSection.id, status: index === 8 ? "COMPLETED" : "ENROLLED" },
+      update: { sectionId: studentSection.id, status: index === 8 ? EnrollmentStatus.COMPLETED : EnrollmentStatus.ENROLLED },
       create: {
         studentId: student.id,
         schoolYearId: schoolYear.id,
         sectionId: studentSection.id,
-        status: index === 8 ? "COMPLETED" : "ENROLLED",
+        status: index === 8 ? EnrollmentStatus.COMPLETED : EnrollmentStatus.ENROLLED,
       },
     });
   }
@@ -306,7 +306,7 @@ async function seed(): Promise<void> {
 seed()
   .catch((error: unknown) => {
     console.error("Prisma seed failed:", error);
-    process.exitCode = 1;
+    throw error;
   })
   .finally(async () => {
     await prisma.$disconnect();

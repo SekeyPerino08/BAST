@@ -135,7 +135,7 @@ export function GlobalSearch({ compact = false }: Readonly<{ compact?: boolean }
       onClick={() => setOpen(true)}
       aria-label="Search (Control or Command K)"
       title={compact ? "Search" : undefined}
-      className={`inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/15 bg-white/[0.07] px-3 text-sm text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f3c64e] ${compact ? "justify-center px-0 lg:w-10" : "w-full justify-start"}`}
+      className={`inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/15 bg-white/[0.07] px-3 text-sm text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f0c35d] ${compact ? "justify-center px-0 lg:w-10" : "w-full justify-start"}`}
     >
       <Search size={16} aria-hidden="true" className="shrink-0" />
       <span className={compact ? "lg:hidden" : "hidden sm:inline"}>Search</span>
@@ -150,7 +150,7 @@ export function GlobalSearch({ compact = false }: Readonly<{ compact?: boolean }
           onChange={(event) => setSearch(event.target.value)}
           aria-label="Search students by name, ID, or email"
           placeholder="Search by student name or ID"
-          className="min-h-12 w-full rounded-lg border border-slate-400 bg-white py-3 pl-10 pr-3 text-base text-slate-900 placeholder:text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-700"
+          className="min-h-12 w-full rounded-lg border border-slate-400 bg-white py-3 pl-10 pr-3 text-base text-slate-900 placeholder:text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d6a45]"
         />
       </label>
       <div className="mt-4 max-h-[55vh] space-y-4 overflow-y-auto">
@@ -170,7 +170,7 @@ export function GlobalSearch({ compact = false }: Readonly<{ compact?: boolean }
                       ? `/admin/students/${encodeURIComponent(student.id)}`
                       : `/teacher/advisory/report-cards/${encodeURIComponent(student.id)}`;
                     return <li key={student.id}>
-                      <Link href={href} onClick={close} className="flex min-h-12 items-center justify-between gap-3 rounded-lg px-3 py-2 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-700">
+                      <Link href={href} onClick={close} className="flex min-h-12 items-center justify-between gap-3 rounded-lg px-3 py-2 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d6a45]">
                         <span className="min-w-0">
                           <span className="block truncate font-medium text-slate-900">{student.displayName ?? `${student.lastName}, ${student.firstName}${student.middleName ? ` ${student.middleName}` : ""}`}</span>
                           {student.email && <span className="block truncate text-xs text-slate-600">{student.email}</span>}

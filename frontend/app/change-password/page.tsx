@@ -20,24 +20,24 @@ export default function ChangePasswordPage() {
   }, [loading, router, user]);
 
   if (loading || !user) {
-    return <main className="flex min-h-screen items-center justify-center bg-slate-100" aria-label="Loading account">
-      <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+    return <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_#edf7ef_0%,_#dfeee4_15%,_#0d412e_100%)]" aria-label="Loading account">
+      <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#dfeee4] border-t-[#1d6a45]" />
     </main>;
   }
 
-  return <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-10">
-    <section className="w-full max-w-lg rounded-3xl border border-white bg-white p-6 shadow-xl sm:p-9">
+  return <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_#edf7ef_0%,_#dfeee4_15%,_#0d412e_100%)] px-4 py-10">
+    <section className="w-full max-w-lg rounded-3xl border border-[#dfeee4] bg-white p-6 shadow-[0_28px_65px_-36px_rgba(13,65,46,0.7)] sm:p-9">
       <div className="mb-6 text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#1d6a45] text-white shadow-md">
           {user.mustChangePassword ? <ShieldCheck size={27} aria-hidden="true" /> : <GraduationCap size={27} aria-hidden="true" />}
         </div>
-        <h1 className="text-2xl font-bold text-slate-900">Change your password</h1>
+        <h1 className="text-2xl font-bold text-[#0d412e]">Change your password</h1>
         <p className="mt-2 text-sm text-slate-500">Keep your account secure with a password only you know.</p>
       </div>
       <ChangePasswordForm forced={user.mustChangePassword} />
       <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4 text-sm">
         {!user.mustChangePassword
-          ? <Link href={dashboardPath(user.role)} className="font-medium text-indigo-700 hover:underline">Back to dashboard</Link>
+          ? <Link href={dashboardPath(user.role)} className="font-medium text-[#1d6a45] hover:underline">Back to dashboard</Link>
           : <span />}
         <button type="button" onClick={() => void logout()} className="font-medium text-slate-600 hover:text-slate-900">Sign out</button>
       </div>

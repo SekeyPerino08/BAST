@@ -27,7 +27,7 @@ export function TermFormDialog({ year, term, onClose }: Readonly<{ year: SchoolY
       }
     }
   }
-  const inputClass = "w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-[#285487]";
+  const inputClass = "w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-[#1d6a45]";
   return <Modal title={`Edit ${term.name}`} description={`Dates must stay within ${year.name} and cannot overlap another term.`} onClose={onClose} disableClose={mutation.isPending}>
     <form onSubmit={form.handleSubmit(submit)} className="space-y-4">
       <div><label htmlFor="term-name" className="mb-1 block text-sm font-medium text-slate-700">Term name</label><input id="term-name" {...form.register("name")} className={inputClass} />{form.formState.errors.name && <Error>{form.formState.errors.name.message}</Error>}</div>
@@ -35,8 +35,7 @@ export function TermFormDialog({ year, term, onClose }: Readonly<{ year: SchoolY
         <div><label htmlFor="term-start" className="mb-1 block text-sm font-medium text-slate-700">Start date</label><input id="term-start" type="date" {...form.register("startDate")} className={inputClass} />{form.formState.errors.startDate && <Error>{form.formState.errors.startDate.message}</Error>}</div>
         <div><label htmlFor="term-end" className="mb-1 block text-sm font-medium text-slate-700">End date</label><input id="term-end" type="date" {...form.register("endDate")} className={inputClass} />{form.formState.errors.endDate && <Error>{form.formState.errors.endDate.message}</Error>}</div>
       </div>
-      <div className="flex justify-end gap-3 border-t border-slate-100 pt-4"><button type="button" disabled={mutation.isPending} onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Cancel</button><button type="submit" disabled={mutation.isPending} className="inline-flex items-center gap-2 rounded-lg bg-[#17365d] px-4 py-2 text-sm font-semibold text-white hover:bg-[#214978]">{mutation.isPending && <LoaderCircle size={16} className="animate-spin" />}Save term</button></div>
-    </form>
+      <div className="flex justify-end gap-3 border-t border-slate-100 pt-4"><button type="button" disabled={mutation.isPending} onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Cancel</button>      <button type="submit" disabled={mutation.isPending} className="inline-flex items-center gap-2 rounded-lg bg-[#0d412e] px-4 py-2 text-sm font-semibold text-white hover:bg-[#135b3b]">{mutation.isPending && <LoaderCircle size={16} className="animate-spin" />}Save term</button></div>    </form>
   </Modal>;
 }
 function Error({ children }: { children?: React.ReactNode }) { return children ? <p role="alert" className="mt-1 text-sm text-rose-700">{children}</p> : null; }

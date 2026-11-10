@@ -38,16 +38,16 @@ export default function ForgotPasswordPage() {
             <label htmlFor="reset-email" className="mb-1.5 block text-sm font-medium text-slate-700">Email</label>
             <input id="reset-email" type="email" autoComplete="email" required value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-indigo-600" />
+              className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[#1d6a45]" />
           </div>
-          {message && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">{message}</p>}
+          {message && <p role="status" className="rounded-xl bg-[#ecf9f0] p-3 text-sm text-[#0d412e]">{message}</p>}
           {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
           <button type="submit" disabled={saving}
-            className="w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-60">
+            className="w-full rounded-xl bg-[#1d6a45] px-4 py-3 text-sm font-semibold text-white hover:bg-[#0d412e] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d6a45] disabled:opacity-60">
             {saving ? "Sending…" : "Send reset instructions"}
           </button>
         </form>
-        <p className="mt-5 text-center text-sm"><Link href="/login" className="font-medium text-indigo-700 hover:underline">Back to sign in</Link></p>
+        <p className="mt-5 text-center text-sm"><Link href="/login" className="font-medium text-[#1d6a45] hover:underline">Back to sign in</Link></p>
       </section>
     </main>
   );

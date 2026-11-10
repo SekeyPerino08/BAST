@@ -66,24 +66,24 @@ function MetricCard({
   return (
     <Link
       href={href}
-      className={`group rounded-2xl border bg-white p-5 shadow-[0_3px_14px_rgba(16,39,71,0.045)] transition hover:-translate-y-0.5 hover:border-[#9bb7d5] hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285487] dark:bg-slate-900 ${
-        attention ? "border-[#ead59a]" : "border-slate-200"
+      className={`group rounded-2xl border bg-white p-5 shadow-[0_3px_14px_rgba(13,65,46,0.06)] transition hover:-translate-y-0.5 hover:border-[#b9d7bf] hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d6a45] dark:bg-slate-900 ${
+        attention ? "border-[#f0d78a]" : "border-slate-200"
       }`}
     >
       <div className="flex items-start justify-between gap-3">
         <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">{label}</p>
         <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${
-          attention ? "bg-[#fff5d8] text-[#8a6710]" : "bg-[#edf3fa] text-[#17365d]"
+          attention ? "bg-[#fff1c7] text-[#7a5c12]" : "bg-[#edf7ef] text-[#0d412e]"
         }`}>
           <Icon aria-hidden="true" size={19} />
         </span>
       </div>
       <p className={`mt-4 text-3xl font-bold tracking-tight ${
-        attention ? "text-[#8a6710]" : "text-[#17365d] dark:text-white"
+        attention ? "text-[#7a5c12]" : "text-[#0d412e] dark:text-white"
       }`}>{value}</p>
       <div className="mt-2 flex items-center justify-between gap-2">
         <p className="text-xs text-slate-500 dark:text-slate-400">{note}</p>
-        <ArrowUpRight aria-hidden="true" size={15} className="text-slate-400 transition group-hover:text-[#285487]" />
+        <ArrowUpRight aria-hidden="true" size={15} className="text-slate-400 transition group-hover:text-[#1d6a45]" />
       </div>
     </Link>
   );
@@ -98,16 +98,16 @@ function ProgressCard({
 }: Readonly<{ title: string; value: number; note: string; href: string; icon: LucideIcon }>) {
   const bounded = Math.max(0, Math.min(100, value));
   return (
-    <Link href={href} className="block rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_3px_14px_rgba(16,39,71,0.045)] transition hover:border-[#9bb7d5] hover:shadow-md focus-visible:outline-2 focus-visible:outline-[#285487] dark:border-slate-700 dark:bg-slate-900">
+    <Link href={href} className="block rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_3px_14px_rgba(13,65,46,0.06)] transition hover:border-[#b9d7bf] hover:shadow-md focus-visible:outline-2 focus-visible:outline-[#1d6a45] dark:border-slate-700 dark:bg-slate-900">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <span className="flex size-9 items-center justify-center rounded-xl bg-[#edf3fa] text-[#17365d]"><Icon size={18} aria-hidden="true" /></span>
-          <h2 className="text-sm font-bold text-[#17365d] dark:text-white">{title}</h2>
+          <span className="flex size-9 items-center justify-center rounded-xl bg-[#edf7ef] text-[#0d412e]"><Icon size={18} aria-hidden="true" /></span>
+          <h2 className="text-sm font-bold text-[#0d412e] dark:text-white">{title}</h2>
         </div>
-        <span className="text-xl font-bold text-[#17365d] dark:text-white">{value}%</span>
+        <span className="text-xl font-bold text-[#0d412e] dark:text-white">{value}%</span>
       </div>
       <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800" role="progressbar" aria-valuenow={bounded} aria-valuemin={0} aria-valuemax={100} aria-label={title}>
-        <div className="h-full rounded-full bg-[#285487] transition-all" style={{ width: `${bounded}%` }} />
+        <div className="h-full rounded-full bg-[#1d6a45] transition-all" style={{ width: `${bounded}%` }} />
       </div>
       <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{note}</p>
     </Link>
@@ -160,7 +160,7 @@ export function AdminDashboardView() {
     >
       {(pullDistance > 0 || gestureRefreshing) && (
         <div
-          className="fixed left-1/2 top-[4.75rem] z-30 inline-flex -translate-x-1/2 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-[#17365d] shadow-lg dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+          className="fixed left-1/2 top-[4.75rem] z-30 inline-flex -translate-x-1/2 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-[#0d412e] shadow-lg dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
           role="status"
           aria-live="polite"
         >
@@ -168,20 +168,20 @@ export function AdminDashboardView() {
           {gestureRefreshing ? "Refreshing dashboard…" : pullDistance >= 72 ? "Release to refresh" : "Pull down to refresh"}
         </div>
       )}
-      <section className="relative overflow-hidden rounded-3xl bg-[#102747] px-5 py-6 text-white shadow-[0_10px_30px_rgba(16,39,71,0.14)] sm:px-8 sm:py-8">
+      <section className="relative overflow-hidden rounded-3xl bg-[linear-gradient(135deg,_#0d412e_0%,_#135b3b_30%,_#1d6a45_68%,_#0d412e_100%)] px-5 py-6 text-white shadow-[0_12px_32px_rgba(13,65,46,0.18)] sm:px-8 sm:py-8">
         <div aria-hidden="true" className="pointer-events-none absolute -right-14 -top-24 size-72 rounded-full border-[34px] border-white/[0.045]" />
-        <div aria-hidden="true" className="pointer-events-none absolute -bottom-28 right-40 size-64 rounded-full border-[24px] border-[#f3c64e]/[0.09]" />
+        <div aria-hidden="true" className="pointer-events-none absolute -bottom-28 right-40 size-64 rounded-full border-[24px] border-[#f0c35d]/[0.09]" />
         <div className="relative flex flex-wrap items-end justify-between gap-5">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#f3c64e]">School administration</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#f0c35d]">School administration</p>
             <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
               Welcome back{user ? `, ${user.profile?.firstName ?? user.firstName ?? userDisplayName(user)}` : ""}
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-blue-100">
               A clear view of school operations, student enrollment, and today&apos;s priorities.
             </p>
-            <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.08] px-3 py-1.5 text-xs font-semibold text-blue-50">
-              <CalendarCheck size={14} aria-hidden="true" className="text-[#f3c64e]" />
+            <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.08] px-3 py-1.5 text-xs font-semibold text-[#edf7ef]">
+              <CalendarCheck size={14} aria-hidden="true" className="text-[#f0c35d]" />
               {data?.context?.schoolYear.name ?? "School year not set"}
               {data?.context?.currentTerm && <><span className="text-white/40">/</span>{data.context.currentTerm.name}</>}
             </div>
@@ -191,13 +191,13 @@ export function AdminDashboardView() {
 
       <section aria-label="Quick actions" className="flex flex-wrap items-center gap-3">
         <span className="mr-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Quick actions</span>
-        <Link href="/admin/students" className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#17365d] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#214978] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285487]">
+        <Link href="/admin/students" className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#1d6a45] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0d412e] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d6a45]">
           <Plus size={16} aria-hidden="true" /> Add student
         </Link>
-        <Link href="/admin/enrollment" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#d6b958] bg-[#fff7df] px-4 py-2 text-sm font-semibold text-[#6f5412] transition hover:bg-[#ffefbf] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a78320]">
+        <Link href="/admin/enrollment" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#f0c35d] bg-[#fff7e2] px-4 py-2 text-sm font-semibold text-[#6f5412] transition hover:bg-[#fff0b8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b89020]">
           <ClipboardCheck size={16} aria-hidden="true" /> Manage enrollment
         </Link>
-        <Link href="/admin/sync" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#17365d] transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285487] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800">
+        <Link href="/admin/sync" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#0d412e] transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d6a45] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800">
           <Activity size={16} aria-hidden="true" /> Sync data
         </Link>
       </section>
@@ -229,10 +229,10 @@ export function AdminDashboardView() {
           {!data.context && (
             <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#ead59a] bg-[#fffaf0] p-5 dark:bg-amber-950/30">
               <div>
-                <h2 className="font-bold text-[#17365d] dark:text-white">Set up the current school year</h2>
+                <h2 className="font-bold text-[#0d412e] dark:text-white">Set up the current school year</h2>
                 <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Dashboard trends and class summaries will be available once a school year is active.</p>
               </div>
-              <Link href="/admin/school-years" className="inline-flex min-h-10 items-center rounded-xl bg-[#17365d] px-4 py-2 text-sm font-semibold text-white hover:bg-[#214978]">Manage school years</Link>
+              <Link href="/admin/school-years" className="inline-flex min-h-10 items-center rounded-xl bg-[#1d6a45] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0d412e]">Manage school years</Link>
             </section>
           )}
 
@@ -258,7 +258,7 @@ export function AdminDashboardView() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8a6710]">Stay on top of it</p>
-                  <h2 className="mt-1 text-lg font-bold text-[#17365d] dark:text-white">Needs attention</h2>
+                  <h2 className="mt-1 text-lg font-bold text-[#0d412e] dark:text-white">Needs attention</h2>
                 </div>
                 <span className="flex size-9 items-center justify-center rounded-xl bg-[#fff5d8] text-[#8a6710]"><Activity size={18} aria-hidden="true" /></span>
               </div>
@@ -268,9 +268,9 @@ export function AdminDashboardView() {
                     <li key={item.id} className="flex items-center justify-between gap-3 py-3.5">
                       <div className="flex min-w-0 items-start gap-3">
                         <span className={`mt-0.5 size-2 shrink-0 rounded-full ${item.severity === "warning" ? "bg-[#d19a1d]" : "bg-[#4773a4]"}`} />
-                        <p className="text-sm leading-5 text-slate-700 dark:text-slate-200">{item.message} <strong className="text-[#17365d] dark:text-white">{item.count.toLocaleString()}</strong></p>
+                        <p className="text-sm leading-5 text-slate-700 dark:text-slate-200">{item.message} <strong className="text-[#0d412e] dark:text-white">{item.count.toLocaleString()}</strong></p>
                       </div>
-                      <Link href={item.href} className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-bold text-[#285487] hover:bg-[#edf3fa] focus-visible:outline-2 focus-visible:outline-[#285487] dark:text-blue-200">Review</Link>
+                      <Link href={item.href} className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-bold text-[#1d6a45] hover:bg-[#edf7ef] focus-visible:outline-2 focus-visible:outline-[#1d6a45] dark:text-[#dfeee4]">Review</Link>
                     </li>
                   ))}
                 </ul>
@@ -286,15 +286,15 @@ export function AdminDashboardView() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8a6710]">What&apos;s happening</p>
-                <h2 className="mt-1 text-lg font-bold text-[#17365d] dark:text-white">Recent activity</h2>
+                <h2 className="mt-1 text-lg font-bold text-[#0d412e] dark:text-white">Recent activity</h2>
               </div>
-              <Link href="/admin/audit-logs" className="rounded-lg px-3 py-2 text-sm font-semibold text-[#285487] hover:bg-[#edf3fa] focus-visible:outline-2 focus-visible:outline-[#285487] dark:text-blue-200">View audit log <span aria-hidden="true">→</span></Link>
+              <Link href="/admin/audit-logs" className="rounded-lg px-3 py-2 text-sm font-semibold text-[#1d6a45] hover:bg-[#edf7ef] focus-visible:outline-2 focus-visible:outline-[#1d6a45] dark:text-[#dfeee4]">View audit log <span aria-hidden="true">→</span></Link>
             </div>
             {data.recentActivity.length ? (
               <ul className="mt-3 divide-y divide-slate-100 dark:divide-slate-800">
                 {data.recentActivity.slice(0, 6).map((item) => (
                   <li key={item.id} className="flex items-center gap-3 py-3">
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#edf3fa] text-[#285487]">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#edf7ef] text-[#1d6a45]">
                       <Activity size={16} aria-hidden="true" />
                     </span>
                     <div className="min-w-0 flex-1">

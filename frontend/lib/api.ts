@@ -55,15 +55,19 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
       typeof payload === "object" && payload !== null && "code" in payload && typeof payload.code === "string"
         ? payload.code
         : undefined;
-    if (
-      response.status === 403 &&
-      code === "PASSWORD_CHANGE_REQUIRED" &&
-      typeof window !== "undefined" &&
-      window.location.pathname !== "/change-password" &&
-      !redirectingForPasswordChange
-    ) {
-      redirectingForPasswordChange = true;
-      window.location.replace("/change-password");
+    if (response.status === 403 && code === "PASSWORD_CHANGE_REQUIRED") {
+      if (
+        typeof window !== "undefined" &&
+        window.location.pathname !== "/change-password" &&
+        !redirectingForPasswordChange
+      ) {
+        redirectingForPasswordChange = true;
+        window.location.replace("/change-password");
+        return undefined as T;
+      }
+      if (typeof window !== "undefined" && window.location.pathname === "/change-password") {
+        return undefined as T;
+      }
     }
     throw new ApiError(response.status, friendlyApiMessage(code, serverMessage, payload), code, payload);
   }

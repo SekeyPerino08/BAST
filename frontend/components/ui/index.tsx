@@ -12,7 +12,7 @@ import { toast as sonnerToast } from "sonner";
 import { Modal } from "../shared/Modal";
 
 const buttonVariants = {
-  primary: "bg-indigo-700 text-white hover:bg-indigo-800",
+  primary: "bg-[#1d6a45] text-white hover:bg-[#0d412e]",
   secondary: "border border-slate-300 bg-white text-slate-800 hover:bg-slate-50",
   destructive: "bg-rose-700 text-white hover:bg-rose-800",
   ghost: "text-slate-700 hover:bg-slate-100",
@@ -33,7 +33,7 @@ export function Button({
     <button
       {...props}
       disabled={disabled || loading}
-      className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700 disabled:cursor-not-allowed disabled:opacity-55 ${buttonVariants[variant]} ${className}`}
+      className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d6a45] disabled:cursor-not-allowed disabled:opacity-55 ${buttonVariants[variant]} ${className}`}
     >
       {loading && <LoaderCircle size={16} aria-hidden="true" className="animate-spin" />}
       {children}
@@ -45,7 +45,7 @@ export function Input({ className = "", ...props }: InputHTMLAttributes<HTMLInpu
   return (
     <input
       {...props}
-      className={`min-h-10 w-full rounded-lg border border-slate-400 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus-visible:border-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-100 ${className}`}
+      className={`min-h-10 w-full rounded-lg border border-slate-400 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus-visible:border-[#1d6a45] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#1d6a45] disabled:cursor-not-allowed disabled:bg-slate-100 ${className}`}
     />
   );
 }
@@ -54,7 +54,7 @@ export function Select({ className = "", children, ...props }: SelectHTMLAttribu
   return (
     <select
       {...props}
-      className={`min-h-10 w-full rounded-lg border border-slate-400 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:border-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-100 ${className}`}
+      className={`min-h-10 w-full rounded-lg border border-slate-400 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:border-[#1d6a45] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#1d6a45] disabled:cursor-not-allowed disabled:bg-slate-100 ${className}`}
     >
       {children}
     </select>
@@ -82,7 +82,7 @@ const badgeVariants = {
   success: "bg-emerald-100 text-emerald-900 ring-emerald-700/30",
   warning: "bg-amber-100 text-amber-950 ring-amber-700/30",
   destructive: "bg-rose-100 text-rose-900 ring-rose-700/30",
-  info: "bg-blue-100 text-blue-900 ring-blue-700/30",
+  info: "bg-[#edf7ef] text-[#0d412e] ring-[#1d6a45]/20",
 } as const;
 
 export function Badge({
@@ -104,7 +104,7 @@ export function PageHeader({
 }: Readonly<{ eyebrow?: string; title: string; description?: string; actions?: ReactNode }>) {
   return <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
     <div className="min-w-0">
-      {eyebrow && <p className="text-sm font-semibold uppercase tracking-wide text-[#285487] dark:text-blue-200">{eyebrow}</p>}
+      {eyebrow && <p className="text-sm font-semibold uppercase tracking-wide text-[#1d6a45] dark:text-[#dfeee4]">{eyebrow}</p>}
       <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">{title}</h1>
       {description && <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">{description}</p>}
     </div>

@@ -29,7 +29,7 @@ export function SchoolYearFormDialog({ year, onClose }: Readonly<{ year?: School
       else toast.error(friendlyApiMessage(error, "Could not save school year"));
     }
   }
-  const inputClass = "w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-[#285487]";
+  const inputClass = "w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-[#1d6a45]";
   return <Modal title={year ? "Edit school year" : "Add school year"} onClose={onClose} disableClose={pending}>
     <form onSubmit={form.handleSubmit(submit)} className="space-y-4">
       <div><label htmlFor="school-year-name" className="mb-1 block text-sm font-medium text-slate-700">Name</label><input id="school-year-name" placeholder="2026-2027" {...form.register("name")} className={inputClass} /><p className="mt-1 text-xs text-slate-500">Use YYYY-YYYY; the second year must be the first year plus one.</p>{form.formState.errors.name && <Error>{form.formState.errors.name.message}</Error>}</div>
@@ -37,8 +37,8 @@ export function SchoolYearFormDialog({ year, onClose }: Readonly<{ year?: School
         <div><label htmlFor="school-year-start" className="mb-1 block text-sm font-medium text-slate-700">Start date</label><input id="school-year-start" type="date" {...form.register("startDate")} className={inputClass} />{form.formState.errors.startDate && <Error>{form.formState.errors.startDate.message}</Error>}</div>
         <div><label htmlFor="school-year-end" className="mb-1 block text-sm font-medium text-slate-700">End date</label><input id="school-year-end" type="date" {...form.register("endDate")} className={inputClass} />{form.formState.errors.endDate && <Error>{form.formState.errors.endDate.message}</Error>}</div>
       </div>
-      {!year && <p className="rounded-lg bg-[#edf3fa] p-3 text-sm text-[#17365d] dark:bg-blue-950 dark:text-blue-100">Four quarters will be created automatically by splitting this date range evenly. You can edit the quarter dates afterward.</p>}
-      <div className="flex justify-end gap-3 border-t border-slate-100 pt-4"><button type="button" disabled={pending} onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Cancel</button><button type="submit" disabled={pending} className="inline-flex items-center gap-2 rounded-lg bg-[#17365d] px-4 py-2 text-sm font-semibold text-white hover:bg-[#214978]">{pending && <LoaderCircle size={16} className="animate-spin" />}{pending ? "Saving…" : year ? "Save changes" : "Add school year"}</button></div>
+      {!year && <p className="rounded-lg bg-[#edf7ef] p-3 text-sm text-[#0d412e] dark:bg-[#183d2d] dark:text-[#dfeee4]">Four quarters will be created automatically by splitting this date range evenly. You can edit the quarter dates afterward.</p>}
+      <div className="flex justify-end gap-3 border-t border-slate-100 pt-4"><button type="button" disabled={pending} onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Cancel</button><button type="submit" disabled={pending} className="inline-flex items-center gap-2 rounded-lg bg-[#0d412e] px-4 py-2 text-sm font-semibold text-white hover:bg-[#135b3b]">{pending && <LoaderCircle size={16} className="animate-spin" />}{pending ? "Saving…" : year ? "Save changes" : "Add school year"}</button></div>
     </form>
   </Modal>;
 }

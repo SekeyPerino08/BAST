@@ -39,17 +39,17 @@ export function TeachersList() {
 
   return <div className="mx-auto max-w-[1500px]">
     <header className="mb-7 flex flex-wrap items-center justify-between gap-4">
-      <div><p className="text-sm font-semibold uppercase tracking-wide text-[#285487] dark:text-blue-200">Administration</p><h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">Teachers</h1><p className="mt-1 text-sm text-slate-500">Manage teacher records and login access.</p></div>
+      <div><p className="text-sm font-semibold uppercase tracking-wide text-[#1d6a45] dark:text-[#dfeee4]">Administration</p><h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">Teachers</h1><p className="mt-1 text-sm text-slate-500">Manage teacher records and login access.</p></div>
       <div className="flex flex-wrap gap-2">
         <ReportExportLink report="teachers-list" filters={params.isActive === undefined ? {} : { isActive: params.isActive }} locked={["isActive"]} label="Export" className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50" />
         <Link href="/admin/imports?type=teachers" className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Import CSV</Link>
-        <button type="button" onClick={() => setDialog("create")} className="inline-flex items-center gap-2 rounded-xl bg-[#17365d] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#214978]"><CirclePlus size={18} /> Add teacher</button>
+        <button type="button" onClick={() => setDialog("create")} className="inline-flex items-center gap-2 rounded-xl bg-[#0d412e] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#135b3b]"><CirclePlus size={18} /> Add teacher</button>
       </div>
     </header>
     <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="grid gap-3 sm:grid-cols-[minmax(250px,1fr)_200px_auto]">
         <label className="relative"><span className="sr-only">Search teachers</span><Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input key={values.search ?? ""} defaultValue={values.search ?? ""} onChange={(event) => updateSearch(event.target.value)} placeholder="Search name, employee no, department" className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-3 text-sm focus:border-[#285487]" /></label>
+          <input key={values.search ?? ""} defaultValue={values.search ?? ""} onChange={(event) => updateSearch(event.target.value)} placeholder="Search name, employee no, department" className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-3 text-sm focus:border-[#1d6a45]" /></label>
         <label><span className="sr-only">Filter by status</span><select value={values.isActive ?? ""} onChange={(event) => update({ isActive: event.target.value || null })} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm">
           <option value="">All statuses</option><option value="true">Active</option><option value="false">Inactive</option></select></label>
         <button type="button" disabled={!filtered} onClick={clear} className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-medium text-slate-600 disabled:opacity-40">Clear filters</button>
@@ -69,7 +69,7 @@ export function TeachersList() {
             {query.isLoading && !response ? <TableSkeleton columns={9} rows={params.pageSize} /> :
               <tbody className="divide-y divide-slate-100">{response?.data.map((teacher) => <tr key={teacher.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800">
                 <td className="whitespace-nowrap px-4 py-4 font-medium text-slate-700">{teacher.employeeNo}</td>
-                <td className="whitespace-nowrap px-4 py-4"><Link href={`/admin/teachers/${teacher.id}`} className="font-semibold text-slate-900 hover:text-[#285487] dark:hover:text-blue-200">{teacher.lastName}, {teacher.firstName}{teacher.middleName ? ` ${teacher.middleName.charAt(0)}.` : ""}</Link></td>
+                <td className="whitespace-nowrap px-4 py-4"><Link href={`/admin/teachers/${teacher.id}`} className="font-semibold text-slate-900 hover:text-[#1d6a45] dark:hover:text-[#dfeee4]">{teacher.lastName}, {teacher.firstName}{teacher.middleName ? ` ${teacher.middleName.charAt(0)}.` : ""}</Link></td>
                 <td className="px-4 py-4 text-slate-600">{teacher.department || "—"}</td><td className="px-4 py-4 text-slate-600">{teacher.contactNo || "—"}</td>
                 <td className="px-4 py-4 text-slate-600">{teacher.classOfferingCount}</td>
                 <td className="px-4 py-4 text-slate-600">{teacher.advisedSectionCount ? `${teacher.advisedSectionCount} section${teacher.advisedSectionCount === 1 ? "" : "s"}` : "—"}</td>

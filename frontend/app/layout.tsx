@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Marigondon National High School | CampusHub",
-  description: "Marigondon National High School management dashboard",
+  title: "Benthel Asia School of Technology Inc. | CampusHub",
+  description: "Benthel Asia School of Technology Inc. management dashboard",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

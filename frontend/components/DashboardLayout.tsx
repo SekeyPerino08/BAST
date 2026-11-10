@@ -189,7 +189,7 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) scheduleCollapse();
       }}
-      className={`flex h-full w-72 flex-col border-r border-[#263d60] bg-[#102747] text-white transition-[width] duration-200 ${sidebarCollapsed ? "lg:w-[5.5rem]" : "lg:w-72"}`}
+      className={`flex h-full w-72 flex-col border-r border-[#0d412e]/60 bg-[linear-gradient(180deg,_#0d412e_0%,_#0f5b38_100%)] text-white transition-[width] duration-200 ${sidebarCollapsed ? "lg:w-[5.5rem]" : "lg:w-72"}`}
     >
       <div className={`flex h-24 items-center gap-3 border-b border-white/10 px-4 ${sidebarCollapsed ? "lg:justify-center lg:px-0" : "sm:px-5"}`}>
         <button
@@ -201,11 +201,11 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
           aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           aria-pressed={sidebarCollapsed}
           title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="flex min-w-0 items-center gap-3 rounded-lg text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f3c64e]"
+          className="flex min-w-0 items-center gap-3 rounded-lg text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c35d]"
         >
-          <Image src="/MNHS%20logo.png" alt="Marigondon National High School seal" width={56} height={56} priority className={`size-14 shrink-0 object-contain ${sidebarCollapsed ? "lg:size-12" : ""}`} />
+          <Image src="/BAST1.jpg" alt="BAST logo" width={56} height={56} priority className={`size-14 shrink-0 rounded-full object-cover ring-2 ring-white/60 ${sidebarCollapsed ? "lg:size-12" : ""}`} />
           <span className={`min-w-0 ${sidebarCollapsed ? "lg:hidden" : ""}`}>
-            <span className="block max-w-40 text-sm font-bold leading-tight text-white">Marigondon National High School</span>
+            <span className="block max-w-40 text-sm font-bold leading-tight text-white">Benthel Asia School of Technology Inc.</span>
           </span>
         </button>
         <button
@@ -235,11 +235,11 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
             title={sidebarCollapsed ? link.label : undefined}
             className={`relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
               isActive
-                ? "bg-[#285487] text-white shadow-sm before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-full before:bg-[#f3c64e]"
+                ? "bg-[#1d6a45] text-white shadow-sm before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-full before:bg-[#f0c35d]"
                 : "text-slate-300 hover:bg-white/10 hover:text-white"
             } ${sidebarCollapsed ? "lg:justify-center lg:px-0" : ""}`}
           >
-            <Icon aria-hidden="true" size={19} className={isActive ? "text-[#f3c64e]" : "text-slate-300"} />
+            <Icon aria-hidden="true" size={19} className={isActive ? "text-[#f0c35d]" : "text-slate-300"} />
             <span className={sidebarCollapsed ? "lg:hidden" : ""}>{link.label}</span>
             {link.comingSoon && !sidebarCollapsed && (
               <span className="text-xs font-normal text-slate-400">Coming soon</span>
@@ -253,8 +253,8 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
             const Icon = navigationIcons[link.label] ?? Settings;
             return <Link key={link.href} href={link.href} aria-label={sidebarCollapsed ? link.label : undefined} title={sidebarCollapsed ? link.label : undefined} onClick={() => setMenuOpen(false)}
               aria-current={isActive ? "page" : undefined}
-              className={`relative mb-1 flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold ${isActive ? "bg-[#285487] text-white before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-full before:bg-[#f3c64e]" : "text-slate-300 hover:bg-white/10 hover:text-white"} ${sidebarCollapsed ? "lg:justify-center lg:px-0" : ""}`}>
-              <Icon aria-hidden="true" size={19} className={isActive ? "text-[#f3c64e]" : "text-slate-300"} />
+              className={`relative mb-1 flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold ${isActive ? "bg-[#1d6a45] text-white before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-full before:bg-[#f0c35d]" : "text-slate-300 hover:bg-white/10 hover:text-white"} ${sidebarCollapsed ? "lg:justify-center lg:px-0" : ""}`}>
+              <Icon aria-hidden="true" size={19} className={isActive ? "text-[#f0c35d]" : "text-slate-300"} />
               <span className={sidebarCollapsed ? "lg:hidden" : ""}>{link.label}</span>
             </Link>;
           })}
@@ -262,8 +262,8 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
       </nav>
       <div className="border-t border-white/10 p-3">
         <details ref={menuRef} className="relative">
-          <summary aria-label="Open user menu" className={`flex min-h-12 cursor-pointer list-none items-center gap-3 rounded-xl bg-white/[0.07] p-2 text-left hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#f3c64e] [&::-webkit-details-marker]:hidden ${sidebarCollapsed ? "lg:justify-center" : ""}`}>
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#285487] text-sm font-bold text-[#f3c64e]" aria-hidden="true">
+          <summary aria-label="Open user menu" className={`flex min-h-12 cursor-pointer list-none items-center gap-3 rounded-xl bg-white/[0.07] p-2 text-left hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#f0c35d] [&::-webkit-details-marker]:hidden ${sidebarCollapsed ? "lg:justify-center" : ""}`}>
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#1d6a45] text-sm font-bold text-[#f0c35d]" aria-hidden="true">
               {userDisplayName(user).split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}
             </span>
             <span className={`min-w-0 flex-1 ${sidebarCollapsed ? "lg:hidden" : ""}`}>
@@ -272,17 +272,17 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
             </span>
             <ChevronDown size={15} aria-hidden="true" className={`text-slate-400 ${sidebarCollapsed ? "lg:hidden" : ""}`} />
           </summary>
-          <div className={`absolute bottom-full left-0 z-30 mb-2 w-full rounded-xl border border-white/15 bg-[#17365d] p-2 shadow-xl ${sidebarCollapsed ? "lg:left-full lg:ml-2 lg:w-64" : ""}`}>
+          <div className={`absolute bottom-full left-0 z-30 mb-2 w-full rounded-xl border border-white/15 bg-[#0d412e] p-2 shadow-xl ${sidebarCollapsed ? "lg:left-full lg:ml-2 lg:w-64" : ""}`}>
             <div className="border-b border-white/10 px-3 py-2">
               <p className="truncate text-sm font-semibold text-white">{user.email}</p>
               <p className="mt-1 text-xs text-slate-300">{user.role}</p>
             </div>
             <Link href="/profile" onClick={() => { if (menuRef.current) menuRef.current.open = false; }}
-              className="mt-1 block rounded-lg px-3 py-2 text-sm text-slate-100 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#f3c64e]">
+              className="mt-1 block rounded-lg px-3 py-2 text-sm text-slate-100 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#f0c35d]">
               Profile
             </Link>
             <button type="button" onClick={() => void logout()}
-              className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-100 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#f3c64e]">
+              className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-100 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#f0c35d]">
               Log out
             </button>
           </div>
@@ -295,7 +295,7 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
     <div className="flex min-h-screen bg-[#f4f6fa] dark:bg-slate-950">
       <a
         href="#main-content"
-        className="sr-only z-50 rounded-lg bg-white px-4 py-2 font-semibold text-[#17365d] focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus-visible:outline-2 focus-visible:outline-[#285487]"
+        className="sr-only z-50 rounded-lg bg-white px-4 py-2 font-semibold text-[#0d412e] focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus-visible:outline-2 focus-visible:outline-[#1d6a45]"
       >
         Skip to content
       </a>
@@ -315,7 +315,7 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
       )}
       {!menuOpen && <button
         type="button"
-        className="fixed left-3 top-3 z-30 inline-flex size-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-[#17365d] shadow-sm hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-[#285487] lg:hidden dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
+        className="fixed left-3 top-3 z-30 inline-flex size-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-[#0d412e] shadow-sm hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-[#1d6a45] lg:hidden dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
         onClick={() => setMenuOpen(true)}
         aria-label="Open navigation menu"
         aria-expanded={menuOpen}

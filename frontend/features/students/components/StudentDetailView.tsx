@@ -62,7 +62,7 @@ export function StudentDetailView({ id }: Readonly<{ id: string }>) {
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 text-[#b17d00]">
             <ShieldAlert size={26} aria-hidden="true" />
           </div>
-          <h1 className="mt-5 text-xl font-bold tracking-tight text-[#102747]">Could not load student information</h1>
+          <h1 className="mt-5 text-xl font-bold tracking-tight text-[#0d412e]">Could not load student information</h1>
           <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-600">
             {notFound
               ? "We couldn't find a student record at this address. It may have been removed, or the link may be incorrect."
@@ -73,7 +73,7 @@ export function StudentDetailView({ id }: Readonly<{ id: string }>) {
               type="button"
               onClick={() => void query.refetch()}
               disabled={query.isFetching}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#17365d] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#214978] disabled:cursor-wait disabled:opacity-70"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#0d412e] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#135b3b] disabled:cursor-wait disabled:opacity-70"
             >
               {query.isFetching && <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />}
               Retry
@@ -116,7 +116,7 @@ export function StudentDetailView({ id }: Readonly<{ id: string }>) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
           href="/admin/students"
-          className="inline-flex min-h-10 items-center gap-2 rounded-lg text-sm font-semibold text-[#214978] transition hover:text-[#102747] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#285487]"
+          className="inline-flex min-h-10 items-center gap-2 rounded-lg text-sm font-semibold text-[#1d6a45] transition hover:text-[#0d412e] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1d6a45]"
         >
           <ArrowLeft size={17} aria-hidden="true" />
           Back to Students
@@ -153,7 +153,7 @@ export function StudentDetailView({ id }: Readonly<{ id: string }>) {
           <button
             type="button"
             onClick={() => setDialog("edit")}
-            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#17365d] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#214978] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285487]"
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#0d412e] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#135b3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d6a45]"
           >
             <Pencil size={16} aria-hidden="true" />
             Edit student
@@ -162,7 +162,7 @@ export function StudentDetailView({ id }: Readonly<{ id: string }>) {
       </header>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="relative overflow-hidden bg-gradient-to-r from-[#102747] via-[#17365d] to-[#285487] px-5 py-6 text-white sm:px-7 sm:py-7">
+        <div className="relative overflow-hidden bg-gradient-to-r from-[#0d412e] via-[#135b3b] to-[#1d6a45] px-5 py-6 text-white sm:px-7 sm:py-7">
           <div className="pointer-events-none absolute -right-10 -top-24 h-64 w-64 rounded-full border-[34px] border-white/5" aria-hidden="true" />
           <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center">
             <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl border border-white/25 bg-white/10 text-3xl font-bold tracking-wide text-[#ffdb74] shadow-inner">
@@ -207,7 +207,7 @@ export function StudentDetailView({ id }: Readonly<{ id: string }>) {
                 onClick={() => setActiveTab(tabId)}
                 className={`inline-flex min-h-12 items-center gap-2 border-b-2 px-3 text-sm font-semibold transition ${
                   activeTab === tabId
-                    ? "border-[#d4a72c] text-[#17365d]"
+                    ? "border-[#d4a72c] text-[#0d412e]"
                     : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800"
                 }`}
               >
@@ -345,7 +345,7 @@ function AcademicPanel({
           </div>
           <Link
             href={`/admin/students/${encodeURIComponent(student.id)}/report-card`}
-            className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#17365d] px-4 text-sm font-semibold text-white transition hover:bg-[#214978]"
+            className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#0d412e] px-4 text-sm font-semibold text-white transition hover:bg-[#135b3b]"
           >
             <BookOpen size={16} aria-hidden="true" />
             Open report card
@@ -399,7 +399,7 @@ function StudentReportPanel({ studentId, type }: Readonly<{ studentId: string; t
       <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center">
         <h2 className="font-semibold text-rose-950">Could not load {type === "grades" ? "grades" : "attendance"}</h2>
         <p className="mt-1 text-sm text-rose-800">The student record is available, but this report could not be retrieved.</p>
-        <button type="button" onClick={() => void report.refetch()} className="mt-4 rounded-lg bg-[#17365d] px-4 py-2 text-sm font-semibold text-white hover:bg-[#214978]">Retry report</button>
+        <button type="button" onClick={() => void report.refetch()} className="mt-4 rounded-lg bg-[#0d412e] px-4 py-2 text-sm font-semibold text-white hover:bg-[#135b3b]">Retry report</button>
       </div>
     );
   }
@@ -418,7 +418,7 @@ function GradesSummary({ data }: Readonly<{ data: ReportCard }>) {
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">School year {data.schoolYear.name}</p>
           <h2 className="mt-1 text-xl font-bold text-[#102747]">Subject grades</h2>
         </div>
-        <Link href={`/admin/students/${encodeURIComponent(data.student.id)}/report-card`} className="text-sm font-semibold text-[#214978] hover:underline">View full report card</Link>
+        <Link href={`/admin/students/${encodeURIComponent(data.student.id)}/report-card`} className="text-sm font-semibold text-[#1d6a45] hover:underline">View full report card</Link>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <Metric label="Subjects" value={String(data.summary.subjectCount)} />
@@ -439,7 +439,7 @@ function GradesSummary({ data }: Readonly<{ data: ReportCard }>) {
                     const quarter = subject.quarters.find((item) => item.termId === term.id);
                     return <td key={term.id} className="px-4 py-3 text-center text-slate-700">{quarter?.released ? quarter.score ?? "—" : "—"}</td>;
                   })}
-                  <td className="px-4 py-3 text-center font-bold text-[#17365d]">{subject.finalGrade ?? "Pending"}</td>
+                  <td className="px-4 py-3 text-center font-bold text-[#0d412e]">{subject.finalGrade ?? "Pending"}</td>
                 </tr>
               ))}
             </tbody>
@@ -470,7 +470,7 @@ function AttendanceSummary({ data, title }: Readonly<{ data: ReportCard; title: 
           <table className="w-full min-w-[560px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-4 py-3">Grading period</th><th className="px-4 py-3">Present</th><th className="px-4 py-3">Absent</th><th className="px-4 py-3">Late</th><th className="px-4 py-3">Rate</th></tr></thead>
             <tbody className="divide-y divide-slate-100">
-              {terms.map((term) => <tr key={term.termId}><td className="px-4 py-3 font-semibold text-slate-800">Quarter {term.order}</td><td className="px-4 py-3">{term.present}</td><td className="px-4 py-3">{term.absent}</td><td className="px-4 py-3">{term.late}</td><td className="px-4 py-3 font-semibold text-[#17365d]">{term.rate === null ? "—" : `${term.rate}%`}</td></tr>)}
+              {terms.map((term) => <tr key={term.termId}><td className="px-4 py-3 font-semibold text-slate-800">Quarter {term.order}</td><td className="px-4 py-3">{term.present}</td><td className="px-4 py-3">{term.absent}</td><td className="px-4 py-3">{term.late}</td><td className="px-4 py-3 font-semibold text-[#0d412e]">{term.rate === null ? "—" : `${term.rate}%`}</td></tr>)}
             </tbody>
           </table>
         </div>
@@ -483,7 +483,7 @@ function AttendanceSummary({ data, title }: Readonly<{ data: ReportCard; title: 
 function InfoCard({ title, icon, children }: Readonly<{ title: string; icon: ReactNode; children: ReactNode }>) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="mb-4 flex items-center gap-2 font-semibold text-[#102747]"><span className="text-[#285487]">{icon}</span>{title}</h2>
+      <h2 className="mb-4 flex items-center gap-2 font-semibold text-[#0d412e]"><span className="text-[#1d6a45]">{icon}</span>{title}</h2>
       <div className="space-y-3">{children}</div>
     </section>
   );
@@ -493,7 +493,7 @@ function Detail({ label, value, emphasized = false }: Readonly<{ label: string; 
   return (
     <div className="grid grid-cols-[minmax(120px,0.7fr)_minmax(0,1.3fr)] gap-3 text-sm">
       <span className="text-slate-500">{label}</span>
-      <span className={`break-words font-semibold ${emphasized ? "text-[#17365d]" : "text-slate-800"}`}>{value || "—"}</span>
+      <span className={`break-words font-semibold ${emphasized ? "text-[#0d412e]" : "text-slate-800"}`}>{value || "—"}</span>
     </div>
   );
 }
@@ -507,15 +507,15 @@ function ProfileFact({ label, value }: Readonly<{ label: string; value: string }
 }
 
 function SummaryFact({ label, value, highlight = false }: Readonly<{ label: string; value: string; highlight?: boolean }>) {
-  return <div className="px-5 py-4 sm:px-6"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p><p className={`mt-1 font-bold ${highlight ? "text-lg text-[#17365d]" : "text-sm text-slate-800"}`}>{value}</p></div>;
+  return <div className="px-5 py-4 sm:px-6"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p><p className={`mt-1 font-bold ${highlight ? "text-lg text-[#0d412e]" : "text-sm text-slate-800"}`}>{value}</p></div>;
 }
 
 function ActionButton({ children, onClick }: Readonly<{ children: ReactNode; onClick: () => void }>) {
-  return <button type="button" onClick={onClick} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#17365d] px-4 text-sm font-semibold text-white transition hover:bg-[#214978]">{children}<span aria-hidden="true">→</span></button>;
+  return <button type="button" onClick={onClick} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#0d412e] px-4 text-sm font-semibold text-white transition hover:bg-[#135b3b]">{children}<span aria-hidden="true">→</span></button>;
 }
 
 function Metric({ label, value, accent = false }: Readonly<{ label: string; value: string; accent?: boolean }>) {
-  return <div className={`rounded-xl border p-4 ${accent ? "border-[#e8d49b] bg-[#fffaf0]" : "border-slate-200 bg-slate-50"}`}><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p><p className={`mt-1 text-2xl font-bold ${accent ? "text-[#9a6e00]" : "text-[#17365d]"}`}>{value}</p></div>;
+  return <div className={`rounded-xl border p-4 ${accent ? "border-[#e8d49b] bg-[#fffaf0]" : "border-slate-200 bg-slate-50"}`}><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p><p className={`mt-1 text-2xl font-bold ${accent ? "text-[#9a6e00]" : "text-[#0d412e]"}`}>{value}</p></div>;
 }
 
 function EmptyReport({ title, description }: Readonly<{ title: string; description: string }>) {
@@ -524,7 +524,7 @@ function EmptyReport({ title, description }: Readonly<{ title: string; descripti
 
 function UnavailablePanel({ icon, title, description }: Readonly<{ icon: ReactNode; title: string; description: string }>) {
   return <div className="mx-auto flex max-w-xl flex-col items-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center">
-    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#e8eef5] text-[#214978]">{icon}</div>
+    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#edf7ef] text-[#1d6a45]">{icon}</div>
     <h2 className="mt-4 text-lg font-bold text-[#102747]">{title}</h2>
     <p className="mt-2 max-w-md text-sm leading-6 text-slate-600">{description}</p>
   </div>;
