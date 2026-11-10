@@ -28,6 +28,7 @@ jobs:
         working-directory: frontend
 
   backend:
+    if: ${{ secrets.NEON_TEST_DATABASE_URL != '' && secrets.NEON_TEST_DIRECT_URL != '' }}
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: ${{ secrets.NEON_TEST_DATABASE_URL }}
