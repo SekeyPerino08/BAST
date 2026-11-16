@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { ApiError, apiFetch } from "../../../lib/api";
 import { ConfirmDialog, EmptyState, ErrorState } from "../../../components/shared";
@@ -24,6 +24,7 @@ type SyncResult = { data: Run; rejects: Reject[] };
 type RunsResponse = { data: Run[]; meta: { total: number } };
 
 export function DataSyncPage() {
+  const queryClient = useQueryClient();
   const [active, setActive] = useState<{ source: Source; mode: string } | null>(null);
   const [result, setResult] = useState<SyncResult | null>(null);
   const [error, setError] = useState("");
@@ -43,6 +44,13 @@ export function DataSyncPage() {
       const response = await apiFetch<SyncResult>(`/api/sync/${source}?mode=${mode}&batch=${batch}`, { method: "POST" });
       setResult(response);
       toast.success(mode === "commit" ? "Sync committed" : "Preview completed");
+      if (mode === "commit") {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["library-loans"] }),
+          queryClient.invalidateQueries({ queryKey: ["integrations"] }),
+          queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+        ]);
+      }
       await runsQuery.refetch();
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : "The sync could not be completed. Please try again.");

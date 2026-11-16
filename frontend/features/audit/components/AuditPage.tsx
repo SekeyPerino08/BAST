@@ -21,6 +21,7 @@ const ACTION_LABELS: Record<string, string> = {
   ENROLL: "Enrolled student", BULK_ENROLL: "Enrolled students", TRANSFER: "Transferred student",
   ATTENDANCE_SAVE: "Saved attendance", GRADES_SAVE: "Saved grades", GRADE_CHANGE: "Changed a grade",
   TERM_LOCK: "Locked grading term", TERM_UNLOCK: "Unlocked grading term",
+  TERM_RELEASE: "Released grades", TERM_UNRELEASE: "Withdrew grade release",
   REPORT_CARD_VIEW: "Viewed report card", REPORT_CARD_BATCH_VIEW: "Viewed report card batch",
   VIEW_STUDENT: "Viewed student record", VIEW_ENROLLMENTS: "Viewed enrollments", SYNC_COMMIT: "Committed data sync",
 };

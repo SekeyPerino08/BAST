@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { ApiError } from "../../../lib/api";
+import { manilaToday } from "../../../lib/dates";
 import { Modal, StatusBadge } from "../../../components/shared";
 import { useCurrentSchoolYear, useSchoolYears } from "../../school-years/hooks";
 import { useSections } from "../../sections/hooks";
@@ -80,11 +81,18 @@ export function TransferEnrollmentDialog({ enrollment, schoolYearId, currentSect
 }>) {
   const mutation = useTransferEnrollment();
   const [sectionId, setSectionId] = useState("");
+  const [effectiveDate, setEffectiveDate] = useState(manilaToday());
+  const [reason, setReason] = useState("");
   const [error, setError] = useState("");
   async function submit() {
     setError("");
     try {
-      await mutation.mutateAsync({ id: enrollment.id, sectionId });
+      await mutation.mutateAsync({
+        id: enrollment.id,
+        sectionId,
+        effectiveDate,
+        ...(reason.trim() ? { reason: reason.trim() } : {}),
+      });
       toast.success("Student transferred");
       onClose();
     } catch (cause) {
@@ -100,6 +108,12 @@ export function TransferEnrollmentDialog({ enrollment, schoolYearId, currentSect
         <select value={sectionId} onChange={(event) => setSectionId(event.target.value)} className={`${selectClass} mt-1`}>
           <option value="">Select a section</option>{available.map((section) => <option key={section.id} value={section.id}>{sectionLabel(section)}</option>)}
         </select>
+      </label>
+      <label className="block text-sm font-medium text-slate-700">Effective date
+        <input type="date" required value={effectiveDate} onChange={(event) => setEffectiveDate(event.target.value)} className={`${inputClass} mt-1`} />
+      </label>
+      <label className="block text-sm font-medium text-slate-700">Transfer reason <span className="font-normal text-slate-500">(optional)</span>
+        <textarea value={reason} onChange={(event) => setReason(event.target.value)} maxLength={500} rows={2} className={`${inputClass} mt-1`} />
       </label>
       <p className="rounded-lg bg-blue-50 p-3 text-sm text-blue-800">Past attendance and grades stay with the old section’s classes.</p>
       {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}

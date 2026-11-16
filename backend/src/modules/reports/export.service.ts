@@ -383,13 +383,13 @@ const reports: Record<string, ReportDefinition> = {
       await assertCanAccessAdvisorySection(user, section.adviserId);
       const term = await prisma.term.findUnique({
         where: { id: filters.termId },
-        select: { id: true, schoolYearId: true, gradesLocked: true },
+        select: { id: true, schoolYearId: true, gradesReleasedAt: true },
       });
       if (!term || term.schoolYearId !== section.schoolYear.id) {
         throw new AppError("Term does not belong to this section's school year", 400, "TERM_NOT_IN_SCHOOL_YEAR");
       }
       const includesUnreleased = user.role === Role.ADMIN && (filters.includeUnreleased ?? false);
-      if (!term.gradesLocked && !includesUnreleased) {
+      if (!term.gradesReleasedAt && !includesUnreleased) {
         throw new AppError("This term has not been released. Ask an administrator to release grades before exporting.", 409, "TERM_NOT_RELEASED");
       }
       const [classOfferings, enrollments] = await Promise.all([

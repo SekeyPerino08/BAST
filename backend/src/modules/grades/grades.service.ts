@@ -17,6 +17,7 @@ import {
   saveGradesSchema,
   schoolYearQuerySchema,
   termLockSchema,
+  termReleaseSchema,
 } from "./grades.schema.js";
 
 type GradesUser = { id: string; role: Role };
@@ -75,7 +76,7 @@ export async function getGradesSheet(classOfferingId: string, user: GradesUser) 
   const terms = await prisma.term.findMany({
     where: { schoolYearId: offering.schoolYearId },
     orderBy: { termNumber: "asc" },
-    select: { id: true, name: true, termNumber: true, gradesLocked: true },
+    select: { id: true, name: true, termNumber: true, gradesLocked: true, gradesReleasedAt: true },
   });
   const roster = await prisma.student.findMany({
     where: {
@@ -112,10 +113,10 @@ export async function getGradesSheet(classOfferingId: string, user: GradesUser) 
   });
   return {
     classOffering: { ...offering },
-    terms: terms.map(({ termNumber, ...term }) => ({ ...term, order: termNumber })),
+    terms: terms.map(({ termNumber, ...term }) => ({ ...term, order: termNumber, released: term.gradesReleasedAt !== null })),
     roster: rosterData,
     editableTermIds: terms
-      .filter((term) => user.role === Role.ADMIN || !term.gradesLocked)
+      .filter((term) => (user.role === Role.ADMIN || !term.gradesLocked) && term.gradesReleasedAt === null)
       .map(({ id }) => id),
   };
 }
@@ -135,7 +136,7 @@ export async function saveClassGrades(
   const offering = await getOffering(classOfferingId);
   const term = await prisma.term.findUnique({
     where: { id: termId },
-    select: { id: true, schoolYearId: true, gradesLocked: true },
+    select: { id: true, schoolYearId: true, gradesLocked: true, gradesReleasedAt: true },
   });
   if (!term || term.schoolYearId !== offering.schoolYearId) {
     throw new AppError("The term does not belong to this class school year", 400, "TERM_NOT_IN_SCHOOL_YEAR");
@@ -143,9 +144,24 @@ export async function saveClassGrades(
   if (user.role === Role.TEACHER && term.gradesLocked) {
     throw new AppError("This term is locked. Please ask an administrator to make a correction.", 403, "TERM_LOCKED");
   }
+  if (term.gradesReleasedAt) {
+    throw new AppError("This term's grades have been released. An administrator must withdraw the release before changes can be saved.", 409, "TERM_RELEASED");
+  }
 
   try {
     const result = await prisma.$transaction(async (transaction) => {
+      await transaction.$queryRaw`SELECT "id" FROM "Term" WHERE "id" = ${termId} FOR UPDATE`;
+      const currentTerm = await transaction.term.findUnique({
+        where: { id: termId },
+        select: { gradesLocked: true, gradesReleasedAt: true },
+      });
+      if (!currentTerm) throw new AppError("Term not found", 404);
+      if (user.role === Role.TEACHER && currentTerm.gradesLocked) {
+        throw new AppError("This term is locked. Please ask an administrator to make a correction.", 403, "TERM_LOCKED");
+      }
+      if (currentTerm.gradesReleasedAt) {
+        throw new AppError("This term's grades have been released. An administrator must withdraw the release before changes can be saved.", 409, "TERM_RELEASED");
+      }
       const roster = await transaction.student.findMany({
         where: {
           enrollments: {
@@ -338,11 +354,17 @@ async function getStudentGradeData(studentId: string, schoolYearId: string, show
   const terms = await prisma.term.findMany({
     where: { schoolYearId },
     orderBy: { termNumber: "asc" },
-    select: { id: true, name: true, termNumber: true, gradesLocked: true },
+    select: { id: true, name: true, termNumber: true, gradesLocked: true, gradesReleasedAt: true },
   });
+  const schoolYear = enrollment?.schoolYear ?? await prisma.schoolYear.findUnique({
+    where: { id: schoolYearId },
+    select: { id: true, name: true },
+  });
+  if (!schoolYear) throw new AppError("School year not found", 404);
   if (!enrollment?.section) {
     return {
       schoolYearId,
+      schoolYear,
       enrollment: null,
       subjects: [],
       generalAverage: null,
@@ -377,12 +399,13 @@ async function getStudentGradeData(studentId: string, schoolYearId: string, show
         name: term.name,
         order: term.termNumber,
         locked: term.gradesLocked,
-        score: showUnlocked || term.gradesLocked ? score : null,
+        released: term.gradesReleasedAt !== null,
+        score: showUnlocked || term.gradesReleasedAt !== null ? score : null,
       };
     });
     const releasedFinalGrades = quarterlyScores.map((term) => term.score);
-    const allLocked = terms.length === 4 && quarterlyScores.length === 4 && quarterlyScores.every((term) => term.locked);
-    const finalGrade = allLocked ? getFinalGrade(releasedFinalGrades) : { score: null, descriptor: null, passing: null };
+    const allReleased = terms.length === 4 && quarterlyScores.length === 4 && quarterlyScores.every((term) => term.released);
+    const finalGrade = allReleased ? getFinalGrade(releasedFinalGrades) : { score: null, descriptor: null, passing: null };
     return {
       classOfferingId: offering.id,
       subject: offering.subject,
@@ -394,6 +417,7 @@ async function getStudentGradeData(studentId: string, schoolYearId: string, show
   });
   return {
     schoolYearId,
+    schoolYear,
     enrollment: {
       section: enrollment.section,
       schoolYear: enrollment.schoolYear,
@@ -490,7 +514,7 @@ export async function lockSchoolYearTerm(
   const { locked, reason } = parsed.data;
   const term = await prisma.term.findFirst({
     where: { id: termId, schoolYearId },
-    select: { id: true, name: true, schoolYearId: true, termNumber: true, gradesLocked: true },
+    select: { id: true, name: true, schoolYearId: true, termNumber: true, gradesLocked: true, gradesReleasedAt: true },
   });
   if (!term) throw new AppError("Term not found for this school year", 404);
 
@@ -500,7 +524,13 @@ export async function lockSchoolYearTerm(
       where: { id: termId },
       data: locked
         ? { gradesLocked: true, lockedAt: new Date(), lockedById: user.id }
-        : { gradesLocked: false, lockedAt: null, lockedById: null },
+        : {
+            gradesLocked: false,
+            lockedAt: null,
+            lockedById: null,
+            gradesReleasedAt: null,
+            gradesReleasedById: null,
+          },
       select: {
         id: true,
         name: true,
@@ -509,6 +539,8 @@ export async function lockSchoolYearTerm(
         gradesLocked: true,
         lockedAt: true,
         lockedById: true,
+        gradesReleasedAt: true,
+        gradesReleasedById: true,
       },
     })
     : await prisma.term.findUniqueOrThrow({
@@ -521,6 +553,8 @@ export async function lockSchoolYearTerm(
         gradesLocked: true,
         lockedAt: true,
         lockedById: true,
+        gradesReleasedAt: true,
+        gradesReleasedById: true,
       },
     });
   if (changed) {
@@ -535,8 +569,79 @@ export async function lockSchoolYearTerm(
   }
   const completeness = locked ? await getCompleteness(schoolYearId, termId) : null;
   return {
-    term: { ...updated, order: updated.termNumber },
+    term: { ...updated, order: updated.termNumber, released: updated.gradesReleasedAt !== null },
     completeness,
+  };
+}
+
+export async function releaseSchoolYearTerm(
+  schoolYearId: string,
+  termId: string,
+  user: GradesUser,
+  rawInput: unknown,
+  request: Request,
+) {
+  const parsed = termReleaseSchema.safeParse(rawInput);
+  if (!parsed.success) throw new AppError("Validation failed", 400, undefined, { errors: parsed.error.flatten() });
+  const { released, reason } = parsed.data;
+  const result = await prisma.$transaction(async (transaction) => {
+    await transaction.$queryRaw`SELECT "id" FROM "Term" WHERE "id" = ${termId} FOR UPDATE`;
+    const term = await transaction.term.findFirst({
+      where: { id: termId, schoolYearId },
+      select: {
+        id: true,
+        name: true,
+        schoolYearId: true,
+        termNumber: true,
+        gradesLocked: true,
+        gradesReleasedAt: true,
+        gradesReleasedById: true,
+      },
+    });
+    if (!term) throw new AppError("Term not found for this school year", 404);
+    if (released && !term.gradesLocked) {
+      throw new AppError("Lock the term before releasing grades to students", 409, "TERM_NOT_LOCKED");
+    }
+
+    const completeness = released ? await getCompleteness(schoolYearId, termId) : null;
+    if (released && completeness && completeness.missingGradeCount > 0) {
+      throw new AppError("All class grades must be complete before release", 409, "INCOMPLETE_GRADES", completeness);
+    }
+
+    const changed = (term.gradesReleasedAt !== null) !== released;
+    const updated = changed
+      ? await transaction.term.update({
+          where: { id: termId },
+          data: released
+            ? { gradesReleasedAt: new Date(), gradesReleasedById: user.id }
+            : { gradesReleasedAt: null, gradesReleasedById: null },
+          select: {
+          id: true,
+          name: true,
+          schoolYearId: true,
+          termNumber: true,
+          gradesLocked: true,
+          gradesReleasedAt: true,
+          gradesReleasedById: true,
+          },
+        })
+      : term;
+    return { term: updated, completeness, changed };
+  });
+
+  if (result.changed) {
+    await logAudit({
+      userId: user.id,
+      action: released ? "TERM_RELEASE" : "TERM_UNRELEASE",
+      entity: "Term",
+      entityId: termId,
+      ipAddress: request.ip,
+      details: { reason: reason ?? null, schoolYearId },
+    });
+  }
+  return {
+    term: { ...result.term, order: result.term.termNumber, released: result.term.gradesReleasedAt !== null },
+    completeness: result.completeness,
   };
 }
 

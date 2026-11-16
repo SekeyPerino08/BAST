@@ -128,10 +128,14 @@ export async function getClassAttendance(
     select: { studentId: true, status: true, remarks: true },
   });
   const savedByStudent = new Map(saved.map((record) => [record.studentId, record]));
+  const markedCount = enrollments.reduce((count, { student }) => count + Number(savedByStudent.has(student.id)), 0);
   return {
     date,
     recorded: saved.length > 0,
     editable: isEditable(user, date, offering.schoolYear),
+    expectedCount: enrollments.length,
+    markedCount,
+    unmarkedCount: Math.max(enrollments.length - markedCount, 0),
     students: enrollments.map(({ student }) => {
       const attendance = savedByStudent.get(student.id);
       return { ...student, attendance: attendance ? { status: attendance.status, remarks: attendance.remarks } : null };

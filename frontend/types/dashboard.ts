@@ -1,6 +1,6 @@
 export interface DashboardContext {
   schoolYear: { id: string; name: string };
-  currentTerm: { id: string; name: string; order: number; gradesLocked: boolean } | null;
+  currentTerm: { id: string; name: string; order: number; gradesLocked: boolean; gradesReleased: boolean } | null;
   currentTermSource: "contains_today" | "most_recent" | "first" | null;
   today: string;
 }
@@ -33,6 +33,7 @@ export interface AdminDashboardData {
     rate: number | null;
   }[];
   attendanceToday: { classesWithRecords: number; classesExpected: number; rate: number | null };
+  libraryLoans: { borrowed: number; overdue: number };
   gradeProgress: {
     gradedEntries: number;
     expectedEntries: number;
@@ -68,7 +69,17 @@ export interface TeacherDashboardData {
     subjectName: string;
     sectionLabel: string;
     students: number;
-    attendanceToday: { recorded: boolean; present: number; absent: number; late: number; excused: number };
+    attendanceToday: {
+      recorded: boolean;
+      expected: number;
+      marked: number;
+      unmarked: number;
+      complete: boolean;
+      present: number;
+      absent: number;
+      late: number;
+      excused: number;
+    };
     attendanceRate: number | null;
     gradesCurrentTerm: { graded: number; expected: number; locked: boolean };
   }[];
@@ -88,6 +99,7 @@ export interface TeacherDashboardData {
     "75-79": number;
     below75: number;
   };
+  libraryLoans: { borrowed: number; overdue: number };
 }
 
 export interface StudentDashboardData {
@@ -106,6 +118,7 @@ export interface StudentDashboardData {
     subjectsBelowPassing: number;
     latestReleasedTerm: { name: string; average: number | null } | null;
   };
+  libraryLoans: { borrowed: number; overdue: number };
   reportCardAvailable: boolean;
 }
 

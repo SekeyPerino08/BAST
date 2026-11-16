@@ -12,6 +12,8 @@ import { z } from "zod";
 import { audit } from "../../audit.js";
 import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../utils/AppError.js";
+import { buildPaginationMeta } from "../../utils/pagination.js";
+import { parseDateString, todayInManila } from "../../utils/dates.js";
 import {
   alumniRecordSchema,
   libraryLoanSchema,
@@ -320,20 +322,90 @@ export async function getStudentLms(id: string, user: IntegrationUser) {
 
 export async function getStudentLibrary(id: string, user: IntegrationUser) {
   const student = await findScopedStudent(id, user);
-  return prisma.$queryRaw<Array<{
-    id: string; bookTitle: string; loanedOn: Date; dueOn: Date; returnedOn: Date | null; status: string;
-  }>>`
-    SELECT id, book_title AS "bookTitle", loaned_on AS "loanedOn", due_on AS "dueOn",
-      returned_on AS "returnedOn",
-      CASE
-        WHEN returned_on IS NOT NULL THEN 'Returned'
-        WHEN due_on < CURRENT_DATE THEN 'Overdue'
-        ELSE 'Borrowed'
-      END AS status
-    FROM library_loans
-    WHERE student_id = ${student.id}
-    ORDER BY loaned_on DESC, id DESC
-  `;
+  const today = parseDateString(todayInManila());
+  const loans = await prisma.libraryLoan.findMany({
+    where: { studentId: student.id },
+    orderBy: [{ loanedOn: "desc" }, { id: "desc" }],
+    select: { id: true, bookTitle: true, loanedOn: true, dueOn: true, returnedOn: true },
+  });
+  return loans.map((loan) => ({
+    ...loan,
+    status: loan.returnedOn ? "Returned" : loan.dueOn < today ? "Overdue" : "Borrowed",
+  }));
+}
+
+const libraryLoanListQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(25),
+  status: z.enum(["ALL", "BORROWED", "OVERDUE", "RETURNED"]).default("ALL"),
+  search: z.string().trim().max(100).optional(),
+});
+
+export async function listLibraryLoans(rawQuery: unknown, user: IntegrationUser) {
+  const query = parse(libraryLoanListQuerySchema, rawQuery);
+  const today = parseDateString(todayInManila());
+  const studentScope: Prisma.LibraryLoanWhereInput = {};
+  if (user.role === Role.TEACHER) {
+    const teacher = await prisma.teacher.findUnique({ where: { userId: user.id }, select: { id: true } });
+    if (!teacher) throw new AppError("Teacher profile not found", 404, "TEACHER_PROFILE_NOT_FOUND");
+    studentScope.student = {
+      is: {
+        enrollments: {
+          some: {
+            status: EnrollmentStatus.ENROLLED,
+            schoolYear: { is: { isCurrent: true } },
+            section: { is: { adviserId: teacher.id } },
+          },
+        },
+      },
+    };
+  } else if (user.role !== Role.ADMIN) {
+    throw new AppError("Not authorized to view the library loan list", 403, "FORBIDDEN");
+  }
+
+  const search = query.search?.trim();
+  const searchWhere: Prisma.LibraryLoanWhereInput = search ? {
+    OR: [
+      { bookTitle: { contains: search, mode: "insensitive" } },
+      { student: { is: { studentNo: { contains: search, mode: "insensitive" } } } },
+      { student: { is: { firstName: { contains: search, mode: "insensitive" } } } },
+      { student: { is: { lastName: { contains: search, mode: "insensitive" } } } },
+    ],
+  } : {};
+  const statusWhere: Prisma.LibraryLoanWhereInput = query.status === "OVERDUE"
+    ? { returnedOn: null, dueOn: { lt: today } }
+    : query.status === "BORROWED"
+      ? { returnedOn: null, dueOn: { gte: today } }
+      : query.status === "RETURNED" ? { returnedOn: { not: null } } : {};
+  const where: Prisma.LibraryLoanWhereInput = { AND: [studentScope, searchWhere, statusWhere] };
+  const [loans, total, borrowed, overdue, returned] = await Promise.all([
+    prisma.libraryLoan.findMany({
+      where,
+      skip: (query.page - 1) * query.pageSize,
+      take: query.pageSize,
+      orderBy: [{ returnedOn: "asc" }, { dueOn: "asc" }, { id: "asc" }],
+      select: {
+        id: true,
+        bookTitle: true,
+        loanedOn: true,
+        dueOn: true,
+        returnedOn: true,
+        student: { select: { id: true, studentNo: true, firstName: true, middleName: true, lastName: true } },
+      },
+    }),
+    prisma.libraryLoan.count({ where }),
+    prisma.libraryLoan.count({ where: { AND: [studentScope, { returnedOn: null, dueOn: { gte: today } }] } }),
+    prisma.libraryLoan.count({ where: { AND: [studentScope, { returnedOn: null, dueOn: { lt: today } }] } }),
+    prisma.libraryLoan.count({ where: { AND: [studentScope, { returnedOn: { not: null } }] } }),
+  ]);
+  return {
+    data: loans.map((loan) => ({
+      ...loan,
+      status: loan.returnedOn ? "Returned" : loan.dueOn < today ? "Overdue" : "Borrowed",
+    })),
+    meta: buildPaginationMeta(query.page, query.pageSize, total),
+    summary: { borrowed, overdue, returned },
+  };
 }
 
 export async function getStudentAlumni(id: string, user: IntegrationUser) {

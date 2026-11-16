@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import {
-  AlertTriangle,
   CalendarDays,
   Check,
   Clock3,
@@ -10,15 +9,17 @@ import {
   Info,
   KeyRound,
   Mail,
+  Palette,
   ShieldCheck,
   ShieldAlert,
   UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
-import { ConfirmDialog, ErrorState, Modal, StatusBadge } from "../../../components/shared";
+import { ErrorState, Modal, StatusBadge } from "../../../components/shared";
 import { DashboardLayout } from "../../../components/DashboardLayout";
 import { RoleGuard } from "../../../components/RoleGuard";
 import { ChangePasswordForm } from "../../../features/profile/ChangePasswordForm";
+import { ThemeToggle } from "../../../features/profile/components/ThemeToggle";
 import { useMyProfile } from "../../../features/profile/hooks";
 import { useAuth } from "../../../providers/AuthProvider";
 
@@ -84,16 +85,16 @@ function ProfileContent() {
 
   return (
     <div className="mx-auto w-full max-w-[1100px] space-y-6 px-2 pb-8 pt-1 text-[15px] text-slate-700 sm:px-4">
-      <header className="overflow-hidden rounded-[22px] border border-[#dfe9f2] bg-[linear-gradient(135deg,#edf8f2_0%,#eef4fb_100%)] p-5 shadow-[0_12px_28px_rgba(13,65,46,0.06)] sm:p-6">
+      <header className="overflow-hidden rounded-[22px] border border-[#dfe9f2] bg-[linear-gradient(135deg,#edf8f2_0%,#eef4fb_100%)] p-5 shadow-[0_12px_28px_rgba(13,65,46,0.06)] sm:p-6 dark:border-slate-700 dark:bg-none dark:bg-slate-900">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1d6a45]">Your account</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#0d412e] sm:text-[2rem]">Profile</h1>
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1d6a45] dark:text-[#dfeee4]">Your account</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#0d412e] sm:text-[2rem] dark:text-white">Profile</h1>
             <p className="mt-1 text-[15px] text-slate-600">Review your account details and security settings.</p>
           </div>
 
           {profile.data && (
-            <div className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[#dfe9f2] bg-white/75 px-3 py-3 shadow-sm md:max-w-[420px] md:justify-start">
+            <div className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[#dfe9f2] bg-white/75 px-3 py-3 shadow-sm md:max-w-[420px] md:justify-start dark:border-slate-700 dark:bg-slate-800">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#0d412e] text-lg font-bold text-white shadow-sm">
                 {initials}
               </div>
@@ -108,6 +109,19 @@ function ProfileContent() {
           )}
         </div>
       </header>
+
+      <section className="flex flex-col gap-4 rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#edf7ef] text-[#0d412e] dark:bg-slate-700 dark:text-[#dfeee4]">
+            <Palette size={18} aria-hidden="true" />
+          </span>
+          <div>
+            <h2 className="font-semibold text-slate-900">Appearance</h2>
+            <p className="text-sm text-slate-600">Follow your device theme or choose light or dark.</p>
+          </div>
+        </div>
+        <ThemeToggle />
+      </section>
 
       {profile.isLoading ? (
         <div className="grid gap-5 md:grid-cols-2">
@@ -181,7 +195,7 @@ function ProfileContent() {
               </div>
 
               {profile.data.person ? (
-                <div className="mt-5 min-h-[220px] rounded-[16px] border border-slate-200 bg-slate-50/60 p-4">
+                <div className="mt-5 min-h-[220px] rounded-[16px] border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-800">
                   <dl className="space-y-3">
                     {profile.data.person.type === "STUDENT" ? (
                       <>
@@ -200,7 +214,7 @@ function ProfileContent() {
                   </dl>
                 </div>
               ) : (
-                <div className="mt-5 flex min-h-[220px] flex-col items-center justify-center rounded-[16px] border border-dashed border-slate-200 bg-slate-50 px-6 py-8 text-center">
+                <div className="mt-5 flex min-h-[220px] flex-col items-center justify-center rounded-[16px] border border-dashed border-slate-200 bg-slate-50 px-6 py-8 text-center dark:border-slate-700 dark:bg-slate-900">
                   <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#edf7ef] text-[#1d6a45]">
                     <UserRound size={22} aria-hidden="true" />
                   </div>
@@ -225,15 +239,15 @@ function ProfileContent() {
             </div>
           </section>
 
-          <section className="rounded-[20px] border border-rose-200 bg-rose-50 p-5 shadow-[0_10px_24px_rgba(190,24,93,0.06)] sm:p-6">
+          <section className="rounded-[20px] border border-rose-200 bg-rose-50 p-5 shadow-[0_10px_24px_rgba(190,24,93,0.06)] sm:p-6 dark:border-rose-900 dark:bg-rose-950">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="flex items-start gap-3">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-600">
                   <ShieldAlert size={19} aria-hidden="true" />
                 </span>
                 <div>
-                  <h3 className="text-lg font-semibold text-rose-950">Logout Account</h3>
-                  <p className="mt-1 text-sm text-rose-700">This ends your current session.</p>
+                  <h3 className="text-lg font-semibold text-rose-950 dark:text-rose-100">Logout Account</h3>
+                  <p className="mt-1 text-sm text-rose-700 dark:text-rose-200">This ends your current session.</p>
                 </div>
               </div>
               <button
@@ -309,7 +323,7 @@ function InfoRow({
 }>) {
   const isWarning = tone === "warning";
   return (
-    <div className="grid gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+    <div className="grid gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center dark:border-slate-700 dark:bg-slate-800">
       <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
         <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${isWarning ? "bg-amber-100 text-amber-700" : "bg-[#edf7ef] text-[#0d412e]"}`}>
           {icon}
@@ -328,8 +342,8 @@ function InfoRow({
 
 function InfoCallout({ text, className = "" }: Readonly<{ text: string; className?: string }>) {
   return (
-    <div className={`flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900 ${className}`}>
-      <Info size={17} className="mt-0.5 shrink-0 text-sky-700" aria-hidden="true" />
+    <div className={`flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-100 ${className}`}>
+      <Info size={17} className="mt-0.5 shrink-0 text-sky-700 dark:text-sky-300" aria-hidden="true" />
       <p>{text}</p>
     </div>
   );

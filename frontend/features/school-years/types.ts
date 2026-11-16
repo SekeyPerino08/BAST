@@ -1,5 +1,6 @@
 export interface Term {
   id: string; schoolYearId: string; name: string; termNumber: number; startDate: string; endDate: string;
+  gradesLocked: boolean; gradesReleasedAt: string | null;
 }
 export interface SchoolYear {
   id: string; name: string; startDate: string; endDate: string; isCurrent: boolean; terms: Term[];

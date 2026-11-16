@@ -23,12 +23,14 @@ import {
   getStudentAlumniController,
   getStudentLibraryController,
   getStudentLmsController,
+  listLibraryLoansController,
 } from "../integrations/integration.controller.js";
 
 const studentRouter = Router();
 studentRouter.param("id", validateIdParams("id"));
 
 studentRouter.use(authenticate);
+studentRouter.get("/library-loans", authorize(Role.ADMIN, Role.TEACHER), listLibraryLoansController);
 studentRouter.get("/:id/lms", authorize(Role.ADMIN, Role.TEACHER, Role.STUDENT, Role.ALUMNI), getStudentLmsController);
 studentRouter.get("/:id/library", authorize(Role.ADMIN, Role.TEACHER, Role.STUDENT, Role.ALUMNI), getStudentLibraryController);
 studentRouter.get("/:id/alumni", authorize(Role.ADMIN, Role.TEACHER, Role.STUDENT, Role.ALUMNI), getStudentAlumniController);

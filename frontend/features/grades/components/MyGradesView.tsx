@@ -67,7 +67,7 @@ export function MyGradesView() {
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
                         {subject.terms.map((term) => (
-                          <span key={term.id} className={`rounded-full border px-2 py-1 text-[11px] font-medium ${term.score === null ? "border-slate-200 bg-slate-50 text-slate-500" : term.locked ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
+                          <span key={term.id} className={`rounded-full border px-2 py-1 text-[11px] font-medium ${term.released ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-500"}`}>
                             {term.name}: {term.score === null ? "—" : term.score.toFixed(0)}
                           </span>
                         ))}

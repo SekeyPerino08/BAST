@@ -34,6 +34,8 @@ const ACTION_LABELS: Record<string, string> = {
   GRADE_CHANGE: "Changed a grade",
   TERM_LOCK: "Locked a term",
   TERM_UNLOCK: "Unlocked a term",
+  TERM_RELEASE: "Released grades",
+  TERM_UNRELEASE: "Withdrew grade release",
   LOGIN: "Signed in",
   LOGOUT: "Signed out",
   REPORT_CARD_VIEW: "Viewed a report card",
@@ -205,8 +207,8 @@ export function AdminDashboardView() {
       {dashboard.isError && <ErrorState title="Could not load the school dashboard" error={dashboard.error} retry={() => void dashboard.refetch()} />}
 
       {dashboard.isLoading && (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5" aria-label="Loading dashboard metrics">
-          {["Students", "Teachers", "Attendance", "Class sections", "Enrollment"].map((item) => (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6" aria-label="Loading dashboard metrics">
+          {["Students", "Teachers", "Attendance", "Class sections", "Enrollment", "Library loans"].map((item) => (
             <div key={item} className="h-36 animate-pulse rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
               <div className="h-4 w-28 rounded bg-slate-200 dark:bg-slate-700" />
               <div className="mt-6 h-8 w-20 rounded bg-slate-200 dark:bg-slate-700" />
@@ -218,12 +220,13 @@ export function AdminDashboardView() {
 
       {!dashboard.isLoading && data && (
         <>
-          <section aria-label="School overview" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <section aria-label="School overview" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
             <MetricCard label="Enrolled students" value={data.counts.enrolledStudents.toLocaleString()} note={`${data.counts.activeStudents.toLocaleString()} active students`} icon={Users} href="/admin/students" />
             <MetricCard label="Active teachers" value={data.counts.activeTeachers.toLocaleString()} note="Teaching staff with active accounts" icon={GraduationCap} href="/admin/teachers" />
             <MetricCard label="Attendance recorded" value={data.attendanceToday.rate === null ? "—" : `${Math.round(data.attendanceToday.rate)}%`} note={`${data.attendanceToday.classesWithRecords} of ${data.attendanceToday.classesExpected} classes reporting`} icon={CalendarCheck} href="/admin/sections" />
             <MetricCard label="Grade completion" value={`${gradeProgress}%`} note={`${data.gradeProgress.gradedEntries.toLocaleString()} grade entries recorded`} icon={BookOpen} href="/admin/school-years" />
             <MetricCard label="Unassigned students" value={data.counts.unassignedStudents.toLocaleString()} note="Active students without enrollment" icon={UserRoundX} href="/admin/enrollment" attention={data.counts.unassignedStudents > 0} />
+            <MetricCard label="Overdue library loans" value={data.libraryLoans.overdue.toLocaleString()} note={`${data.libraryLoans.borrowed.toLocaleString()} not yet overdue`} icon={BookOpen} href="/admin/library-loans" attention={data.libraryLoans.overdue > 0} />
           </section>
 
           {!data.context && (

@@ -204,6 +204,7 @@ export function AttendanceSheetView({ offeringId }: Readonly<{ offeringId: strin
     {(weekday === 0 || weekday === 6) && <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-950">Weekend: is there a class today?</p>}
 
     {!sheetData.recorded && <p className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-950" role="status">This date has not been recorded yet. Draft students default to Present until you save.</p>}
+    {sheetData.recorded && sheetData.unmarkedCount > 0 && <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="status">Attendance is partial: {sheetData.markedCount} of {sheetData.expectedCount} students have saved records. {sheetData.unmarkedCount} still need to be recorded.</p>}
     {!sheetData.editable && <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">This date can no longer be edited. Ask an administrator to make a correction.</p>}
     {sheetData.editable && <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">

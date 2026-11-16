@@ -14,6 +14,9 @@ export interface AttendanceSheet {
   date: string;
   recorded: boolean;
   editable: boolean;
+  expectedCount: number;
+  markedCount: number;
+  unmarkedCount: number;
   roster: AttendanceRosterStudent[];
 }
 

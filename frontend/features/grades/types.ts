@@ -5,6 +5,7 @@ export interface GradeTermSummary {
   name: string;
   order: number;
   gradesLocked: boolean;
+  released: boolean;
 }
 
 export interface GradeRow {
@@ -35,8 +36,23 @@ export interface StudentGradeTerm {
   name: string;
   order: number;
   locked: boolean;
+  released: boolean;
   score: number | null;
-  descriptor: string | null;
+}
+
+export interface TermGradeCompleteness {
+  termId: string;
+  offeringsWithMissingGrades: number;
+  missingGradeCount: number;
+  classes: Array<{
+    classOfferingId: string;
+    section: { name: string; gradeLevel: number };
+    subject: { code: string; name: string };
+    teacher: { firstName: string; middleName: string | null; lastName: string } | null;
+    enrolledCount: number;
+    gradedCount: number;
+    missingCount: number;
+  }>;
 }
 
 export interface StudentGradeSubject {
@@ -44,16 +60,15 @@ export interface StudentGradeSubject {
   code: string;
   name: string;
   sectionName: string;
-  teacherName: string;
   terms: StudentGradeTerm[];
   finalGrade: number | null;
   descriptor: string | null;
   passing: boolean | null;
-  generalAverage: number | null;
 }
 
 export interface StudentGradesResponse {
   schoolYear: { id: string; name: string };
+  enrollment: { section: { id: string; name: string; gradeLevel: number } } | null;
   generalAverage: number | null;
   subjects: StudentGradeSubject[];
 }

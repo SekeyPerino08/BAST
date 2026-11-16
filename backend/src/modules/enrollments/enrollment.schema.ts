@@ -16,7 +16,11 @@ export const bulkEnrollSchema = z.object({
   studentIds: z.array(id).min(1, "Select at least one student").max(100, "Enroll at most 100 students at a time"),
 });
 
-export const transferEnrollmentSchema = z.object({ sectionId: id });
+export const transferEnrollmentSchema = z.object({
+  sectionId: id,
+  effectiveDate: z.iso.date().optional(),
+  reason: z.string().trim().max(500, "Reason must be 500 characters or fewer").optional(),
+});
 
 export const updateEnrollmentStatusSchema = z.object({
   status: z.nativeEnum(EnrollmentStatus),
@@ -44,4 +48,5 @@ export const unassignedStudentsQuerySchema = z.object({
 
 export type CreateEnrollmentInput = z.infer<typeof createEnrollmentSchema>;
 export type BulkEnrollInput = z.infer<typeof bulkEnrollSchema>;
+export type TransferEnrollmentInput = z.infer<typeof transferEnrollmentSchema>;
 export type UpdateEnrollmentStatusInput = z.infer<typeof updateEnrollmentStatusSchema>;

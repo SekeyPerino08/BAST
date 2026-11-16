@@ -8,6 +8,7 @@ import {
   listEnrollmentsQuerySchema,
   unassignedStudentsQuerySchema,
   type CreateEnrollmentInput,
+  type TransferEnrollmentInput,
   type UpdateEnrollmentStatusInput,
 } from "./enrollment.schema.js";
 
@@ -208,7 +209,7 @@ export async function bulkEnroll(
   return { enrolled, skipped };
 }
 
-export async function transferEnrollment(id: string, sectionId: string, request?: Request) {
+export async function transferEnrollment(id: string, input: TransferEnrollmentInput, request?: Request) {
   try {
     const result = await prisma.$transaction(async (transaction) => {
       const enrollment = await transaction.enrollment.findUnique({
@@ -219,8 +220,11 @@ export async function transferEnrollment(id: string, sectionId: string, request?
       if (enrollment.status !== EnrollmentStatus.ENROLLED) {
         throw new AppError("Only currently enrolled students can be transferred", 400, "ENROLLMENT_NOT_ACTIVE");
       }
+      if (!enrollment.section || !enrollment.sectionId) {
+        throw new AppError("An unassigned enrollment cannot be transferred", 409, "ENROLLMENT_UNASSIGNED");
+      }
       const nextSection = await transaction.section.findUnique({
-        where: { id: sectionId },
+        where: { id: input.sectionId },
         select: { id: true, name: true, schoolYearId: true },
       });
       if (!nextSection) throw new AppError("Section not found", 404);
@@ -241,8 +245,18 @@ export async function transferEnrollment(id: string, sectionId: string, request?
           entityType: "Enrollment",
           entityId: id,
           studentId: enrollment.studentId,
-          before: { sectionId: enrollment.sectionId, status: enrollment.status },
-          after: { sectionId: nextSection.id, status: updated.status },
+          before: {
+            sectionId: enrollment.sectionId,
+            sectionName: enrollment.section.name,
+            status: enrollment.status,
+          },
+          after: {
+            sectionId: nextSection.id,
+            sectionName: nextSection.name,
+            status: updated.status,
+            effectiveDate: input.effectiveDate ?? null,
+            reason: input.reason ?? null,
+          },
         });
       }
       return { updated, oldSection: enrollment.section, nextSection };

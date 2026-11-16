@@ -27,6 +27,11 @@ export const termLockSchema = z.object({
   reason: z.string().trim().max(500).optional(),
 });
 
+export const termReleaseSchema = z.object({
+  released: z.boolean(),
+  reason: z.string().trim().max(500).optional(),
+});
+
 export const schoolYearQuerySchema = z.object({
   schoolYearId: idSchema.optional(),
 });
@@ -37,3 +42,4 @@ export const gradeOverviewQuerySchema = z.object({
 
 export type SaveGradesInput = z.infer<typeof saveGradesSchema>;
 export type TermLockInput = z.infer<typeof termLockSchema>;
+export type TermReleaseInput = z.infer<typeof termReleaseSchema>;

@@ -42,7 +42,7 @@ function StudentDashboardContent() {
       {dashboard.isError && <ErrorState title="Could not load your dashboard" error={dashboard.error} retry={() => void dashboard.refetch()} />}
       {dashboard.isLoading && (
         <div className="space-y-5">
-          <div className="grid animate-pulse gap-4 sm:grid-cols-2 xl:grid-cols-4">{["Section and adviser", "Attendance rate", "General average", "Report card"].map((label) => <StatCard key={label} label={label} value="" loading />)}</div>
+          <div className="grid animate-pulse gap-4 sm:grid-cols-2 xl:grid-cols-5">{["Section and adviser", "Attendance rate", "General average", "Report card", "Library loans"].map((label) => <StatCard key={label} label={label} value="" loading />)}</div>
           <div className="h-64 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" />
         </div>
       )}
@@ -55,7 +55,7 @@ function StudentDashboardContent() {
             </section>
           )}
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <StatCard
               label="Section and adviser"
               value={data.enrollment?.sectionLabel ?? "Not enrolled"}
@@ -95,6 +95,14 @@ function StudentDashboardContent() {
                 <p id="report-card-unavailable-reason" className="mt-2 text-xs text-slate-500 dark:text-slate-400">A report card will be available after enrollment.</p>
               </div>
             )}
+            <StatCard
+              label="Library loans"
+              value={(data.libraryLoans.borrowed + data.libraryLoans.overdue).toLocaleString()}
+              helper={`${data.libraryLoans.overdue} overdue`}
+              icon={BookOpen}
+              href="/student/integrations"
+              warning={data.libraryLoans.overdue > 0}
+            />
           </div>
 
           <section className="grid gap-5 xl:grid-cols-2">

@@ -194,7 +194,7 @@ function buildSummary(subjects: ReportCardSubject[]) {
 }
 
 function buildAttendanceSummary(
-  terms: Array<{ id: string; name: string; termNumber: number; gradesLocked: boolean; startDate: Date; endDate: Date }>,
+  terms: Array<{ id: string; name: string; termNumber: number; gradesReleasedAt: Date | null; startDate: Date; endDate: Date }>,
   sectionId: string,
   studentId: string,
   attendanceRows: Array<{ studentId: string; classOfferingId: string; date: Date; status: AttendanceStatus; classOffering: { sectionId: string } }>,
@@ -210,7 +210,7 @@ function buildAttendanceSummary(
     return {
       termId: term.id,
       order: term.termNumber,
-      released: term.gradesLocked,
+      released: term.gradesReleasedAt !== null,
       ...counts,
       rate: calculateAttendanceRate(counts),
     };
@@ -233,16 +233,17 @@ function buildAttendanceSummary(
 }
 
 function buildVisibleQuarter(
-  term: { id: string; termNumber: number; gradesLocked: boolean },
+  term: { id: string; termNumber: number; gradesReleasedAt: Date | null },
   score: number | null,
   includeUnreleased: boolean,
 ): ReportCardSubjectQuarter {
-  const visibleScore = term.gradesLocked || includeUnreleased ? score : null;
+  const released = term.gradesReleasedAt !== null;
+  const visibleScore = released || includeUnreleased ? score : null;
   return {
     termId: term.id,
     order: term.termNumber,
     score: visibleScore,
-    released: term.gradesLocked,
+    released,
   };
 }
 
@@ -272,7 +273,7 @@ export function assembleReportCardFromData({
   schoolYear: { id: string; name: string };
   section: { id: string; gradeLevel: number; name: string };
   adviser: { firstName: string; lastName: string; middleName?: string | null } | null;
-  terms: Array<{ id: string; name: string; termNumber: number; gradesLocked: boolean; startDate: Date; endDate: Date }>;
+  terms: Array<{ id: string; name: string; termNumber: number; gradesReleasedAt: Date | null; startDate: Date; endDate: Date }>;
   classOfferings: Array<{ id: string; subject: { code: string; name: string }; teacher: { firstName: string; middleName?: string | null; lastName: string } }>;
   gradeRows: Array<{ classOfferingId: string; termId: string; score: Prisma.Decimal | number | null }>;
   attendanceRows: Array<{ studentId: string; classOfferingId: string; date: Date; status: AttendanceStatus; classOffering: { sectionId: string } }>;
@@ -321,7 +322,7 @@ export function assembleReportCardFromData({
     section: { gradeLevel: section.gradeLevel, name: section.name },
     adviser: adviser ? { firstName: adviser.firstName, lastName: adviser.lastName } : null,
     enrollmentStatus: enrollment.status,
-    terms: terms.map((term) => ({ id: term.id, name: term.name, order: term.termNumber, released: term.gradesLocked })),
+    terms: terms.map((term) => ({ id: term.id, name: term.name, order: term.termNumber, released: term.gradesReleasedAt !== null })),
     subjects,
     generalAverage,
     summary,
@@ -336,7 +337,7 @@ export function assembleReportCardFromData({
         return {
           termId: term.id,
           order: term.termNumber,
-          released: term.gradesLocked,
+          released: term.gradesReleasedAt !== null,
           ...counts,
           rate: calculateAttendanceRate(counts),
         };
@@ -352,7 +353,7 @@ export function assembleReportCardFromData({
       })(),
     },
     generatedAt: new Date().toISOString(),
-    isDraft: includeUnreleased && terms.some((term) => !term.gradesLocked),
+    isDraft: includeUnreleased && terms.some((term) => term.gradesReleasedAt === null),
   };
 }
 
@@ -428,7 +429,7 @@ export async function getStudentReportCard(
     prisma.term.findMany({
       where: { schoolYearId },
       orderBy: { termNumber: "asc" },
-      select: { id: true, name: true, termNumber: true, gradesLocked: true, startDate: true, endDate: true },
+      select: { id: true, name: true, termNumber: true, gradesReleasedAt: true, startDate: true, endDate: true },
     }),
     prisma.classOffering.findMany({
       where: { sectionId: enrollment.section.id, schoolYearId },
@@ -531,7 +532,7 @@ export async function getSectionReportCards(sectionId: string, rawQuery: unknown
     prisma.term.findMany({
       where: { schoolYearId },
       orderBy: { termNumber: "asc" },
-      select: { id: true, name: true, termNumber: true, gradesLocked: true, startDate: true, endDate: true },
+      select: { id: true, name: true, termNumber: true, gradesReleasedAt: true, startDate: true, endDate: true },
     }),
     prisma.classOffering.findMany({
       where: { sectionId, schoolYearId },

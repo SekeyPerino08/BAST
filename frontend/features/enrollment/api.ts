@@ -33,10 +33,10 @@ export async function bulkEnroll(input: { sectionId: string; studentIds: string[
   }>("/api/enrollments/bulk", { method: "POST", body: JSON.stringify(input) });
 }
 
-export function transferEnrollment(id: string, sectionId: string) {
+export function transferEnrollment(id: string, input: { sectionId: string; effectiveDate: string; reason?: string }) {
   return apiFetch<{ data: unknown }>(`/api/enrollments/${encodeURIComponent(id)}/transfer`, {
     method: "PATCH",
-    body: JSON.stringify({ sectionId }),
+    body: JSON.stringify(input),
   });
 }
 

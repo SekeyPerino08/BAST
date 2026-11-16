@@ -10,6 +10,7 @@ export interface DashboardTerm {
   startDate: Date;
   endDate: Date;
   gradesLocked: boolean;
+  gradesReleasedAt: Date | null;
 }
 
 export interface CurrentContext {
@@ -62,6 +63,7 @@ export async function getCurrentContext(): Promise<CurrentContext> {
           startDate: true,
           endDate: true,
           gradesLocked: true,
+          gradesReleasedAt: true,
         },
       },
     },

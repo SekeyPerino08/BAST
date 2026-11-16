@@ -348,7 +348,7 @@ function FilterField({ field, value, error, disabled, years, sections, offerings
   value: string | boolean | undefined;
   error?: string;
   disabled: boolean;
-  years: Array<{ id: string; name: string; startDate: string; endDate: string; isCurrent: boolean; terms: Array<{ id: string; name: string; termNumber: number; gradesLocked?: boolean }> }>;
+  years: Array<{ id: string; name: string; startDate: string; endDate: string; isCurrent: boolean; terms: Array<{ id: string; name: string; termNumber: number; gradesReleasedAt?: string | null }> }>;
   sections: Array<{ id: string; name: string; gradeLevel: number; schoolYearId: string }>;
   offerings: Array<{ id: string; subject: { code: string; name: string }; section: { name: string; gradeLevel: number } }>;
   teacherClasses: Array<{ id: string; subject: { code: string; name: string }; section: { name: string; gradeLevel: number } }>;
@@ -395,10 +395,10 @@ function FilterField({ field, value, error, disabled, years, sections, offerings
   } else if (field.name === "termId") {
     const selectedYear = years.find((year) => year.id === selectedYearId) ?? years.find((year) => year.isCurrent);
     const terms = (selectedYear?.terms ?? years.flatMap((year) => year.terms))
-      .filter((term) => !teacherRole || term.gradesLocked === true);
+      .filter((term) => !teacherRole || Boolean(term.gradesReleasedAt));
     control = <select id={inputId} value={stringValue(value)} disabled={disabled} aria-describedby={describe} onChange={(event) => onChange(field.name, event.target.value)} className={fieldClass}>
       <option value="">Select term</option>{terms.map((term) => {
-        const released = term.gradesLocked === true;
+        const released = Boolean(term.gradesReleasedAt);
         return <option key={term.id} value={term.id} disabled={!released && (teacherRole || !includeUnreleased)}>{term.name} — {released ? "Released" : "Not released"}</option>;
       })}
     </select>;

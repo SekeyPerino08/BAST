@@ -31,6 +31,9 @@ interface RawAttendanceSheet {
   date: string;
   recorded: boolean;
   editable: boolean;
+  expectedCount: number;
+  markedCount: number;
+  unmarkedCount: number;
   roster?: RawAttendanceStudent[];
   students?: RawAttendanceStudent[];
 }
@@ -44,6 +47,9 @@ export async function fetchAttendanceSheet(classOfferingId: string, date: string
     date: response.date,
     recorded: response.recorded,
     editable: response.editable,
+    expectedCount: response.expectedCount,
+    markedCount: response.markedCount,
+    unmarkedCount: response.unmarkedCount,
     roster: roster.map((student) => ({
       studentId: student.studentId ?? student.id ?? "",
       studentNo: student.studentNo,

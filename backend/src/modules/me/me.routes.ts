@@ -2,7 +2,12 @@ import { Role } from "@prisma/client";
 import { Router } from "express";
 import { authenticate, authenticateAllowPending } from "../../middleware/authenticate.js";
 import { authorize } from "../../middleware/authorize.js";
-import { getMyClassesController, getMyEnrollmentController, getMyProfileController } from "./me.controller.js";
+import {
+  getMyAdvisoryStudentsController,
+  getMyClassesController,
+  getMyEnrollmentController,
+  getMyProfileController,
+} from "./me.controller.js";
 import { getMyAttendanceController } from "../attendance/attendance.controller.js";
 import {
   getMyStudentAlumniController,
@@ -14,6 +19,7 @@ const router = Router();
 router.get("/profile", authenticateAllowPending, getMyProfileController);
 router.use(authenticate);
 router.get("/classes", authorize(Role.TEACHER), getMyClassesController);
+router.get("/advisory/students", authorize(Role.TEACHER), getMyAdvisoryStudentsController);
 router.get("/enrollment", authorize(Role.STUDENT), getMyEnrollmentController);
 router.get("/attendance", authorize(Role.STUDENT), getMyAttendanceController);
 router.get("/lms", authorize(Role.STUDENT, Role.ALUMNI), getMyStudentLmsController);

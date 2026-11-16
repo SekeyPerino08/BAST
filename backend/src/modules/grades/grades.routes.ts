@@ -19,9 +19,10 @@ import {
   getStudentGradesController,
   getTermGradeCompletenessController,
   lockSchoolYearTermController,
+  releaseSchoolYearTermController,
   saveClassGradesController,
 } from "./grades.controller.js";
-import { saveGradesSchema, termLockSchema } from "./grades.schema.js";
+import { saveGradesSchema, termLockSchema, termReleaseSchema } from "./grades.schema.js";
 
 const router = Router();
 router.param("id", validateIdParams("id"));
@@ -38,6 +39,12 @@ router.patch(
   authorize(Role.ADMIN),
   validateBody(termLockSchema),
   lockSchoolYearTermController,
+);
+router.patch(
+  "/school-years/:schoolYearId/terms/:termId/release",
+  authorize(Role.ADMIN),
+  validateBody(termReleaseSchema),
+  releaseSchoolYearTermController,
 );
 router.get(
   "/school-years/:schoolYearId/terms/:termId/grade-completeness",

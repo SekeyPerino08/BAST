@@ -56,7 +56,8 @@ export function useBulkEnroll() {
 export function useTransferEnrollment() {
   const invalidate = useInvalidateEnrollmentSurfaces();
   return useMutation({
-    mutationFn: ({ id, sectionId }: { id: string; sectionId: string }) => transferEnrollment(id, sectionId),
+    mutationFn: ({ id, ...input }: { id: string; sectionId: string; effectiveDate: string; reason?: string }) =>
+      transferEnrollment(id, input),
     onSuccess: invalidate,
   });
 }

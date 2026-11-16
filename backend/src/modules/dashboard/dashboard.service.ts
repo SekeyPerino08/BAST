@@ -48,6 +48,7 @@ function contextPayload(context: CurrentContext) {
           name: context.currentTerm.name,
           order: context.currentTerm.termNumber,
           gradesLocked: context.currentTerm.gradesLocked,
+          gradesReleased: context.currentTerm.gradesReleasedAt !== null,
         }
       : null,
     currentTermSource: context.currentTermSource,
@@ -92,6 +93,8 @@ async function getAdminAggregates(context: CurrentContext) {
     unassignedStudents,
     sections,
     offerings,
+    borrowedLibraryLoans,
+    overdueLibraryLoans,
   ] = await Promise.all([
     prisma.student.groupBy({
       by: ["userId"],
@@ -132,6 +135,12 @@ async function getAdminAggregates(context: CurrentContext) {
           select: { id: true, sectionId: true },
         })
       : Promise.resolve([]),
+    prisma.libraryLoan.count({
+        where: { returnedOn: null, dueOn: { gte: parseDateString(context.today) } },
+    }),
+    prisma.libraryLoan.count({
+        where: { returnedOn: null, dueOn: { lt: parseDateString(context.today) } },
+    }),
   ]);
   const activeStudents = studentAccountGroups.reduce((total, group) => total + group._count._all, 0);
   const activeTeachers = teacherAccountGroups.reduce((total, group) => total + group._count._all, 0);
@@ -156,15 +165,23 @@ async function getAdminAggregates(context: CurrentContext) {
       attendanceTrend: [],
       attendanceToday: { classesWithRecords: 0, classesExpected: 0, rate: null },
       gradeProgress: { gradedEntries: 0, expectedEntries: 0, percentComplete: 0, incompleteClasses: 0, locked: false },
-      needsAttention: studentsWithoutLogin + teachersWithoutLogin > 0
-        ? [{
+      libraryLoans: { borrowed: borrowedLibraryLoans, overdue: overdueLibraryLoans },
+      needsAttention: [
+        ...(studentsWithoutLogin + teachersWithoutLogin > 0 ? [{
             id: "accounts-without-login",
             severity: "info" as const,
             message: "Students or teachers have no login account",
             count: studentsWithoutLogin + teachersWithoutLogin,
             href: "/admin/students",
-          }]
-        : [],
+          }] : []),
+        ...(overdueLibraryLoans > 0 ? [{
+          id: "overdue-library-loans",
+          severity: "warning" as const,
+          message: "Library loans are overdue",
+          count: overdueLibraryLoans,
+          href: "/admin/library-loans",
+        }] : []),
+      ],
     };
   }
 
@@ -289,6 +306,7 @@ async function getAdminAggregates(context: CurrentContext) {
     { id: "attendance-not-recorded", severity: "warning" as const, message: "Classes have no attendance recorded in the last three school days", count: classesWithoutRecentAttendance, href: "/admin/sections" },
     { id: "term-near-end", severity: "warning" as const, message: "The current term ends within seven days or has passed and is not locked", count: termId && !context.currentTerm?.gradesLocked && daysUntilTermEnd <= 7 ? 1 : 0, href: "/admin/school-years" },
     { id: "accounts-without-login", severity: "info" as const, message: "Students or teachers have no login account", count: studentsWithoutLogin + teachersWithoutLogin, href: "/admin/students" },
+    { id: "overdue-library-loans", severity: "warning" as const, message: "Library loans are overdue", count: overdueLibraryLoans, href: "/admin/library-loans" },
   ].filter((item) => item.count > 0);
 
   return {
@@ -312,6 +330,7 @@ async function getAdminAggregates(context: CurrentContext) {
       incompleteClasses,
       locked: context.currentTerm?.gradesLocked ?? false,
     },
+    libraryLoans: { borrowed: borrowedLibraryLoans, overdue: overdueLibraryLoans },
     needsAttention,
   };
 }
@@ -355,6 +374,7 @@ export async function getTeacherDashboard(userId: string) {
       attendancePending: { count: 0, classOfferingIds: [] },
       atRisk: [],
       gradeDistribution: emptyGradeDistribution(),
+      libraryLoans: { borrowed: 0, overdue: 0 },
     };
   }
 
@@ -383,6 +403,8 @@ export async function getTeacherDashboard(userId: string) {
     enrollmentGroups,
     attendanceTodayGroups,
     termAttendanceGroups,
+    borrowedLibraryLoans,
+    overdueLibraryLoans,
     termGradeGroups,
     studentAttendanceGroups,
   ] = await Promise.all([
@@ -407,6 +429,40 @@ export async function getTeacherDashboard(userId: string) {
           _count: { _all: true },
         })
       : Promise.resolve([]),
+    prisma.libraryLoan.count({
+      where: {
+        student: {
+          is: {
+            enrollments: {
+              some: {
+                schoolYearId,
+                status: EnrollmentStatus.ENROLLED,
+                section: { is: { adviserId: teacherId } },
+              },
+            },
+          },
+        },
+        returnedOn: null,
+        dueOn: { gte: parseDateString(context.today) },
+      },
+    }),
+    prisma.libraryLoan.count({
+      where: {
+        student: {
+          is: {
+            enrollments: {
+              some: {
+                schoolYearId,
+                status: EnrollmentStatus.ENROLLED,
+                section: { is: { adviserId: teacherId } },
+              },
+            },
+          },
+        },
+        returnedOn: null,
+        dueOn: { lt: parseDateString(context.today) },
+      },
+    }),
     offeringIds.length && context.currentTerm
       ? prisma.grade.groupBy({
           by: ["classOfferingId", "score"],
@@ -449,16 +505,18 @@ export async function getTeacherDashboard(userId: string) {
     const studentCount = enrolledBySection.get(offering.section.id) ?? 0;
     const attendanceCounts = todayByOffering.get(offering.id) ?? emptyCounts();
     const termAttendanceCounts = termByOffering.get(offering.id) ?? emptyCounts();
+    const markedCount = attendanceCounts.present + attendanceCounts.absent + attendanceCounts.late + attendanceCounts.excused;
     return {
       classOfferingId: offering.id,
       subjectName: offering.subject.name,
       sectionLabel: `Grade ${offering.section.gradeLevel} - ${offering.section.name}`,
       students: studentCount,
       attendanceToday: {
-        recorded: (todayByOffering.get(offering.id)?.present ?? 0)
-          + (todayByOffering.get(offering.id)?.absent ?? 0)
-          + (todayByOffering.get(offering.id)?.late ?? 0)
-          + (todayByOffering.get(offering.id)?.excused ?? 0) > 0,
+        recorded: markedCount > 0,
+        expected: studentCount,
+        marked: markedCount,
+        unmarked: Math.max(studentCount - markedCount, 0),
+        complete: studentCount === 0 || markedCount >= studentCount,
         present: attendanceCounts.present,
         absent: attendanceCounts.absent,
         late: attendanceCounts.late,
@@ -475,7 +533,7 @@ export async function getTeacherDashboard(userId: string) {
 
   const attendancePendingIds = isSunday
     ? []
-    : classes.filter((classItem) => !classItem.attendanceToday.recorded).map((classItem) => classItem.classOfferingId);
+    : classes.filter((classItem) => !classItem.attendanceToday.complete).map((classItem) => classItem.classOfferingId);
   const atRiskGroups = new Map<string, { studentId: string; classOfferingId: string; counts: Counts }>();
   for (const group of studentAttendanceGroups) {
     const key = `${group.studentId}:${group.classOfferingId}`;
@@ -535,10 +593,14 @@ export async function getTeacherDashboard(userId: string) {
     attendancePending: { count: attendancePendingIds.length, classOfferingIds: attendancePendingIds },
     atRisk,
     gradeDistribution,
+    libraryLoans: { borrowed: borrowedLibraryLoans, overdue: overdueLibraryLoans },
   };
 }
 
-function emptyStudentDashboard(context: CurrentContext) {
+function emptyStudentDashboard(
+  context: CurrentContext,
+  libraryLoans: { borrowed: number; overdue: number } = { borrowed: 0, overdue: 0 },
+) {
   return {
     context: contextPayload(context),
     enrollment: null,
@@ -555,6 +617,7 @@ function emptyStudentDashboard(context: CurrentContext) {
       subjectsBelowPassing: 0,
       latestReleasedTerm: null,
     },
+    libraryLoans,
     reportCardAvailable: false,
   };
 }
@@ -566,7 +629,16 @@ export async function getStudentDashboard(userId: string) {
     select: { id: true },
   });
   if (!student) throw new AppError("Student profile not found", 404, "STUDENT_PROFILE_NOT_FOUND");
-  if (!context.schoolYear) return emptyStudentDashboard(context);
+  const [borrowedLibraryLoans, overdueLibraryLoans] = await Promise.all([
+    prisma.libraryLoan.count({
+      where: { studentId: student.id, returnedOn: null, dueOn: { gte: parseDateString(context.today) } },
+    }),
+    prisma.libraryLoan.count({
+      where: { studentId: student.id, returnedOn: null, dueOn: { lt: parseDateString(context.today) } },
+    }),
+  ]);
+  const libraryLoans = { borrowed: borrowedLibraryLoans, overdue: overdueLibraryLoans };
+  if (!context.schoolYear) return emptyStudentDashboard(context, libraryLoans);
 
   const schoolYearId = context.schoolYear.id;
   const enrollment = await prisma.enrollment.findFirst({
@@ -583,7 +655,7 @@ export async function getStudentDashboard(userId: string) {
       },
     },
   });
-  if (!enrollment?.section) return emptyStudentDashboard(context);
+  if (!enrollment?.section) return emptyStudentDashboard(context, libraryLoans);
 
   const offerings = await prisma.classOffering.findMany({
     where: { schoolYearId, sectionId: enrollment.section.id },
@@ -637,7 +709,7 @@ export async function getStudentDashboard(userId: string) {
           where: {
             studentId: student.id,
             classOfferingId: { in: offeringIds },
-            term: { schoolYearId, gradesLocked: true },
+            term: { schoolYearId, gradesReleasedAt: { not: null } },
           },
           select: {
             score: true,
@@ -651,7 +723,7 @@ export async function getStudentDashboard(userId: string) {
   const attendanceCounts = countsFromGroups(allAttendanceGroups);
   const currentTermCounts = countsFromGroups(termAttendanceGroups);
 
-  const releasedTerms = context.schoolYear.terms.filter((term) => term.gradesLocked);
+  const releasedTerms = context.schoolYear.terms.filter((term) => term.gradesReleasedAt !== null);
   const scoresBySubject = new Map<string, Map<string, number>>();
   const scoreByTerm = new Map<string, number[]>();
   const termById = new Map(context.schoolYear.terms.map((term) => [term.id, term]));
@@ -698,6 +770,7 @@ export async function getStudentDashboard(userId: string) {
         ? { name: latestReleased.name, average: calculateGeneralAverage(latestScores) }
         : null,
     },
+    libraryLoans,
     reportCardAvailable: true,
   };
 }

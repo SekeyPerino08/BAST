@@ -9,9 +9,10 @@ import {
   getStudentGrades,
   getTermGradeCompleteness,
   lockSchoolYearTerm,
+  releaseSchoolYearTerm,
   saveClassGrades,
 } from "./grades.service.js";
-import type { SaveGradesInput, TermLockInput } from "./grades.schema.js";
+import type { SaveGradesInput, TermLockInput, TermReleaseInput } from "./grades.schema.js";
 
 export const getGradesSheetController = asyncHandler<ParamsDictionary>(async (req, res) => {
   if (!req.user) throw new AppError("Not authenticated", 401);
@@ -35,6 +36,21 @@ export const lockSchoolYearTermController = asyncHandler<
 >(async (req, res) => {
   if (!req.user) throw new AppError("Not authenticated", 401);
   res.status(200).json(await lockSchoolYearTerm(
+    req.params.schoolYearId,
+    req.params.termId,
+    req.user,
+    req.body,
+    req,
+  ));
+});
+
+export const releaseSchoolYearTermController = asyncHandler<
+  ParamsDictionary,
+  unknown,
+  TermReleaseInput
+>(async (req, res) => {
+  if (!req.user) throw new AppError("Not authenticated", 401);
+  res.status(200).json(await releaseSchoolYearTerm(
     req.params.schoolYearId,
     req.params.termId,
     req.user,

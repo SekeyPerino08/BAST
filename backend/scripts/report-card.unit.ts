@@ -3,10 +3,10 @@ import type { EnrollmentStatus } from "@prisma/client";
 import { assembleReportCardFromData } from "../src/modules/report-cards/report-cards.service.js";
 
 const terms = [
-  { id: "t1", name: "Term 1", termNumber: 1, gradesLocked: false, startDate: new Date("2025-08-01T00:00:00.000Z"), endDate: new Date("2025-10-31T00:00:00.000Z") },
-  { id: "t2", name: "Term 2", termNumber: 2, gradesLocked: false, startDate: new Date("2025-11-01T00:00:00.000Z"), endDate: new Date("2026-01-15T00:00:00.000Z") },
-  { id: "t3", name: "Term 3", termNumber: 3, gradesLocked: false, startDate: new Date("2026-01-16T00:00:00.000Z"), endDate: new Date("2026-03-31T00:00:00.000Z") },
-  { id: "t4", name: "Term 4", termNumber: 4, gradesLocked: true, startDate: new Date("2026-04-01T00:00:00.000Z"), endDate: new Date("2026-06-30T00:00:00.000Z") },
+  { id: "t1", name: "Term 1", termNumber: 1, gradesReleasedAt: null, startDate: new Date("2025-08-01T00:00:00.000Z"), endDate: new Date("2025-10-31T00:00:00.000Z") },
+  { id: "t2", name: "Term 2", termNumber: 2, gradesReleasedAt: null, startDate: new Date("2025-11-01T00:00:00.000Z"), endDate: new Date("2026-01-15T00:00:00.000Z") },
+  { id: "t3", name: "Term 3", termNumber: 3, gradesReleasedAt: null, startDate: new Date("2026-01-16T00:00:00.000Z"), endDate: new Date("2026-03-31T00:00:00.000Z") },
+  { id: "t4", name: "Term 4", termNumber: 4, gradesReleasedAt: null, startDate: new Date("2026-04-01T00:00:00.000Z"), endDate: new Date("2026-06-30T00:00:00.000Z") },
 ];
 
 const data = {
@@ -61,6 +61,19 @@ assert.equal(result.subjects[0].quarters[0].released, false);
 assert.equal(result.subjects[0].finalGrade, null);
 assert.equal(result.summary.allSubjectsPassed, null);
 assert.equal(result.attendance.overall.rate, 100);
+
+const released = assembleReportCardFromData({
+  ...data,
+  terms: terms.map((term) => term.id === "t4" ? { ...term, gradesReleasedAt: new Date("2026-07-01T00:00:00.000Z") } : term),
+  gradeRows: [
+    { classOfferingId: "offering-1", termId: "t1", score: 80 },
+    { classOfferingId: "offering-1", termId: "t2", score: 82 },
+    { classOfferingId: "offering-1", termId: "t3", score: 84 },
+    { classOfferingId: "offering-1", termId: "t4", score: 88 },
+  ],
+});
+assert.equal(released.subjects[0].quarters[3].score, 88);
+assert.equal(released.subjects[0].quarters[3].released, true);
 
 const allVisible = assembleReportCardFromData({
   ...data,

@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Eye, EyeOff, LoaderCircle, ShieldCheck, X } from "lucide-react";
+import { Check, Eye, EyeOff, LoaderCircle, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -154,8 +154,8 @@ export function ChangePasswordForm({ forced = false }: Readonly<{ forced?: boole
         </button>
       </form>
 
-      <aside className="rounded-[18px] border border-slate-200 bg-slate-50/80 p-4 shadow-sm xl:sticky xl:top-6 xl:h-fit">
-        <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+      <aside className="rounded-[18px] border border-slate-200 bg-slate-50/80 p-4 shadow-sm xl:sticky xl:top-6 xl:h-fit dark:border-slate-700 dark:bg-slate-900">
+        <div className="flex items-center gap-2 border-b border-slate-200 pb-3 dark:border-slate-700">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#edf7ef] text-[#0d412e]">
             <ShieldCheck size={16} aria-hidden="true" />
           </span>
@@ -165,7 +165,7 @@ export function ChangePasswordForm({ forced = false }: Readonly<{ forced?: boole
         <div className="mt-4">
           <div className="flex items-center justify-between text-sm text-slate-600">
             <span className="font-medium">Security level</span>
-            <span className="font-semibold text-[#0d412e]">{strengthLevel}</span>
+            <span className="font-semibold text-[#0d412e] dark:text-[#dfeee4]">{strengthLevel}</span>
           </div>
           <div className="mt-3 grid grid-cols-4 gap-2" aria-label="Password strength">
             {strengthSegments.map((segment, index) => (
@@ -184,7 +184,9 @@ export function ChangePasswordForm({ forced = false }: Readonly<{ forced?: boole
             <li
               key={check.label}
               className={`flex items-center gap-3 rounded-lg border px-2.5 py-2 text-[15px] transition-all duration-200 motion-reduce:transition-none ${
-                check.valid ? "border-emerald-200 bg-emerald-50/70 text-slate-800" : "border-transparent bg-transparent text-slate-500"
+                check.valid
+                  ? "border-emerald-200 bg-emerald-50/70 text-slate-800 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-100"
+                  : "border-transparent bg-transparent text-slate-500"
               }`}
             >
               <span

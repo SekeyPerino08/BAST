@@ -23,7 +23,7 @@ function TeacherDashboardContent() {
       <SectionHeader
         eyebrow="Teacher dashboard"
         title="Your dashboard"
-        description="Classes, attendance, and grade progress for your assignments."
+        description="Classes, attendance, grade progress, and advisee support."
         updatedAt={dashboard.dataUpdatedAt ? new Date(dashboard.dataUpdatedAt) : null}
         onRefresh={() => void dashboard.refetch()}
         refreshing={dashboard.isFetching}
@@ -33,18 +33,19 @@ function TeacherDashboardContent() {
       {dashboard.isError && <ErrorState title="Could not load your dashboard" error={dashboard.error} retry={() => void dashboard.refetch()} />}
       {dashboard.isLoading && (
         <div className="space-y-5">
-          <div className="grid animate-pulse gap-4 sm:grid-cols-2 xl:grid-cols-4">{["Classes", "Students", "Advisory", "Attendance pending today"].map((label) => <StatCard key={label} label={label} value="" loading />)}</div>
+          <div className="grid animate-pulse gap-4 sm:grid-cols-2 xl:grid-cols-5">{["Classes", "Students", "Advisory", "Attendance pending today", "Advisee loans"].map((label) => <StatCard key={label} label={label} value="" loading />)}</div>
           <div className="h-96 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" />
         </div>
       )}
       {!dashboard.isLoading && !dashboard.isError && data && (
         <>
           {!data.context && <NoSchoolYearState />}
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <StatCard label="Classes" value={data.counts.classes.toLocaleString()} icon={BookOpen} href="/teacher/classes" />
             <StatCard label="Students across classes" value={data.counts.studentsTotal.toLocaleString()} helper="Students summed across each assigned class" icon={Users} href="/teacher/classes" />
-            <StatCard label="Advisory" value={data.counts.advisorySection?.label ?? "None"} helper={data.counts.advisorySection ? `${data.counts.advisorySection.students.toLocaleString()} enrolled students` : "No advisory section assigned"} icon={GraduationCap} href="/teacher/advisory/report-cards" valueClassName="text-lg" />
-            <StatCard label="Attendance pending today" value={data.attendancePending.count.toLocaleString()} helper={sunday ? "Attendance actions are hidden on Sundays" : "Classes with no attendance record today"} icon={Clock3} href={firstPending ? `/teacher/classes/${firstPending}/attendance` : "/teacher/classes"} warning={data.attendancePending.count > 0} />
+            <StatCard label="Advisory" value={data.counts.advisorySection?.label ?? "None"} helper={data.counts.advisorySection ? `${data.counts.advisorySection.students.toLocaleString()} enrolled students` : "No advisory section assigned"} icon={GraduationCap} href="/teacher/advisees" valueClassName="text-lg" />
+            <StatCard label="Attendance pending today" value={data.attendancePending.count.toLocaleString()} helper={sunday ? "Attendance actions are hidden on Sundays" : "Classes with unmarked students"} icon={Clock3} href={firstPending ? `/teacher/classes/${firstPending}/attendance` : "/teacher/classes"} warning={data.attendancePending.count > 0} />
+            <StatCard label="Advisee overdue loans" value={data.libraryLoans.overdue.toLocaleString()} helper={`${data.libraryLoans.borrowed.toLocaleString()} current loans`} icon={BookOpen} href="/teacher/advisory/library" warning={data.libraryLoans.overdue > 0} />
           </div>
 
           {data.context && !data.counts.classes ? (
@@ -68,12 +69,12 @@ function TeacherDashboardContent() {
                       </Link>
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Attendance today</p>
-                        {classItem.attendanceToday.recorded ? (
-                          <p className="mt-1 inline-flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-300"><CheckCircle2 size={16} aria-hidden="true" /> Recorded · {classItem.attendanceToday.present} present, {classItem.attendanceToday.absent} absent, {classItem.attendanceToday.late} late, {classItem.attendanceToday.excused} excused</p>
+                        {classItem.attendanceToday.complete ? (
+                          <p className="mt-1 inline-flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-300"><CheckCircle2 size={16} aria-hidden="true" /> Complete · {classItem.attendanceToday.marked} of {classItem.attendanceToday.expected} marked</p>
                         ) : (
                           <div className="mt-1">
-                            <p className="inline-flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300"><Clock3 size={16} aria-hidden="true" /> Not recorded yet</p>
-                            {!sunday && <Link href={`/teacher/classes/${classItem.classOfferingId}/attendance`} className="ml-2 inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700"><ClipboardCheck size={14} aria-hidden="true" /> Take attendance</Link>}
+                            <p className="inline-flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300"><Clock3 size={16} aria-hidden="true" /> {classItem.attendanceToday.recorded ? `Partial · ${classItem.attendanceToday.marked} of ${classItem.attendanceToday.expected} marked` : "Not recorded yet"}</p>
+                            {!sunday && <Link href={`/teacher/classes/${classItem.classOfferingId}/attendance`} className="ml-2 inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700"><ClipboardCheck size={14} aria-hidden="true" /> {classItem.attendanceToday.recorded ? "Complete attendance" : "Take attendance"}</Link>}
                           </div>
                         )}
                         <Link href={`/teacher/classes/${classItem.classOfferingId}/attendance/summary`} className="mt-1 inline-block text-xs text-indigo-700 hover:underline dark:text-indigo-300">Current term rate: {formatRate(classItem.attendanceRate)}</Link>

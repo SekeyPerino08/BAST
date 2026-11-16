@@ -11,6 +11,7 @@ import {
 import type {
   BulkEnrollInput,
   CreateEnrollmentInput,
+  TransferEnrollmentInput,
   UpdateEnrollmentStatusInput,
 } from "./enrollment.schema.js";
 
@@ -34,9 +35,9 @@ export const bulkEnrollController = asyncHandler<ParamsDictionary, unknown, Bulk
   },
 );
 
-export const transferEnrollmentController = asyncHandler<ParamsDictionary, unknown, { sectionId: string }>(
+export const transferEnrollmentController = asyncHandler<ParamsDictionary, unknown, TransferEnrollmentInput>(
   async (req, res) => {
-    res.status(200).json({ data: await transferEnrollment(req.params.id, req.body.sectionId, req) });
+    res.status(200).json({ data: await transferEnrollment(req.params.id, req.body, req) });
   },
 );
 

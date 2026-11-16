@@ -10,6 +10,7 @@ function term(id: string, startDate: string, endDate: string): DashboardTerm {
     startDate: new Date(`${startDate}T00:00:00.000Z`),
     endDate: new Date(`${endDate}T00:00:00.000Z`),
     gradesLocked: false,
+    gradesReleasedAt: null,
   };
 }
 

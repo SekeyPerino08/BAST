@@ -1,7 +1,10 @@
-import { EnrollmentStatus } from "@prisma/client";
+import { AttendanceStatus, EnrollmentStatus } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 import { getTeacherIdForUser } from "../../services/access.service.js";
 import { AppError } from "../../utils/AppError.js";
+import { formatDateString, parseDateString } from "../../utils/dates.js";
+import { calculateAttendanceRate } from "../attendance/attendance.rules.js";
+import { getCurrentContext } from "../dashboard/dashboard.helpers.js";
 import { myClassesQuerySchema } from "./me.schema.js";
 
 async function resolveSchoolYearId(schoolYearId?: string): Promise<string> {
@@ -58,6 +61,168 @@ export async function getMyClasses(userId: string, rawQuery: unknown) {
       enrolledStudentCount: section._count.enrollments,
     })),
     advisedSection,
+  };
+}
+
+export async function getMyAdvisoryStudents(userId: string) {
+  const [teacherId, context] = await Promise.all([
+    getTeacherIdForUser(userId),
+    getCurrentContext(),
+  ]);
+  const schoolYear = context.schoolYear;
+  const currentTerm = context.currentTerm;
+  const recentGradeTerm = schoolYear?.terms
+    .filter((term) => term.gradesReleasedAt !== null)
+    .at(-1) ?? null;
+  const attendancePeriod = currentTerm
+    ? {
+        from: formatDateString(currentTerm.startDate),
+        to: formatDateString(currentTerm.endDate),
+      }
+    : null;
+
+  const section = schoolYear
+    ? await prisma.section.findFirst({
+        where: { adviserId: teacherId, schoolYearId: schoolYear.id },
+        select: { id: true, name: true, gradeLevel: true },
+      })
+    : null;
+
+  if (!schoolYear || !section) {
+    return {
+      schoolYear: schoolYear ? { id: schoolYear.id, name: schoolYear.name } : null,
+      section,
+      currentTerm: currentTerm ? { id: currentTerm.id, name: currentTerm.name } : null,
+      attendancePeriod,
+      recentGradeTerm: recentGradeTerm ? { id: recentGradeTerm.id, name: recentGradeTerm.name } : null,
+      students: [],
+    };
+  }
+
+  const [students, offerings] = await Promise.all([
+    prisma.student.findMany({
+      where: {
+        enrollments: {
+          some: {
+            sectionId: section.id,
+            schoolYearId: schoolYear.id,
+            status: EnrollmentStatus.ENROLLED,
+          },
+        },
+      },
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }, { id: "asc" }],
+      select: { id: true, studentNo: true, firstName: true, middleName: true, lastName: true },
+    }),
+    prisma.classOffering.findMany({
+      where: { sectionId: section.id, schoolYearId: schoolYear.id },
+      select: {
+        id: true,
+        teacherId: true,
+        subject: { select: { id: true, code: true, name: true } },
+      },
+    }),
+  ]);
+  const studentIds = students.map(({ id }) => id);
+  const offeringIds = offerings.map(({ id }) => id);
+  const attendanceDateRange = currentTerm
+    ? {
+        gte: parseDateString(formatDateString(currentTerm.startDate)),
+        lte: parseDateString(formatDateString(currentTerm.endDate)),
+      }
+    : undefined;
+  const [attendanceGroups, grades] = await Promise.all([
+    attendanceDateRange && studentIds.length && offeringIds.length
+      ? prisma.attendance.groupBy({
+          by: ["studentId", "status"],
+          where: {
+            studentId: { in: studentIds },
+            classOfferingId: { in: offeringIds },
+            date: attendanceDateRange,
+          },
+          _count: { _all: true },
+        })
+      : Promise.resolve([]),
+    recentGradeTerm && studentIds.length && offeringIds.length
+      ? prisma.grade.findMany({
+          where: {
+            studentId: { in: studentIds },
+            classOfferingId: { in: offeringIds },
+            termId: recentGradeTerm.id,
+          },
+          select: { studentId: true, classOfferingId: true, score: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const attendanceByStudent = new Map<string, {
+    present: number;
+    absent: number;
+    late: number;
+    excused: number;
+  }>();
+  for (const group of attendanceGroups) {
+    const counts = attendanceByStudent.get(group.studentId) ?? {
+      present: 0,
+      absent: 0,
+      late: 0,
+      excused: 0,
+    };
+    switch (group.status) {
+      case AttendanceStatus.PRESENT: counts.present = group._count._all; break;
+      case AttendanceStatus.ABSENT: counts.absent = group._count._all; break;
+      case AttendanceStatus.LATE: counts.late = group._count._all; break;
+      case AttendanceStatus.EXCUSED: counts.excused = group._count._all; break;
+    }
+    attendanceByStudent.set(group.studentId, counts);
+  }
+
+  const offeringsById = new Map(offerings.map((offering) => [offering.id, offering]));
+  const gradesByStudent = new Map<string, typeof grades>();
+  for (const grade of grades) {
+    const studentGrades = gradesByStudent.get(grade.studentId) ?? [];
+    studentGrades.push(grade);
+    gradesByStudent.set(grade.studentId, studentGrades);
+  }
+
+  return {
+    schoolYear: { id: schoolYear.id, name: schoolYear.name },
+    section,
+    currentTerm: currentTerm ? { id: currentTerm.id, name: currentTerm.name } : null,
+    attendancePeriod,
+    recentGradeTerm: recentGradeTerm ? { id: recentGradeTerm.id, name: recentGradeTerm.name } : null,
+    students: students.map((student) => {
+      const attendance = attendanceByStudent.get(student.id) ?? {
+        present: 0,
+        absent: 0,
+        late: 0,
+        excused: 0,
+      };
+      const attendanceTotal = attendance.present + attendance.absent + attendance.late + attendance.excused;
+      const countableAttendance = attendance.present + attendance.absent + attendance.late;
+      const attendanceRate = calculateAttendanceRate(attendance);
+      const recentGrades = (gradesByStudent.get(student.id) ?? []).flatMap((grade) => {
+        const offering = offeringsById.get(grade.classOfferingId);
+        if (!offering) return [];
+        return [{
+          classOfferingId: offering.id,
+          teacherAssigned: offering.teacherId === teacherId,
+          subject: offering.subject,
+          score: grade.score === null ? null : Number(grade.score),
+        }];
+      });
+
+      return {
+        ...student,
+        status: EnrollmentStatus.ENROLLED,
+        attendance: {
+          ...attendance,
+          total: attendanceTotal,
+          rate: attendanceRate,
+        },
+        needsAttendanceFollowUp: countableAttendance >= 5 && attendanceRate !== null && attendanceRate < 90,
+        recentGrades,
+      };
+    }),
   };
 }
 
