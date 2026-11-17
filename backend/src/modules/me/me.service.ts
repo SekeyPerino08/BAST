@@ -1,4 +1,12 @@
-import { AttendanceStatus, EnrollmentStatus } from "@prisma/client";
+import {
+  AnnouncementCategory,
+  AssignmentStatus,
+  AttendanceStatus,
+  DocumentRequestStatus,
+  DocumentRequestType,
+  EnrollmentStatus,
+  NotificationType,
+} from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 import { getTeacherIdForUser } from "../../services/access.service.js";
 import { AppError } from "../../utils/AppError.js";
@@ -266,6 +274,352 @@ export async function getMyEnrollment(userId: string) {
     },
   });
   return { enrollment, classOfferings };
+}
+
+async function getStudentProfileByUserId(userId: string) {
+  const student = await prisma.student.findUnique({
+    where: { userId },
+    select: {
+      id: true,
+      studentNo: true,
+      firstName: true,
+      middleName: true,
+      lastName: true,
+    },
+  });
+  if (!student) throw new AppError("Student profile not found", 404, "STUDENT_PROFILE_NOT_FOUND");
+  return student;
+}
+
+async function getCurrentStudentSchoolYear(userId: string) {
+  const student = await getStudentProfileByUserId(userId);
+  const schoolYear = await prisma.schoolYear.findFirst({
+    where: { isCurrent: true },
+    select: { id: true, name: true },
+  });
+  if (!schoolYear) return { student, schoolYear: null, classOfferingIds: [], subjectIds: [] };
+
+  const enrollments = await prisma.enrollment.findMany({
+    where: {
+      studentId: student.id,
+      schoolYearId: schoolYear.id,
+      status: EnrollmentStatus.ENROLLED,
+    },
+    select: { sectionId: true },
+  });
+
+  const sectionIds = enrollments.map(({ sectionId }) => sectionId).filter(Boolean) as string[];
+
+  const offeringIds = sectionIds.length
+    ? (await prisma.classOffering.findMany({
+        where: { sectionId: { in: sectionIds }, schoolYearId: schoolYear.id },
+        select: { id: true, subjectId: true },
+      })).map(({ id, subjectId }) => ({ id, subjectId }))
+    : [];
+
+  return {
+    student,
+    schoolYear,
+    classOfferingIds: offeringIds.map(({ id }) => id),
+    subjectIds: [...new Set(offeringIds.map(({ subjectId }) => subjectId))],
+  };
+}
+
+export async function getMyAssignments(userId: string) {
+  const { student, schoolYear, classOfferingIds } = await getCurrentStudentSchoolYear(userId);
+  if (!schoolYear) return { data: [] };
+
+  const assignments = await prisma.assignment.findMany({
+    where: {
+      classOfferingId: { in: classOfferingIds },
+    },
+    orderBy: { dueAt: "asc" },
+    include: {
+      subject: { select: { id: true, code: true, name: true } },
+      teacher: { select: { id: true, firstName: true, middleName: true, lastName: true } },
+      classOffering: {
+        select: {
+          id: true,
+          section: { select: { id: true, name: true, gradeLevel: true } },
+        },
+      },
+      submissions: {
+        where: { studentId: student.id },
+        orderBy: { submittedAt: "desc" },
+        take: 1,
+      },
+    },
+  });
+
+  const now = new Date();
+  return {
+    data: assignments.map((assignment) => {
+      const submission = assignment.submissions[0] ?? null;
+      let status: string = AssignmentStatus.UPCOMING;
+      if (submission) {
+        status = submission.status;
+      } else if (new Date(assignment.dueAt) < now) {
+        status = AssignmentStatus.PENDING;
+      }
+
+      return {
+        id: assignment.id,
+        title: assignment.title,
+        description: assignment.description,
+        instructions: assignment.instructions,
+        dueAt: assignment.dueAt,
+        publishedAt: assignment.publishedAt,
+        maxScore: assignment.maxScore ? Number(assignment.maxScore) : null,
+        status,
+        isSubmitted: Boolean(submission),
+        submittedAt: submission?.submittedAt ?? null,
+        subject: assignment.subject,
+        teacher: assignment.teacher,
+        section: assignment.classOffering.section,
+        classOfferingId: assignment.classOfferingId,
+      };
+    }),
+  };
+}
+
+export async function getMyAnnouncements(userId: string) {
+  const { schoolYear, classOfferingIds, subjectIds } = await getCurrentStudentSchoolYear(userId);
+  if (!schoolYear) return { data: [] };
+
+  const announcements = await prisma.announcement.findMany({
+    where: {
+      OR: [
+        { category: AnnouncementCategory.SCHOOL },
+        { classOfferingId: { in: classOfferingIds } },
+        { subjectId: { in: subjectIds } },
+      ],
+    },
+    orderBy: { publishedAt: "desc" },
+    include: {
+      subject: { select: { id: true, code: true, name: true } },
+      classOffering: {
+        select: {
+          id: true,
+          section: { select: { id: true, name: true, gradeLevel: true } },
+          subject: { select: { id: true, code: true, name: true } },
+        },
+      },
+      createdBy: { select: { email: true, firstName: true, lastName: true } },
+    },
+  });
+
+  return {
+    data: announcements.map((announcement) => ({
+      id: announcement.id,
+      title: announcement.title,
+      body: announcement.body,
+      category: announcement.category,
+      isPinned: announcement.isPinned,
+      publishedAt: announcement.publishedAt,
+      expiresAt: announcement.expiresAt,
+      attachments: announcement.attachments,
+      subject: announcement.subject,
+      classOffering: announcement.classOffering,
+      createdBy: announcement.createdBy,
+    })),
+  };
+}
+
+export async function getMySchedule(userId: string) {
+  const { student, schoolYear } = await getCurrentStudentSchoolYear(userId);
+  if (!schoolYear) return { data: [] };
+
+  const schedules = await prisma.classSchedule.findMany({
+    where: { studentId: student.id, schoolYearId: schoolYear.id, isActive: true },
+    orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
+    include: {
+      subject: { select: { id: true, code: true, name: true } },
+      teacher: { select: { id: true, firstName: true, middleName: true, lastName: true } },
+      section: { select: { id: true, name: true, gradeLevel: true } },
+    },
+  });
+
+  return {
+    data: schedules.map((item) => ({
+      id: item.id,
+      dayOfWeek: item.dayOfWeek,
+      startTime: item.startTime,
+      endTime: item.endTime,
+      room: item.room,
+      notes: item.notes,
+      section: item.section,
+      subject: item.subject,
+      teacher: item.teacher,
+    })),
+  };
+}
+
+export async function getMyLearningMaterials(userId: string) {
+  const { schoolYear, classOfferingIds, subjectIds } = await getCurrentStudentSchoolYear(userId);
+  if (!schoolYear) return { data: [] };
+
+  const learningMaterials = await prisma.learningMaterial.findMany({
+    where: {
+      OR: [
+        { isRestricted: false },
+        { classOfferingId: { in: classOfferingIds } },
+        { subjectId: { in: subjectIds } },
+      ],
+    },
+    orderBy: { uploadedAt: "desc" },
+    include: {
+      teacher: { select: { id: true, firstName: true, middleName: true, lastName: true } },
+      subject: { select: { id: true, code: true, name: true } },
+      classOffering: {
+        select: {
+          id: true,
+          section: { select: { id: true, name: true, gradeLevel: true } },
+          subject: { select: { id: true, code: true, name: true } },
+        },
+      },
+    },
+  });
+
+  return {
+    data: learningMaterials.map((material) => ({
+      id: material.id,
+      title: material.title,
+      description: material.description,
+      fileName: material.fileName,
+      fileUrl: material.fileUrl,
+      fileType: material.fileType,
+      uploadedAt: material.uploadedAt,
+      isRestricted: material.isRestricted,
+      teacher: material.teacher,
+      subject: material.subject,
+      classOffering: material.classOffering,
+    })),
+  };
+}
+
+export async function getMyDocumentRequests(userId: string) {
+  const student = await getStudentProfileByUserId(userId);
+  const documents = await prisma.documentRequest.findMany({
+    where: { studentId: student.id },
+    orderBy: { requestedAt: "desc" },
+  });
+
+  return { data: documents };
+}
+
+export async function createMyDocumentRequest(userId: string, rawInput: unknown) {
+  const student = await getStudentProfileByUserId(userId);
+  if (!rawInput || typeof rawInput !== "object") {
+    throw new AppError("Document request payload is required", 400, "INVALID_DOCUMENT_REQUEST");
+  }
+
+  const input = rawInput as Record<string, unknown>;
+  const documentType = typeof input.documentType === "string" ? input.documentType : "";
+  const reason = typeof input.reason === "string" ? input.reason : "";
+  const details = typeof input.details === "string" ? input.details : null;
+
+  if (!Object.values(DocumentRequestType).includes(documentType as DocumentRequestType)) {
+    throw new AppError("Invalid document type", 400, "INVALID_DOCUMENT_TYPE");
+  }
+  if (!reason.trim()) {
+    throw new AppError("A reason is required", 400, "MISSING_REASON");
+  }
+
+  const document = await prisma.documentRequest.create({
+    data: {
+      studentId: student.id,
+      documentType: documentType as DocumentRequestType,
+      reason: reason.trim(),
+      details: details?.trim() || null,
+      status: DocumentRequestStatus.PENDING,
+    },
+  });
+
+  return { data: document };
+}
+
+export async function getMyNotifications(userId: string) {
+  const student = await getStudentProfileByUserId(userId);
+  const notifications = await prisma.notification.findMany({
+    where: {
+      OR: [
+        { userId },
+        { studentId: student.id },
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return { data: notifications };
+}
+
+export async function markMyNotificationRead(userId: string, notificationId: string) {
+  const student = await getStudentProfileByUserId(userId);
+  const notification = await prisma.notification.findFirst({
+    where: {
+      id: notificationId,
+      OR: [{ userId }, { studentId: student.id }],
+    },
+  });
+
+  if (!notification) {
+    throw new AppError("Notification not found", 404, "NOTIFICATION_NOT_FOUND");
+  }
+
+  const updated = await prisma.notification.update({
+    where: { id: notification.id },
+    data: { isRead: true },
+  });
+
+  return { data: updated };
+}
+
+export async function getMyAcademicHistory(userId: string) {
+  const student = await getStudentProfileByUserId(userId);
+  const grades = await prisma.grade.findMany({
+    where: { studentId: student.id },
+    include: {
+      term: {
+        select: { id: true, name: true, termNumber: true, schoolYear: { select: { id: true, name: true } } },
+      },
+      classOffering: {
+        select: {
+          id: true,
+          subject: { select: { id: true, code: true, name: true } },
+          section: { select: { id: true, name: true, gradeLevel: true } },
+        },
+      },
+    },
+    orderBy: [{ term: { termNumber: "asc" } }, { classOffering: { subject: { name: "asc" } } }],
+  });
+
+  const grouped = new Map<string, { term: { id:string; name:string; termNumber:number; schoolYear:{id:string; name:string} }; courses: Array<{ id:string; subject:{id:string; code:string; name:string}; score:number|null; section:{id:string; name:string; gradeLevel:number}; classOfferingId:string }> }>();
+  for (const grade of grades) {
+    const key = grade.term.id;
+    const existing = grouped.get(key) ?? {
+      term: grade.term,
+      courses: [],
+    };
+    existing.courses.push({
+      id: grade.id,
+      subject: grade.classOffering.subject,
+      score: grade.score ? Number(grade.score) : null,
+      section: grade.classOffering.section,
+      classOfferingId: grade.classOfferingId,
+    });
+    grouped.set(key, existing);
+  }
+
+  return {
+    data: Array.from(grouped.values()).map(({ term, courses }) => {
+      const validScores = courses.filter((course) => course.score !== null);
+      return {
+        term,
+        average: validScores.length ? Number((validScores.reduce((sum, course) => sum + (course.score ?? 0), 0) / validScores.length).toFixed(2)) : null,
+        courses,
+      };
+    }),
+  };
 }
 
 export async function getMyProfile(userId: string) {

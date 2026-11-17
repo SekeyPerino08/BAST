@@ -71,6 +71,57 @@ enum FeedImportMode {
   COMMIT
 }
 
+enum AnnouncementCategory {
+  SCHOOL
+  CLASS
+  SUBJECT
+}
+
+enum AssignmentStatus {
+  UPCOMING
+  PENDING
+  SUBMITTED
+  LATE
+  GRADED
+  CLOSED
+}
+
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+  LATE
+  GRADED
+}
+
+enum DocumentRequestType {
+  CERTIFICATE_OF_ENROLLMENT
+  CERTIFICATE_OF_GOOD_MORAL_CHARACTER
+  TRANSCRIPT_OF_RECORDS
+  REPORT_CARD
+  CERTIFICATE_OF_COMPLETION
+  OTHER
+}
+
+enum DocumentRequestStatus {
+  PENDING
+  PROCESSING
+  APPROVED
+  REJECTED
+  READY_FOR_PICKUP
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationType {
+  ANNOUNCEMENT
+  ASSIGNMENT
+  ATTENDANCE
+  GRADE
+  SCHEDULE
+  DOCUMENT
+  REMINDER
+}
+
 model User {
   id                 String          @id @default(cuid())
   email              String          @unique
@@ -98,6 +149,8 @@ model User {
   importJobs         ImportJob[]
   feedImportRuns     FeedImportRun[]
   passwordResetTokens PasswordResetToken[]
+  announcementsCreated Announcement[] @relation("AnnouncementCreator")
+  notifications       Notification[]
 }
 
 model Student {
@@ -122,6 +175,10 @@ model Student {
   lmsEvents         LmsEvent[]
   libraryLoans      LibraryLoan[]
   alumniRecords     AlumniRecord[]
+  submissions       AssignmentSubmission[]
+  documentRequests  DocumentRequest[]
+  notifications    Notification[]
+  schedules        ClassSchedule[]
 
   @@index([userId])
 }
@@ -141,6 +198,9 @@ model Teacher {
   user            User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
   offerings       ClassOffering[]
   advisedSections Section[]       @relation("SectionAdviser")
+  assignments     Assignment[]
+  learningMaterials LearningMaterial[]
+  schedules       ClassSchedule[]
 
   @@index([userId])
 }
@@ -185,15 +245,19 @@ model Term {
 }
 
 model Subject {
-  id             String          @id @default(cuid())
-  code           String          @unique
-  name           String
-  description    String?
-  gradeLevel     Int
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  classOfferings ClassOffering[]
-  lmsEvents      LmsEvent[]
+  id                String             @id @default(cuid())
+  code              String             @unique
+  name              String
+  description       String?
+  gradeLevel        Int
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  classOfferings    ClassOffering[]
+  lmsEvents         LmsEvent[]
+  announcements     Announcement[]
+  assignments       Assignment[]
+  learningMaterials LearningMaterial[]
+  schedules         ClassSchedule[]
 }
 
 model Section {
@@ -208,6 +272,7 @@ model Section {
   adviser        Teacher?        @relation("SectionAdviser", fields: [adviserId], references: [id], onDelete: SetNull)
   enrollments    Enrollment[]
   classOfferings ClassOffering[]
+  schedules      ClassSchedule[]
 
   @@unique([schoolYearId, gradeLevel, name])
   @@unique([schoolYearId, adviserId])
@@ -235,25 +300,182 @@ model Enrollment {
 }
 
 model ClassOffering {
-  id           String       @id @default(cuid())
-  subjectId    String
-  sectionId    String
-  teacherId    String
-  schoolYearId String
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Restrict)
-  section      Section      @relation(fields: [sectionId], references: [id], onDelete: Restrict)
-  teacher      Teacher      @relation(fields: [teacherId], references: [id], onDelete: Restrict)
-  schoolYear   SchoolYear   @relation(fields: [schoolYearId], references: [id], onDelete: Restrict)
-  attendance   Attendance[]
-  grades       Grade[]
+  id                String             @id @default(cuid())
+  subjectId         String
+  sectionId         String
+  teacherId         String
+  schoolYearId      String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  subject           Subject            @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  section           Section            @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  teacher           Teacher            @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  schoolYear        SchoolYear         @relation(fields: [schoolYearId], references: [id], onDelete: Restrict)
+  attendance        Attendance[]
+  grades            Grade[]
+  announcements     Announcement[]
+  assignments       Assignment[]
+  learningMaterials LearningMaterial[]
+  schedules         ClassSchedule[]
 
   @@unique([subjectId, sectionId, schoolYearId])
   @@index([subjectId])
   @@index([sectionId])
   @@index([teacherId])
   @@index([schoolYearId])
+}
+
+model Announcement {
+  id             String              @id @default(cuid())
+  title          String
+  body           String
+  category       AnnouncementCategory @default(SCHOOL)
+  isPinned       Boolean             @default(false)
+  publishedAt    DateTime            @default(now())
+  expiresAt      DateTime?
+  createdById    String?
+  classOfferingId String?
+  subjectId      String?
+  attachments    String[]
+  createdBy      User?               @relation("AnnouncementCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  classOffering  ClassOffering?      @relation(fields: [classOfferingId], references: [id], onDelete: SetNull)
+  subject        Subject?            @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+
+  @@index([category, publishedAt])
+  @@index([classOfferingId])
+  @@index([subjectId])
+}
+
+model Assignment {
+  id              String          @id @default(cuid())
+  title           String
+  description     String?
+  instructions    String?
+  dueAt           DateTime
+  publishedAt     DateTime        @default(now())
+  maxScore        Decimal?        @db.Decimal(5, 2)
+  subjectId       String
+  classOfferingId String
+  teacherId       String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  subject         Subject         @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  classOffering   ClassOffering   @relation(fields: [classOfferingId], references: [id], onDelete: Restrict)
+  teacher         Teacher         @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  submissions     AssignmentSubmission[]
+
+  @@index([subjectId])
+  @@index([classOfferingId])
+  @@index([teacherId])
+  @@index([dueAt])
+}
+
+model AssignmentSubmission {
+  id           String          @id @default(cuid())
+  assignmentId String
+  studentId    String
+  fileName     String?
+  fileUrl      String?
+  notes        String?
+  submittedAt  DateTime?
+  status       SubmissionStatus @default(SUBMITTED)
+  grade        Decimal?        @db.Decimal(5, 2)
+  feedback     String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  assignment   Assignment      @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
+  student      Student         @relation(fields: [studentId], references: [id], onDelete: Restrict)
+
+  @@unique([assignmentId, studentId])
+  @@index([studentId])
+  @@index([assignmentId])
+}
+
+model LearningMaterial {
+  id              String        @id @default(cuid())
+  title           String
+  description     String?
+  fileName        String
+  fileUrl         String
+  fileType        String
+  uploadedAt      DateTime      @default(now())
+  isRestricted    Boolean       @default(false)
+  teacherId       String
+  subjectId       String?
+  classOfferingId String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  teacher         Teacher       @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  subject         Subject?      @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  classOffering   ClassOffering? @relation(fields: [classOfferingId], references: [id], onDelete: SetNull)
+
+  @@index([subjectId])
+  @@index([classOfferingId])
+  @@index([teacherId])
+}
+
+model ClassSchedule {
+  id              String        @id @default(cuid())
+  studentId       String
+  sectionId       String
+  subjectId       String
+  teacherId       String?
+  classOfferingId String?
+  schoolYearId    String
+  dayOfWeek       String
+  startTime       String
+  endTime         String
+  room            String?
+  notes           String?
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  student         Student       @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  section         Section       @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  subject         Subject       @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  teacher         Teacher?      @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  classOffering   ClassOffering? @relation(fields: [classOfferingId], references: [id], onDelete: SetNull)
+
+  @@index([studentId, schoolYearId])
+  @@index([sectionId])
+  @@index([classOfferingId])
+}
+
+model DocumentRequest {
+  id            String               @id @default(cuid())
+  studentId     String
+  documentType  DocumentRequestType
+  reason        String?
+  details       String?
+  status        DocumentRequestStatus @default(PENDING)
+  requestedAt   DateTime             @default(now())
+  processedAt   DateTime?
+  adminRemarks  String?
+  documentUrl   String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  student       Student              @relation(fields: [studentId], references: [id], onDelete: Restrict)
+
+  @@index([studentId, requestedAt])
+  @@index([status])
+}
+
+model Notification {
+  id        String         @id @default(cuid())
+  userId    String
+  studentId String?
+  type      NotificationType
+  title     String
+  message   String
+  actionUrl String?
+  isRead    Boolean        @default(false)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  student   Student?       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
+  @@index([studentId])
 }
 
 model Attendance {
