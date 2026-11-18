@@ -135,7 +135,7 @@ integrationDescribe("API authorization and integration coverage", () => {
       const response = await request(app)
         .post("/api/auth/login")
         .set("Origin", "http://localhost:3000")
-        .send({ identifier, password: "password123" });
+        .send({ identifier, password: "Password123!" });
       expect(response.status, `login ${identifier}`).toBe(200);
       sessionCookies.set(key, response.headers["set-cookie"][0].split(";")[0]);
     }
@@ -293,10 +293,10 @@ integrationDescribe("API authorization and integration coverage", () => {
   });
 
   it("requires a trusted origin for state-changing requests", async () => {
-    expect((await request(app).post("/api/auth/login").send({ identifier: "ADMIN-0001", password: "password123" })).status).toBe(403);
+    expect((await request(app).post("/api/auth/login").send({ identifier: "ADMIN-0001", password: "Password123!" })).status).toBe(403);
     expect((await request(app).post("/api/auth/login")
       .set("Origin", "https://attacker.example")
-      .send({ identifier: "ADMIN-0001", password: "password123" })).status).toBe(403);
+      .send({ identifier: "ADMIN-0001", password: "Password123!" })).status).toBe(403);
   });
 
   it("does not create grade audit entries for rejected writes", async () => {

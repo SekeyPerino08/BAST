@@ -1,7 +1,13 @@
 import { EnrollmentStatus, Prisma, StudentStatus } from "@prisma/client";
+import { randomUUID } from "node:crypto";
 import { prisma } from "../../lib/prisma.js";
 import { audit } from "../../audit.js";
-import { createPersonAccount, setLinkedUserActive } from "../../services/account.service.js";
+import {
+  createLinkedPersonUser,
+  createPersonAccount,
+  DEFAULT_PERSON_PASSWORD,
+  setLinkedUserActive,
+} from "../../services/account.service.js";
 import { logAudit } from "../../services/audit.service.js";
 import { AppError } from "../../utils/AppError.js";
 import { buildPaginationMeta, parsePagination } from "../../utils/pagination.js";
@@ -237,7 +243,18 @@ export async function createStudent(
     }
 
     const student = await prisma.$transaction(async (transaction) => {
-      const created = await transaction.student.create({ data: studentData });
+      const studentId = randomUUID();
+      const user = await createLinkedPersonUser(transaction, {
+        kind: "student",
+        personId: studentId,
+        personNumber: studentData.studentNo,
+        firstName: studentData.firstName,
+        lastName: studentData.lastName,
+        isActive: true,
+      });
+      const created = await transaction.student.create({
+        data: { ...studentData, id: studentId, userId: user.id },
+      });
       if (request) {
         await audit(transaction, request, {
           action: "CREATE",
@@ -247,7 +264,10 @@ export async function createStudent(
           after: studentAuditDetails(studentData),
         });
       }
-      return created;
+      return {
+        ...created,
+        account: { email: user.email, temporaryPassword: DEFAULT_PERSON_PASSWORD },
+      };
     });
     return student;
   } catch (error) {

@@ -4,7 +4,7 @@ export type Sex = "MALE" | "FEMALE";
 export interface Student {
   id: string;
   studentNo: string;
-  userId: string | null;
+  userId: string;
   firstName: string;
   middleName: string | null;
   lastName: string;
@@ -28,7 +28,7 @@ export interface StudentListItem extends Student {
 }
 
 export interface StudentDetail extends Student {
-  user: { email: string; isActive?: boolean } | null;
+  user: { email: string; isActive?: boolean };
   currentEnrollment: (EnrollmentSummary & { status?: string }) | null;
   enrollments: Array<{
     id: string;

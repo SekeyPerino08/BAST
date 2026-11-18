@@ -3,16 +3,50 @@ import { Prisma, Role } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { AppError } from "../utils/AppError.js";
 
+export const DEFAULT_PERSON_PASSWORD = "Password123!";
+
 type PersonAccountInput =
   | { kind: "student"; personId: string; email: string }
   | { kind: "teacher"; personId: string; email: string };
+
+type PersonRecordInput = {
+  kind: "student" | "teacher";
+  personId: string;
+  personNumber: string;
+  firstName: string;
+  lastName: string;
+  isActive: boolean;
+};
 
 function isKnownError(error: unknown, code: string): error is Prisma.PrismaClientKnownRequestError {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === code;
 }
 
+export async function createLinkedPersonUser(
+  transaction: Prisma.TransactionClient,
+  person: PersonRecordInput,
+  passwordHash?: string,
+) {
+  const domain = person.kind === "student" ? "students" : "teachers";
+  const email = `${person.personNumber.toLowerCase()}.${person.personId}@${domain}.uni.edu`;
+  const role = person.kind === "student" ? Role.STUDENT : Role.TEACHER;
+
+  return transaction.user.create({
+    data: {
+      email,
+      passwordHash: passwordHash ?? await bcrypt.hash(DEFAULT_PERSON_PASSWORD, 12),
+      role,
+      isActive: person.isActive,
+      mustChangePassword: true,
+      firstName: person.firstName,
+      lastName: person.lastName,
+    },
+    select: { id: true, email: true, role: true, isActive: true },
+  });
+}
+
 export async function createPersonAccount(input: PersonAccountInput) {
-  const temporaryPassword = input.kind === "student" ? "student1234" : "faculty1234";
+  const temporaryPassword = DEFAULT_PERSON_PASSWORD;
   const passwordHash = await bcrypt.hash(temporaryPassword, 12);
 
   try {

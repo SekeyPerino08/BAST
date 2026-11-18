@@ -1,13 +1,12 @@
 import bcrypt from "bcryptjs";
-import { randomBytes } from "node:crypto";
 import { Prisma, Role } from "@prisma/client";
 import type { Request } from "express";
 import { prisma } from "../../lib/prisma.js";
+import { DEFAULT_PERSON_PASSWORD } from "../../services/account.service.js";
 import { logAudit } from "../../services/audit.service.js";
 import { canDeactivateLastActiveAdmin, canDeactivateUser } from "../../utils/account-governance.js";
 import { AppError } from "../../utils/AppError.js";
 import { buildPaginationMeta, parsePagination } from "../../utils/pagination.js";
-import { passwordPolicyError } from "../../utils/password-policy.js";
 import { requestPasswordReset } from "../../services/auth.service.js";
 import type {
   ChangeEmailBody,
@@ -15,14 +14,6 @@ import type {
   UpdateUserStatusBody,
 } from "./user.schema.js";
 import { listUsersQuerySchema } from "./user.schema.js";
-
-function makeTemporaryPassword(email: string): string {
-  let password = "";
-  do {
-    password = `${randomBytes(24).toString("base64url")}A1`;
-  } while (passwordPolicyError(password, "", email) !== null);
-  return password;
-}
 
 function mapPrismaError(error: unknown): never {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -139,9 +130,7 @@ export async function listUsers(input: unknown) {
 }
 
 export async function createAdminUser(input: CreateAdminUserBody, actorId: string, ipAddress?: string) {
-  const temporaryPassword = input.temporaryPassword ?? makeTemporaryPassword(input.email);
-  const policyError = passwordPolicyError(temporaryPassword, "", input.email);
-  if (policyError) throw new AppError(policyError, 400);
+  const temporaryPassword = DEFAULT_PERSON_PASSWORD;
   const duplicate = await prisma.user.findFirst({
     where: {
       OR: [

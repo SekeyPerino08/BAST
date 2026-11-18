@@ -9,7 +9,7 @@ export async function fetchTeachers(params: TeacherListParams): Promise<Paginate
 export async function fetchTeacher(id: string): Promise<{ data: TeacherDetail }> {
   return apiFetch(`/api/teachers/${encodeURIComponent(id)}`);
 }
-export async function createTeacher(input: TeacherInput): Promise<{ data: Teacher }> {
+export async function createTeacher(input: TeacherInput): Promise<{ data: Teacher & { account: { email: string; temporaryPassword: string } } }> {
   return apiFetch("/api/teachers", { method: "POST", body: JSON.stringify(input) });
 }
 export async function updateTeacher(id: string, input: Partial<Omit<TeacherInput, "employeeNo">>): Promise<{ data: Teacher }> {

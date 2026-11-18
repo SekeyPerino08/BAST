@@ -20,7 +20,6 @@ Never point automated tests or local development at the production Neon branch.
    ```powershell
    cd backend
    npm ci
-   npm run prisma:generate
    npm run prisma:migrate
    npm run seed
    npm run dev
@@ -37,14 +36,14 @@ Never point automated tests or local development at the production Neon branch.
 
 Open `http://localhost:3000`. Browser API requests use the Next.js `/api` rewrite. The API permits only exact origins listed in `CORS_ORIGIN`; write requests must include an allowed `Origin` or `Referer`.
 
-The demo seed currently creates these accounts with `password123`; these are for isolated local/test data only. Log in using the listed ID (email also remains accepted for these seeded legacy accounts):
+The demo seed currently creates these accounts with `Password123!`; all seeded accounts must change this password after their first sign-in. These accounts are for isolated local/test data only. Log in using the listed ID (email also remains accepted for these seeded legacy accounts):
 
 - Admin: `ADMIN-0001` (`admin@uni.edu`)
 - Faculty: `TCH-0002` (Reyes), `TCH-0001` (Tan)
 - Student: `STU-2025-0002` (Ben)
 - Alumni: `iris.co@uni.edu`
 
-Newly provisioned student accounts use their student number/LRN and the one-time starter password `student1234`; faculty use their employee ID and `faculty1234`. Both must change the starter password before accessing the rest of the system. New admin accounts use the custom Admin ID set during creation and a generated or admin-supplied temporary password, which must also be changed on first sign-in. Share all temporary credentials securely. `studentNo` is the current database field used as the student LRN/login ID.
+New Student and Teacher records receive a linked User account in the same transaction. The admin receives the generated email and shared initial password `Password123!` on creation; Student and Teacher accounts must change it at first sign-in. Generated emails use `{studentNo}.{studentId}@students.uni.edu` and `{employeeNo}.{teacherId}@teachers.uni.edu`. New admin accounts also use `Password123!` and must change it at first sign-in. Existing accounts are reset to this password by the account-linking migration. Share credentials securely.
 
 ## Environment variables
 
@@ -121,7 +120,7 @@ The database integration suite checks role restrictions, student ID substitution
 
 ### API (Render or Fly.io)
 
-1. Deploy the `backend/` directory using Node.js 22. Run `npm ci`, `npm run prisma:generate`, and `npm run build`; start with `npm run start`.
+1. Deploy the `backend/` directory using Node.js 22. Run `npm ci` (which generates Prisma Client), then `npm run build`; start with `npm run start`.
 2. Set `NODE_ENV=production`, `PORT` to the platform's assigned port, a strong `JWT_SECRET`, exact `CORS_ORIGIN` for the Vercel web origin, and the production Neon `DATABASE_URL` (pooled) plus `DIRECT_URL` (direct).
 3. Configure `TRUST_PROXY` to the actual trusted proxy hop count, `COOKIE_NAME`, and `JWT_EXPIRES_IN`. Keep `COOKIE_SAMESITE=lax`.
 4. Configure the HTTPS `PASSWORD_RESET_DELIVERY_URL` and `PASSWORD_RESET_DELIVERY_SECRET`.

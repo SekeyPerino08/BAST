@@ -1,7 +1,13 @@
 import { Prisma } from "@prisma/client";
+import { randomUUID } from "node:crypto";
 import type { Request } from "express";
 import { prisma } from "../../lib/prisma.js";
-import { createPersonAccount, setLinkedUserActive } from "../../services/account.service.js";
+import {
+  createLinkedPersonUser,
+  createPersonAccount,
+  DEFAULT_PERSON_PASSWORD,
+  setLinkedUserActive,
+} from "../../services/account.service.js";
 import { logAudit } from "../../services/audit.service.js";
 import { AppError } from "../../utils/AppError.js";
 import { buildPaginationMeta, parsePagination } from "../../utils/pagination.js";
@@ -141,16 +147,32 @@ export async function getTeacherById(id: string) {
 
 export async function createTeacher(input: CreateTeacherInput, request?: Request) {
   try {
-    const teacher = await prisma.teacher.create({ data: input });
-    await logAudit({
-      userId: request?.user?.id,
-      action: "CREATE",
-      entity: "Teacher",
-      entityId: teacher.id,
-      details: input as Prisma.InputJsonObject,
-      ipAddress: requestIp(request),
+    return await prisma.$transaction(async (transaction) => {
+      const teacherId = randomUUID();
+      const user = await createLinkedPersonUser(transaction, {
+        kind: "teacher",
+        personId: teacherId,
+        personNumber: input.employeeNo,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        isActive: true,
+      });
+      const teacher = await transaction.teacher.create({
+        data: { ...input, id: teacherId, userId: user.id },
+      });
+      await logAudit({
+        userId: request?.user?.id,
+        action: "CREATE",
+        entity: "Teacher",
+        entityId: teacher.id,
+        details: input as Prisma.InputJsonObject,
+        ipAddress: requestIp(request),
+      }, transaction);
+      return {
+        ...teacher,
+        account: { email: user.email, temporaryPassword: DEFAULT_PERSON_PASSWORD },
+      };
     });
-    return teacher;
   } catch (error) {
     handleTeacherError(error);
   }

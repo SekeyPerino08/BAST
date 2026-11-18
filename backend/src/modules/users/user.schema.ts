@@ -19,7 +19,6 @@ export const createAdminUserSchema = z.object({
   adminId: z.string().trim().min(3).max(32)
     .regex(/^[A-Za-z0-9_-]+$/, "Use letters, numbers, hyphens, or underscores")
     .transform((value) => value.toUpperCase()),
-  temporaryPassword: z.string().min(8).max(128).optional(),
 });
 
 export const changeEmailSchema = z.object({ email });

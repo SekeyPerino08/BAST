@@ -46,8 +46,10 @@ export function TeacherFormDialog({ teacher, onClose }: Readonly<{ teacher?: Tea
         await update.mutateAsync({ id: teacher.id, input: editable });
         toast.success("Teacher updated");
       } else {
-        await create.mutateAsync({ ...values, ...optionalFields });
-        toast.success("Teacher created");
+        const created = await create.mutateAsync({ ...values, ...optionalFields });
+        toast.success(
+          `Teacher created. Login: ${created.data.account.email} | Default password: ${created.data.account.temporaryPassword}`,
+        );
       }
       onClose();
     } catch (error) {

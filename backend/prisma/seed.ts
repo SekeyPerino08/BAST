@@ -7,9 +7,9 @@ const date = (value: string): Date => new Date(`${value}T00:00:00.000Z`);
 
 async function seed(): Promise<void> {
   const passwordHashes = {
-    admin: await bcrypt.hash("password123", 12),
-    teacher: await bcrypt.hash("password123", 12),
-    student: await bcrypt.hash("password123", 12),
+    admin: await bcrypt.hash("Password123!", 12),
+    teacher: await bcrypt.hash("Password123!", 12),
+    student: await bcrypt.hash("Password123!", 12),
   };
   await prisma.user.upsert({
     where: { email: "admin@uni.edu" },
@@ -19,7 +19,7 @@ async function seed(): Promise<void> {
       role: Role.ADMIN,
       firstName: "School",
       lastName: "Administrator",
-      mustChangePassword: false,
+      mustChangePassword: true,
     },
     create: {
       email: "admin@uni.edu",
@@ -28,7 +28,7 @@ async function seed(): Promise<void> {
       role: Role.ADMIN,
       firstName: "School",
       lastName: "Administrator",
-      mustChangePassword: false,
+      mustChangePassword: true,
     },
   });
 
@@ -47,7 +47,7 @@ async function seed(): Promise<void> {
         isActive: true,
         firstName: details.firstName,
         lastName: details.lastName,
-        mustChangePassword: false,
+        mustChangePassword: true,
       },
       create: {
         email: details.email,
@@ -56,7 +56,7 @@ async function seed(): Promise<void> {
         role: Role.TEACHER,
         firstName: details.firstName,
         lastName: details.lastName,
-        mustChangePassword: false,
+        mustChangePassword: true,
       },
     });
     teachers.push(
@@ -182,10 +182,8 @@ async function seed(): Promise<void> {
         ? "iris.co@uni.edu"
         : index === 0
           ? "student1@school.test"
-          : null;
-    const studentAccount =
-      studentEmail
-        ? await prisma.user.upsert({
+        : `${studentNo.toLowerCase()}@students.uni.edu`;
+    const studentAccount = await prisma.user.upsert({
             where: { email: studentEmail },
             update: {
               passwordHash: passwordHashes.student,
@@ -194,7 +192,7 @@ async function seed(): Promise<void> {
               isActive: true,
               firstName,
               lastName,
-              mustChangePassword: false,
+              mustChangePassword: true,
             },
             create: {
               email: studentEmail,
@@ -204,10 +202,9 @@ async function seed(): Promise<void> {
               isActive: true,
               firstName,
               lastName,
-              mustChangePassword: false,
+              mustChangePassword: true,
             },
-          })
-        : null;
+          });
     const student = await prisma.student.upsert({
       where: { studentNo },
       update: {
@@ -215,7 +212,7 @@ async function seed(): Promise<void> {
         lastName,
         sex,
         status: index === 8 ? StudentStatus.GRADUATED : StudentStatus.ACTIVE,
-        ...(studentAccount ? { userId: studentAccount.id } : {}),
+        userId: studentAccount.id,
       },
       create: {
         studentNo,
@@ -223,7 +220,7 @@ async function seed(): Promise<void> {
         lastName,
         sex,
         status: index === 8 ? StudentStatus.GRADUATED : StudentStatus.ACTIVE,
-        ...(studentAccount ? { userId: studentAccount.id } : {}),
+        userId: studentAccount.id,
       },
     });
     students.push(student);
