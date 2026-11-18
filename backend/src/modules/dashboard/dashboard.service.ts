@@ -86,9 +86,10 @@ function dateWhere(dates: string[]): Prisma.DateTimeFilter {
 
 async function getAdminAggregates(context: CurrentContext) {
   const schoolYearId = context.schoolYear?.id;
+  type AccountCounts = { activeCount: bigint; withoutLoginCount: bigint };
   const [
-    studentAccountGroups,
-    teacherAccountGroups,
+    studentAccountCounts,
+    teacherAccountCounts,
     enrolledStudents,
     unassignedStudents,
     sections,
@@ -96,16 +97,19 @@ async function getAdminAggregates(context: CurrentContext) {
     borrowedLibraryLoans,
     overdueLibraryLoans,
   ] = await Promise.all([
-    prisma.student.groupBy({
-      by: ["userId"],
-      where: { status: StudentStatus.ACTIVE },
-      _count: { _all: true },
-    }),
-    prisma.teacher.groupBy({
-      by: ["userId"],
-      where: { isActive: true },
-      _count: { _all: true },
-    }),
+    // Raw aggregates tolerate legacy NULL userIds without Prisma decoding them as required strings.
+    prisma.$queryRaw<AccountCounts[]>`
+      SELECT
+        COUNT(*) FILTER (WHERE "status" = 'ACTIVE') AS "activeCount",
+        COUNT(*) FILTER (WHERE "status" = 'ACTIVE' AND "userId" IS NULL) AS "withoutLoginCount"
+      FROM "Student"
+    `,
+    prisma.$queryRaw<AccountCounts[]>`
+      SELECT
+        COUNT(*) FILTER (WHERE "isActive" = TRUE) AS "activeCount",
+        COUNT(*) FILTER (WHERE "isActive" = TRUE AND "userId" IS NULL) AS "withoutLoginCount"
+      FROM "Teacher"
+    `,
     schoolYearId
       ? prisma.enrollment.count({ where: { schoolYearId, status: EnrollmentStatus.ENROLLED } })
       : Promise.resolve(0),
@@ -142,10 +146,10 @@ async function getAdminAggregates(context: CurrentContext) {
         where: { returnedOn: null, dueOn: { lt: parseDateString(context.today) } },
     }),
   ]);
-  const activeStudents = studentAccountGroups.reduce((total, group) => total + group._count._all, 0);
-  const activeTeachers = teacherAccountGroups.reduce((total, group) => total + group._count._all, 0);
-  const studentsWithoutLogin = studentAccountGroups.find((group) => group.userId === null)?._count._all ?? 0;
-  const teachersWithoutLogin = teacherAccountGroups.find((group) => group.userId === null)?._count._all ?? 0;
+  const activeStudents = Number(studentAccountCounts[0]?.activeCount ?? 0);
+  const activeTeachers = Number(teacherAccountCounts[0]?.activeCount ?? 0);
+  const studentsWithoutLogin = Number(studentAccountCounts[0]?.withoutLoginCount ?? 0);
+  const teachersWithoutLogin = Number(teacherAccountCounts[0]?.withoutLoginCount ?? 0);
   const sectionsCount = sections.length;
   const offeringsCount = offerings.length;
 
