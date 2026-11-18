@@ -7,7 +7,7 @@ export interface Teacher {
   department: string | null;
   contactNo: string | null;
   isActive: boolean;
-  userId: string;
+  userId: string | null;
   hasAccount?: boolean;
   classOfferingCount?: number;
   advisedSectionCount?: number;
@@ -28,7 +28,7 @@ export interface TeacherOffering {
 }
 
 export interface TeacherDetail extends Teacher {
-  user: { email: string };
+  user: { email: string } | null;
   offerings: TeacherOffering[];
   advisedSections: Array<{ id: string; name: string; gradeLevel: number }>;
 }
