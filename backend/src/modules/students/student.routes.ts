@@ -1,6 +1,7 @@
 import { Role } from "@prisma/client";
 import { Router } from "express";
 import { validateIdParams } from "../../middleware/validateIdParams.js";
+import { validateStudentNumberParams } from "../../middleware/validateStudentNumberParams.js";
 import { authenticate } from "../../middleware/authenticate.js";
 import { authorize } from "../../middleware/authorize.js";
 import { validateBody } from "../../middleware/validate.js";
@@ -28,6 +29,7 @@ import {
 
 const studentRouter = Router();
 studentRouter.param("id", validateIdParams("id"));
+studentRouter.param("studentNo", validateStudentNumberParams("studentNo"));
 
 studentRouter.use(authenticate);
 studentRouter.get("/library-loans", authorize(Role.ADMIN, Role.TEACHER), listLibraryLoansController);
@@ -37,7 +39,7 @@ studentRouter.get("/:id/alumni", authorize(Role.ADMIN, Role.TEACHER, Role.STUDEN
 studentRouter.use(authorize(Role.ADMIN));
 studentRouter.get("/", listStudentsController);
 studentRouter.get("/:id/attendance", getStudentAttendanceController);
-studentRouter.get("/:id", getStudentController);
+studentRouter.get("/:studentNo", getStudentController);
 studentRouter.post("/", validateBody(createStudentSchema), createStudentController);
 studentRouter.patch("/:id", validateBody(updateStudentSchema), updateStudentController);
 studentRouter.patch(

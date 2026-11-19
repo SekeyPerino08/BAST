@@ -376,7 +376,7 @@ export async function buildReportCard(
 }
 
 export async function getStudentReportCard(
-  studentId: string,
+  studentIdentifier: string,
   schoolYearIdInput: string | undefined,
   rawQuery: unknown,
   user: ReportCardUser,
@@ -384,38 +384,44 @@ export async function getStudentReportCard(
   const parsed = parseQuery(reportCardQuerySchema, rawQuery);
   const includeUnreleased = user.role === Role.ADMIN ? Boolean(parsed.includeUnreleased) : false;
   const schoolYearId = await resolveSchoolYearId(parsed.schoolYearId ?? schoolYearIdInput);
-  await assertCanViewReportCard(user, studentId, schoolYearId);
 
-  const student = await prisma.student.findUnique({
-    where: { id: studentId },
-    select: {
-      id: true,
-      studentNo: true,
-      firstName: true,
-      middleName: true,
-      lastName: true,
-      sex: true,
-      birthDate: true,
-      enrollments: {
-        where: { schoolYearId, status: { in: [EnrollmentStatus.ENROLLED, EnrollmentStatus.DROPPED, EnrollmentStatus.COMPLETED] } },
-        select: {
-          status: true,
-          section: {
-            select: {
-              id: true,
-              gradeLevel: true,
-              name: true,
-              adviser: {
-                select: { firstName: true, middleName: true, lastName: true },
-              },
+  const studentSelect = {
+    id: true,
+    studentNo: true,
+    firstName: true,
+    middleName: true,
+    lastName: true,
+    sex: true,
+    birthDate: true,
+    enrollments: {
+      where: { schoolYearId, status: { in: [EnrollmentStatus.ENROLLED, EnrollmentStatus.DROPPED, EnrollmentStatus.COMPLETED] } },
+      select: {
+        status: true,
+        section: {
+          select: {
+            id: true,
+            gradeLevel: true,
+            name: true,
+            adviser: {
+              select: { firstName: true, middleName: true, lastName: true },
             },
           },
         },
       },
     },
-  });
+  } satisfies Prisma.StudentSelect;
+  const student =
+    (await prisma.student.findUnique({
+      where: { id: studentIdentifier },
+      select: studentSelect,
+    })) ??
+    (await prisma.student.findUnique({
+      where: { studentNo: studentIdentifier },
+      select: studentSelect,
+    }));
 
   if (!student) throw new AppError("Student not found", 404);
+  await assertCanViewReportCard(user, student.id, schoolYearId);
   const enrollment = student.enrollments[0];
   if (!enrollment || !enrollment.section) throw new AppError("No enrollment found", 404, "NO_ENROLLMENT");
 
@@ -442,7 +448,7 @@ export async function getStudentReportCard(
     }),
     prisma.grade.findMany({
       where: {
-        studentId,
+        studentId: student.id,
         classOffering: { sectionId: enrollment.section.id, schoolYearId },
         termId: { in: (await prisma.term.findMany({ where: { schoolYearId }, select: { id: true } })).map((term) => term.id) },
       },
@@ -450,7 +456,7 @@ export async function getStudentReportCard(
     }),
     prisma.attendance.findMany({
       where: {
-        studentId,
+        studentId: student.id,
         classOffering: { sectionId: enrollment.section.id, schoolYearId },
         date: { lte: new Date() },
       },

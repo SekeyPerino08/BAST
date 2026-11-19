@@ -18,19 +18,19 @@ export const getMyReportCardController = asyncHandler(async (req, res) => {
 
 export const getStudentReportCardController = asyncHandler<ParamsDictionary>(async (req, res) => {
   if (!req.user) throw new AppError("Not authenticated", 401);
-  const result = await getStudentReportCard(req.params.id, req.query.schoolYearId as string | undefined, req.query, req.user);
+  const result = await getStudentReportCard(req.params.studentNo, req.query.schoolYearId as string | undefined, req.query, req.user);
   if (req.user.role !== Role.STUDENT) {
     await prisma.$transaction((transaction) => audit(transaction, req, {
       action: "VIEW_STUDENT",
       entityType: "Student",
-      entityId: req.params.id,
-      studentId: req.params.id,
+      entityId: result.student.id,
+      studentId: result.student.id,
     }));
     await logAudit({
       userId: req.user.id,
       action: "REPORT_CARD_VIEW",
       entity: "Student",
-      entityId: req.params.id,
+      entityId: result.student.id,
       details: {
         schoolYearId: req.query.schoolYearId ?? null,
         includeUnreleased: Boolean(req.query.includeUnreleased === "true" || req.query.includeUnreleased === "1"),

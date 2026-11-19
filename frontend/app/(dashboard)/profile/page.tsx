@@ -6,7 +6,6 @@ import {
   Check,
   Clock3,
   Copy,
-  Info,
   KeyRound,
   Mail,
   Palette,
@@ -20,6 +19,8 @@ import { DashboardLayout } from "../../../components/DashboardLayout";
 import { RoleGuard } from "../../../components/RoleGuard";
 import { ChangePasswordForm } from "../../../features/profile/ChangePasswordForm";
 import { ThemeToggle } from "../../../features/profile/components/ThemeToggle";
+import { PersonalInformationCard } from "../../../features/profile/components/PersonalInformationCard";
+import { ProfileAvatar } from "../../../features/profile/components/ProfileAvatar";
 import { useMyProfile } from "../../../features/profile/hooks";
 import { useAuth } from "../../../providers/AuthProvider";
 
@@ -81,8 +82,6 @@ function ProfileContent() {
     document.getElementById("profile-security")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  const initials = profile.data ? [profile.data.user.email?.split("@")?.[0]?.[0] ?? "U", profile.data.user.role?.[0] ?? "A"].join("").toUpperCase() : "U";
-
   return (
     <div className="mx-auto w-full max-w-[1100px] space-y-6 px-2 pb-8 pt-1 text-[15px] text-slate-700 sm:px-4">
       <header className="overflow-hidden rounded-[22px] border border-[#dfe9f2] bg-[linear-gradient(135deg,#edf8f2_0%,#eef4fb_100%)] p-5 shadow-[0_12px_28px_rgba(13,65,46,0.06)] sm:p-6 dark:border-slate-700 dark:bg-none dark:bg-slate-900">
@@ -95,9 +94,12 @@ function ProfileContent() {
 
           {profile.data && (
             <div className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[#dfe9f2] bg-white/75 px-3 py-3 shadow-sm md:max-w-[420px] md:justify-start dark:border-slate-700 dark:bg-slate-800">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#0d412e] text-lg font-bold text-white shadow-sm">
-                {initials}
-              </div>
+              <ProfileAvatar
+                initials={`${profile.data.personalProfile.firstName.charAt(0)}${profile.data.personalProfile.lastName.charAt(0)}`.toUpperCase()}
+                photoUpdatedAt={profile.data.personalProfile.photoUpdatedAt}
+                size={48}
+                className="text-lg shadow-sm"
+              />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="truncate text-sm font-semibold text-slate-900">{profile.data.user.email}</p>
@@ -186,45 +188,7 @@ function ProfileContent() {
               </dl>
             </section>
 
-            <section className="rounded-[20px] border border-slate-200 bg-white p-6 shadow-[0_10px_24px_rgba(148,163,184,0.08)]">
-              <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#edf4ff] text-[#1d6a45]">
-                  <CalendarDays size={18} aria-hidden="true" />
-                </span>
-                <h2 className="text-lg font-semibold text-slate-900">Personal information</h2>
-              </div>
-
-              {profile.data.person ? (
-                <div className="mt-5 min-h-[220px] rounded-[16px] border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-800">
-                  <dl className="space-y-3">
-                    {profile.data.person.type === "STUDENT" ? (
-                      <>
-                        <ProfileField label="Student number" value={profile.data.person.studentNo} />
-                        <ProfileField label="Name" value={profile.data.person.fullName} />
-                        <ProfileField label="Current section" value={profile.data.person.currentSection ?? "Not enrolled"} />
-                      </>
-                    ) : (
-                      <>
-                        <ProfileField label="Employee number" value={profile.data.person.employeeNo} />
-                        <ProfileField label="Name" value={profile.data.person.fullName} />
-                        <ProfileField label="Department" value={profile.data.person.department ?? "Not set"} />
-                        <ProfileField label="Contact number" value={profile.data.person.contactNo ?? "Not set"} />
-                      </>
-                    )}
-                  </dl>
-                </div>
-              ) : (
-                <div className="mt-5 flex min-h-[220px] flex-col items-center justify-center rounded-[16px] border border-dashed border-slate-200 bg-slate-50 px-6 py-8 text-center dark:border-slate-700 dark:bg-slate-900">
-                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#edf7ef] text-[#1d6a45]">
-                    <UserRound size={22} aria-hidden="true" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-slate-900">No personal details linked</h3>
-                  <p className="mt-1 max-w-xs text-sm text-slate-600">This administrator account does not have a linked personal profile yet.</p>
-                </div>
-              )}
-
-              <InfoCallout className="mt-5" text="Read-only. To correct personal details or your email, contact an administrator." />
-            </section>
+            <PersonalInformationCard profile={profile.data} />
           </div>
 
           <section id="profile-security" className="rounded-[20px] border border-slate-200 bg-white p-6 shadow-[0_10px_24px_rgba(148,163,184,0.08)]">
@@ -299,15 +263,6 @@ function ProfileContent() {
   );
 }
 
-function ProfileField({ label, value }: Readonly<{ label: string; value: string }>) {
-  return (
-    <div className="grid gap-1.5 border-b border-slate-100 pb-3 last:border-b-0 last:pb-0">
-      <dt className="text-[13px] font-medium uppercase tracking-[0.12em] text-slate-500">{label}</dt>
-      <dd className="text-[15px] font-medium text-slate-900">{value}</dd>
-    </div>
-  );
-}
-
 function InfoRow({
   icon,
   label,
@@ -336,15 +291,6 @@ function InfoRow({
         </div>
       </div>
       {action && <div className="flex justify-end sm:justify-start">{action}</div>}
-    </div>
-  );
-}
-
-function InfoCallout({ text, className = "" }: Readonly<{ text: string; className?: string }>) {
-  return (
-    <div className={`flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-100 ${className}`}>
-      <Info size={17} className="mt-0.5 shrink-0 text-sky-700 dark:text-sky-300" aria-hidden="true" />
-      <p>{text}</p>
     </div>
   );
 }

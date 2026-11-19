@@ -167,7 +167,7 @@ export function GlobalSearch({ compact = false }: Readonly<{ compact?: boolean }
                 : students.data?.length
                   ? <ul className="space-y-1">{students.data.map((student) => {
                     const href = user.role === "ADMIN"
-                      ? `/admin/students/${encodeURIComponent(student.id)}`
+                      ? `/admin/students/${encodeURIComponent(student.studentNo)}`
                       : `/teacher/advisory/report-cards/${encodeURIComponent(student.id)}`;
                     return <li key={student.id}>
                       <Link href={href} onClick={close} className="flex min-h-12 items-center justify-between gap-3 rounded-lg px-3 py-2 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d6a45]">

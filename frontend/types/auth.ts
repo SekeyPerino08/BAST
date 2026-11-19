@@ -13,8 +13,10 @@ export interface AuthUser {
   id: string;
   email: string;
   firstName?: string;
+  lastName?: string;
   role: Role;
   mustChangePassword: boolean;
+  profilePhotoUpdatedAt?: string | null;
   profile: AuthProfile | null;
 }
 

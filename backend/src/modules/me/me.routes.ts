@@ -1,7 +1,10 @@
 import { Role } from "@prisma/client";
 import { Router } from "express";
+import multer from "multer";
 import { authenticate, authenticateAllowPending } from "../../middleware/authenticate.js";
 import { authorize } from "../../middleware/authorize.js";
+import { validateBody } from "../../middleware/validate.js";
+import { AppError } from "../../utils/AppError.js";
 import {
   createMyDocumentRequestController,
   getMyAcademicHistoryController,
@@ -14,9 +17,12 @@ import {
   getMyLearningMaterialsController,
   getMyNotificationsController,
   getMyProfileController,
+  getMyProfilePhotoController,
   getMyScheduleController,
   markMyNotificationReadController,
+  updateMyProfileController,
 } from "./me.controller.js";
+import { updateMyProfileSchema } from "./me.schema.js";
 import { getMyAttendanceController } from "../attendance/attendance.controller.js";
 import {
   getMyStudentAlumniController,
@@ -26,6 +32,25 @@ import {
 
 const router = Router();
 router.get("/profile", authenticateAllowPending, getMyProfileController);
+router.get("/profile/photo", authenticateAllowPending, getMyProfilePhotoController);
+const profilePhotoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, callback) => {
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.mimetype)) {
+      callback(new AppError("Upload a JPG, PNG, or WebP image", 400, "INVALID_PROFILE_PHOTO"));
+      return;
+    }
+    callback(null, true);
+  },
+});
+router.patch(
+  "/profile",
+  authenticateAllowPending,
+  profilePhotoUpload.single("photo"),
+  validateBody(updateMyProfileSchema),
+  updateMyProfileController,
+);
 router.use(authenticate);
 router.get("/classes", authorize(Role.TEACHER), getMyClassesController);
 router.get("/advisory/students", authorize(Role.TEACHER), getMyAdvisoryStudentsController);

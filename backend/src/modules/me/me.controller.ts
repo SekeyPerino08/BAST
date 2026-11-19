@@ -1,3 +1,4 @@
+import type { ParamsDictionary } from "express-serve-static-core";
 import { AppError } from "../../utils/AppError.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import {
@@ -12,13 +13,28 @@ import {
   getMyLearningMaterials,
   getMyNotifications,
   getMyProfile,
+  getMyProfilePhoto,
   getMySchedule,
   markMyNotificationRead,
+  updateMyProfile,
 } from "./me.service.js";
+import type { UpdateMyProfileInput } from "./me.schema.js";
 
 export const getMyProfileController = asyncHandler(async (req, res) => {
   if (!req.user) throw new AppError("Not authenticated", 401);
   res.status(200).json(await getMyProfile(req.user.id));
+});
+
+export const getMyProfilePhotoController = asyncHandler(async (req, res) => {
+  if (!req.user) throw new AppError("Not authenticated", 401);
+  const photo = await getMyProfilePhoto(req.user.id);
+  res.set("Cache-Control", "private, no-store");
+  res.type(photo.mime).status(200).send(photo.data);
+});
+
+export const updateMyProfileController = asyncHandler<ParamsDictionary, unknown, UpdateMyProfileInput>(async (req, res) => {
+  if (!req.user) throw new AppError("Not authenticated", 401);
+  res.status(200).json(await updateMyProfile(req.user.id, req.body, req.file, req));
 });
 
 export const getMyClassesController = asyncHandler(async (req, res) => {

@@ -29,6 +29,7 @@ import { useAuth } from "../providers/AuthProvider";
 import { userDisplayName } from "../lib/auth";
 import type { Role } from "../types/auth";
 import { GlobalSearch } from "./GlobalSearch";
+import { ProfileAvatar } from "../features/profile/components/ProfileAvatar";
 
 const navigation: Record<Role, { label: string; href: string; comingSoon?: boolean; group?: string }[]> = {
   ADMIN: [
@@ -283,9 +284,12 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
       <div className="border-t border-white/10 p-3">
         <details ref={menuRef} className="relative">
           <summary aria-label="Open user menu" className={`flex min-h-12 cursor-pointer list-none items-center gap-3 rounded-xl bg-white/[0.07] p-2 text-left hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#f0c35d] [&::-webkit-details-marker]:hidden ${sidebarCollapsed ? "lg:justify-center" : ""}`}>
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#1d6a45] text-sm font-bold text-[#f0c35d]" aria-hidden="true">
-              {userDisplayName(user).split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}
-            </span>
+            <ProfileAvatar
+              initials={userDisplayName(user).split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}
+              photoUpdatedAt={user.profilePhotoUpdatedAt}
+              size={36}
+              className="text-sm text-[#f0c35d]"
+            />
             <span className={`min-w-0 flex-1 ${sidebarCollapsed ? "lg:hidden" : ""}`}>
               <span className="block truncate text-xs font-semibold text-white">{userDisplayName(user)}</span>
               <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-wide text-slate-400">{user.role.toLowerCase()}</span>

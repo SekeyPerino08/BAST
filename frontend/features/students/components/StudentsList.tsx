@@ -164,7 +164,7 @@ export function StudentsList() {
                         <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800">
                           {visibleColumns.studentNo && <td className="whitespace-nowrap px-4 py-4 font-medium text-slate-700">{item.studentNo}</td>}
                           {visibleColumns.name && <td className="whitespace-nowrap px-4 py-4">
-                            <Link href={`/admin/students/${item.id}`} className="font-semibold text-slate-900 hover:text-[#1d6a45] dark:hover:text-[#dfeee4]">
+                            <Link href={`/admin/students/${encodeURIComponent(item.studentNo)}`} className="font-semibold text-slate-900 hover:text-[#1d6a45] dark:hover:text-[#dfeee4]">
                               {item.lastName}, {item.firstName}{item.middleName ? ` ${item.middleName.charAt(0)}.` : ""}
                             </Link>
                           </td>}
@@ -183,7 +183,7 @@ export function StudentsList() {
                             </button>
                             {openMenu === item.id && (
                               <div role="menu" className="absolute right-8 top-12 z-20 w-48 rounded-xl border border-slate-200 bg-white p-1.5 text-left shadow-lg">
-                                <Link role="menuitem" href={`/admin/students/${item.id}`} onClick={() => setOpenMenu(null)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><Eye size={16} /> View</Link>
+                                <Link role="menuitem" href={`/admin/students/${encodeURIComponent(item.studentNo)}`} onClick={() => setOpenMenu(null)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><Eye size={16} /> View</Link>
                                 <button role="menuitem" type="button" onClick={() => setStudentDialog("edit", item)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><Pencil size={16} /> Edit</button>
                                 <button role="menuitem" type="button" onClick={() => setStudentDialog("status", item)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><UserRoundX size={16} /> Change status</button>
                                 <button role="menuitem" type="button" disabled={Boolean(item.userId)} onClick={() => setStudentDialog("account", item)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"><UserRoundPlus size={16} /> {item.userId ? "Account exists" : "Create login account"}</button>

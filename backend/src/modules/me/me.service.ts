@@ -7,6 +7,8 @@ import {
   EnrollmentStatus,
   NotificationType,
 } from "@prisma/client";
+import type { Request } from "express";
+import { audit } from "../../audit.js";
 import { prisma } from "../../lib/prisma.js";
 import { getTeacherIdForUser } from "../../services/access.service.js";
 import { AppError } from "../../utils/AppError.js";
@@ -14,6 +16,7 @@ import { formatDateString, parseDateString } from "../../utils/dates.js";
 import { calculateAttendanceRate } from "../attendance/attendance.rules.js";
 import { getCurrentContext } from "../dashboard/dashboard.helpers.js";
 import { myClassesQuerySchema } from "./me.schema.js";
+import type { UpdateMyProfileInput } from "./me.schema.js";
 
 async function resolveSchoolYearId(schoolYearId?: string): Promise<string> {
   if (schoolYearId) {
@@ -626,17 +629,33 @@ export async function getMyProfile(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
+      firstName: true,
+      lastName: true,
       email: true,
       role: true,
       createdAt: true,
       lastLoginAt: true,
       passwordChangedAt: true,
+      userProfile: {
+        select: {
+          middleName: true,
+          phoneNumber: true,
+          dateOfBirth: true,
+          sex: true,
+          address: true,
+          photoMime: true,
+          updatedAt: true,
+        },
+      },
       student: {
         select: {
           studentNo: true,
           firstName: true,
           middleName: true,
           lastName: true,
+          birthDate: true,
+          sex: true,
+          address: true,
           enrollments: {
             where: {
               status: EnrollmentStatus.ENROLLED,
@@ -683,6 +702,27 @@ export async function getMyProfile(userId: string) {
       contactNo: user.teacher.contactNo,
     };
   }
+  const personalProfile = user.userProfile
+    ? {
+        firstName: user.firstName,
+        middleName: user.userProfile.middleName,
+        lastName: user.lastName,
+        phoneNumber: user.userProfile.phoneNumber,
+        dateOfBirth: user.userProfile.dateOfBirth?.toISOString().slice(0, 10) ?? null,
+        sex: user.userProfile.sex,
+        address: user.userProfile.address,
+        photoUpdatedAt: user.userProfile.photoMime ? user.userProfile.updatedAt.toISOString() : null,
+      }
+    : {
+        firstName: user.student?.firstName ?? user.teacher?.firstName ?? user.firstName,
+        middleName: user.student?.middleName ?? user.teacher?.middleName ?? null,
+        lastName: user.student?.lastName ?? user.teacher?.lastName ?? user.lastName,
+        phoneNumber: user.teacher?.contactNo ?? null,
+        dateOfBirth: user.student?.birthDate?.toISOString().slice(0, 10) ?? null,
+        sex: user.student?.sex ?? null,
+        address: user.student?.address ?? null,
+        photoUpdatedAt: null,
+      };
   return {
     user: {
       email: user.email,
@@ -692,5 +732,180 @@ export async function getMyProfile(userId: string) {
       passwordChangedAt: user.passwordChangedAt,
     },
     person,
+    personalProfile,
+    hasPersonalProfile: Boolean(user.userProfile || user.student || user.teacher),
   };
+}
+
+function detectProfilePhotoMime(buffer: Buffer): string | null {
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return "image/jpeg";
+  }
+  if (
+    buffer.length >= 8 &&
+    buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+  ) {
+    return "image/png";
+  }
+  if (
+    buffer.length >= 12 &&
+    buffer.toString("ascii", 0, 4) === "RIFF" &&
+    buffer.toString("ascii", 8, 12) === "WEBP"
+  ) {
+    return "image/webp";
+  }
+  return null;
+}
+
+export async function getMyProfilePhoto(userId: string): Promise<{ data: Buffer; mime: string }> {
+  const profile = await prisma.userProfile.findUnique({
+    where: { userId },
+    select: { photoData: true, photoMime: true },
+  });
+  if (!profile?.photoData || !profile.photoMime) {
+    throw new AppError("Profile photo not found", 404, "PROFILE_PHOTO_NOT_FOUND");
+  }
+  return { data: Buffer.from(profile.photoData), mime: profile.photoMime };
+}
+
+export async function updateMyProfile(
+  userId: string,
+  input: UpdateMyProfileInput,
+  photo: Express.Multer.File | undefined,
+  request: Request,
+) {
+  const photoMime = photo ? detectProfilePhotoMime(photo.buffer) : null;
+  if (photo && (!photoMime || photoMime !== photo.mimetype)) {
+    throw new AppError("The uploaded image content is invalid. Choose a JPG, PNG, or WebP image.", 400, "INVALID_PROFILE_PHOTO");
+  }
+
+  return prisma.$transaction(async (transaction) => {
+    const user = await transaction.user.findUnique({
+      where: { id: userId },
+      select: {
+        firstName: true,
+        lastName: true,
+        student: {
+          select: {
+            firstName: true,
+            middleName: true,
+            lastName: true,
+            birthDate: true,
+            sex: true,
+            address: true,
+          },
+        },
+        teacher: {
+          select: { firstName: true, middleName: true, lastName: true, contactNo: true },
+        },
+        userProfile: {
+          select: {
+            middleName: true,
+            phoneNumber: true,
+            dateOfBirth: true,
+            sex: true,
+            address: true,
+            photoMime: true,
+          },
+        },
+      },
+    });
+    if (!user) throw new AppError("Not authenticated", 401);
+
+    const existing = user.userProfile;
+    const before = {
+      firstName: user.firstName,
+      middleName: existing
+        ? existing.middleName
+        : user.student?.middleName ?? user.teacher?.middleName ?? null,
+      lastName: user.lastName,
+      phoneNumber: existing ? existing.phoneNumber : user.teacher?.contactNo ?? null,
+      dateOfBirth: existing
+        ? existing.dateOfBirth?.toISOString().slice(0, 10) ?? null
+        : user.student?.birthDate?.toISOString().slice(0, 10) ?? null,
+      sex: existing ? existing.sex : user.student?.sex ?? null,
+      address: existing ? existing.address : user.student?.address ?? null,
+      hasPhoto: Boolean(existing?.photoMime),
+    };
+    const dateOfBirth = input.dateOfBirth ? new Date(`${input.dateOfBirth}T00:00:00.000Z`) : null;
+
+    await transaction.user.update({
+      where: { id: userId },
+      data: { firstName: input.firstName, lastName: input.lastName },
+    });
+    if (user.student) {
+      await transaction.student.update({
+        where: { userId },
+        data: {
+          firstName: input.firstName,
+          middleName: input.middleName,
+          lastName: input.lastName,
+          birthDate: dateOfBirth,
+          sex: input.sex ?? user.student.sex,
+          address: input.address,
+        },
+      });
+    }
+    if (user.teacher) {
+      await transaction.teacher.update({
+        where: { userId },
+        data: {
+          firstName: input.firstName,
+          middleName: input.middleName,
+          lastName: input.lastName,
+          contactNo: input.phoneNumber,
+        },
+      });
+    }
+
+    const profilePhotoUpdate = photo
+      ? { photoData: Uint8Array.from(photo.buffer), photoMime }
+      : input.removePhoto
+        ? { photoData: null, photoMime: null }
+        : {};
+    const savedProfile = await transaction.userProfile.upsert({
+      where: { userId },
+      create: {
+        userId,
+        middleName: input.middleName,
+        phoneNumber: input.phoneNumber,
+        dateOfBirth,
+        sex: input.sex,
+        address: input.address,
+        photoData: photo ? Uint8Array.from(photo.buffer) : null,
+        photoMime,
+      },
+      update: {
+        middleName: input.middleName,
+        phoneNumber: input.phoneNumber,
+        dateOfBirth,
+        sex: input.sex,
+        address: input.address,
+        ...profilePhotoUpdate,
+      },
+      select: { photoMime: true, updatedAt: true },
+    });
+    const after = {
+      firstName: input.firstName,
+      middleName: input.middleName,
+      lastName: input.lastName,
+      phoneNumber: input.phoneNumber,
+      dateOfBirth: input.dateOfBirth,
+      sex: input.sex,
+      address: input.address,
+      hasPhoto: Boolean(savedProfile.photoMime),
+    };
+    await audit(transaction, request, {
+      action: existing ? "PROFILE_UPDATED" : "PROFILE_CREATED",
+      entityType: "UserProfile",
+      entityId: userId,
+      before,
+      after,
+    });
+
+    return {
+      ...after,
+      photoUpdatedAt: savedProfile.photoMime ? savedProfile.updatedAt.toISOString() : null,
+    };
+  });
 }

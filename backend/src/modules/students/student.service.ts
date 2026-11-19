@@ -164,12 +164,17 @@ export async function listStudents(rawQuery: unknown): Promise<{
   };
 }
 
-export async function getStudentById(id: string, request?: Request) {
+export async function getStudentById(identifier: string, request?: Request) {
   return prisma.$transaction(async (transaction) => {
-    const student = await transaction.student.findUnique({
-      where: { id },
-      include: studentHistoryInclude,
-    });
+    const student =
+      (await transaction.student.findUnique({
+        where: { id: identifier },
+        include: studentHistoryInclude,
+      })) ??
+      (await transaction.student.findUnique({
+        where: { studentNo: identifier },
+        include: studentHistoryInclude,
+      }));
     if (!student) {
       throw new AppError("Student not found", 404);
     }
@@ -177,8 +182,8 @@ export async function getStudentById(id: string, request?: Request) {
       await audit(transaction, request, {
         action: "VIEW_STUDENT",
         entityType: "Student",
-        entityId: id,
-        studentId: id,
+        entityId: student.id,
+        studentId: student.id,
       });
     }
     const currentEnrollment =

@@ -11,6 +11,9 @@ import { logAudit } from "./audit.service.js";
 import { isAccountLocked, nextLoginFailureState, passwordPolicyError } from "../utils/password-policy.js";
 
 const authUserInclude = {
+  userProfile: {
+    select: { photoMime: true, updatedAt: true },
+  },
   student: {
     select: { studentNo: true, firstName: true, middleName: true, lastName: true },
   },
@@ -27,12 +30,18 @@ export interface PublicUser {
   id: string;
   email: string;
   firstName: string;
+  lastName: string;
   role: Role;
   mustChangePassword: boolean;
+  profilePhotoUpdatedAt: string | null;
   profile:
     | { type: "student"; studentNo: string; firstName: string; middleName: string | null; lastName: string }
     | { type: "teacher"; employeeNo: string; firstName: string; middleName: string | null; lastName: string }
     | null;
+}
+
+function profilePhotoUpdatedAt(user: AuthUser): string | null {
+  return user.userProfile?.photoMime ? user.userProfile.updatedAt.toISOString() : null;
 }
 
 export function toPublicUser(user: AuthUser): PublicUser {
@@ -41,8 +50,10 @@ export function toPublicUser(user: AuthUser): PublicUser {
       id: user.id,
       email: user.email,
       firstName: user.firstName,
+      lastName: user.lastName,
       role: user.role,
       mustChangePassword: user.mustChangePassword,
+      profilePhotoUpdatedAt: profilePhotoUpdatedAt(user),
       profile: { type: "student", ...user.student },
     };
   }
@@ -51,8 +62,10 @@ export function toPublicUser(user: AuthUser): PublicUser {
       id: user.id,
       email: user.email,
       firstName: user.firstName,
+      lastName: user.lastName,
       role: user.role,
       mustChangePassword: user.mustChangePassword,
+      profilePhotoUpdatedAt: profilePhotoUpdatedAt(user),
       profile: { type: "teacher", ...user.teacher },
     };
   }
@@ -60,8 +73,10 @@ export function toPublicUser(user: AuthUser): PublicUser {
     id: user.id,
     email: user.email,
     firstName: user.firstName,
+    lastName: user.lastName,
     role: user.role,
     mustChangePassword: user.mustChangePassword,
+    profilePhotoUpdatedAt: profilePhotoUpdatedAt(user),
     profile: null,
   };
 }
