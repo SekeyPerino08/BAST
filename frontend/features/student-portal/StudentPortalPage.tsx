@@ -53,7 +53,7 @@ export function StudentPortalPage({ title, description, endpoint, type, emptyTex
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-indigo-600">Student portal</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#1d6a45] dark:text-[#dfeee4]">Student portal</p>
         <h1 className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">{title}</h1>
         <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{description}</p>
       </header>
@@ -77,8 +77,8 @@ export function StudentPortalPage({ title, description, endpoint, type, emptyTex
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {items.map((item) => {
-            const id = String(item.id ?? Math.random());
+          {items.map((item, index) => {
+            const id = String(item.id ?? index);
             const subject = asRecord(item.subject);
             const teacher = asRecord(item.teacher);
             const section = asRecord(item.section);
@@ -87,8 +87,8 @@ export function StudentPortalPage({ title, description, endpoint, type, emptyTex
               return (
                 <article key={id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-200">{String(item.status ?? "OPEN")}</span>
-                    <NotebookPen size={18} className="text-indigo-600" />
+                    <span className="rounded-full bg-[#edf7ef] px-2.5 py-1 text-xs font-semibold text-[#0d412e] dark:bg-[#183d2d] dark:text-[#dfeee4]">{String(item.status ?? "OPEN")}</span>
+                    <NotebookPen size={18} className="text-[#1d6a45] dark:text-[#dfeee4]" />
                   </div>
                   <h2 className="mt-4 text-xl font-semibold text-slate-900 dark:text-white">{String(item.title ?? "Untitled assignment")}</h2>
                   <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{String(subject.code ?? "SUBJECT")} · {String(subject.name ?? "Subject")}</p>
@@ -138,7 +138,7 @@ export function StudentPortalPage({ title, description, endpoint, type, emptyTex
                   </div>
                   <h2 className="mt-4 text-xl font-semibold text-slate-900 dark:text-white">{String(item.title ?? "Learning material")}</h2>
                   <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{String(item.fileName ?? "Attachment")}</p>
-                  <a href={String(item.fileUrl ?? "#")} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center text-sm font-semibold text-indigo-700 hover:underline dark:text-indigo-300">Open file</a>
+                  <a href={String(item.fileUrl ?? "#")} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center text-sm font-semibold text-[#1d6a45] hover:underline dark:text-[#dfeee4]">Open file</a>
                 </article>
               );
             }
@@ -159,10 +159,10 @@ export function StudentPortalPage({ title, description, endpoint, type, emptyTex
 
             if (type === "notifications") {
               return (
-                <article key={id} className={`rounded-2xl border p-5 shadow-sm ${item.isRead ? "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900" : "border-indigo-200 bg-indigo-50 dark:border-indigo-800 dark:bg-indigo-950/40"}`}>
+                <article key={id} className={`rounded-2xl border p-5 shadow-sm ${item.isRead ? "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900" : "border-[#b9d7bf] bg-[#edf7ef] dark:border-[#315b43] dark:bg-[#183d2d]"}`}>
                   <div className="flex items-center justify-between gap-3">
                     <span className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-100">{item.isRead ? "Read" : "New"}</span>
-                    <Inbox size={18} className="text-indigo-600" />
+                    <Inbox size={18} className="text-[#1d6a45] dark:text-[#dfeee4]" />
                   </div>
                   <h2 className="mt-4 text-xl font-semibold text-slate-900 dark:text-white">{String(item.title ?? "Notification")}</h2>
                   <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{String(item.message ?? "No message.")}</p>

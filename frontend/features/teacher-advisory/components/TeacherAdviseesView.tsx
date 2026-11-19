@@ -72,7 +72,7 @@ export function TeacherAdviseesView() {
     <div className="mx-auto max-w-7xl space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">Advisory</p>
+          <p className="text-sm font-semibold uppercase tracking-wide text-[#1d6a45] dark:text-[#dfeee4]">Advisory</p>
           <h1 className="mt-1 text-3xl font-bold text-slate-900 dark:text-white">My Advisees</h1>
           <p className="mt-1 text-sm text-slate-500">
             {data.section
@@ -133,7 +133,7 @@ export function TeacherAdviseesView() {
                     onClick={() => setFilter(value)}
                     className={`min-h-10 rounded-lg border px-3 text-sm font-semibold ${
                       filter === value
-                        ? "border-indigo-600 bg-indigo-50 text-indigo-800 dark:border-indigo-400 dark:bg-indigo-950 dark:text-indigo-200"
+                        ? "border-[#1d6a45] bg-[#edf7ef] text-[#0d412e] dark:border-[#7da88b] dark:bg-[#183d2d] dark:text-[#dfeee4]"
                         : "border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
                     }`}
                   >
@@ -165,7 +165,7 @@ export function TeacherAdviseesView() {
                           <td className="px-5 py-4">
                             <Link
                               href={`/teacher/advisory/report-cards/${student.id}`}
-                              className="font-semibold text-indigo-700 hover:underline dark:text-indigo-300"
+                              className="font-semibold text-[#1d6a45] hover:underline dark:text-[#dfeee4]"
                             >
                               {student.lastName}, {student.firstName}{student.middleName ? ` ${student.middleName.charAt(0)}.` : ""}
                             </Link>
@@ -233,7 +233,7 @@ function SummaryCard({
     }`}>
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{label}</p>
-        {icon && <span className="text-indigo-600 dark:text-indigo-300">{icon}</span>}
+        {icon && <span className="text-[#1d6a45] dark:text-[#dfeee4]">{icon}</span>}
       </div>
       <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{value.toLocaleString()}</p>
       {helper && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{helper}</p>}
@@ -269,7 +269,7 @@ function RecentGrades({ student, gradeTerm }: Readonly<{ student: TeacherAdvisee
           <Link
             key={grade.classOfferingId}
             href={`/teacher/classes/${grade.classOfferingId}/grades`}
-            className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-indigo-700 hover:underline dark:bg-slate-800 dark:text-indigo-300"
+            className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-[#1d6a45] hover:underline dark:bg-slate-800 dark:text-[#dfeee4]"
           >
             {label}
           </Link>
@@ -293,7 +293,7 @@ function AdviseeCard({ student, gradeTerm }: Readonly<{ student: TeacherAdvisee;
         <div>
           <Link
             href={`/teacher/advisory/report-cards/${student.id}`}
-            className="font-semibold text-indigo-700 hover:underline dark:text-indigo-300"
+            className="font-semibold text-[#1d6a45] hover:underline dark:text-[#dfeee4]"
           >
             {student.lastName}, {student.firstName}{student.middleName ? ` ${student.middleName.charAt(0)}.` : ""}
           </Link>
@@ -316,7 +316,7 @@ function AdviseeCard({ student, gradeTerm }: Readonly<{ student: TeacherAdvisee;
       </div>
       <Link
         href={`/teacher/advisory/report-cards/${student.id}`}
-        className="inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-indigo-700 dark:text-indigo-300"
+        className="inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-[#1d6a45] dark:text-[#dfeee4]"
       >
         View student report <ArrowUpRight size={15} aria-hidden="true" />
       </Link>

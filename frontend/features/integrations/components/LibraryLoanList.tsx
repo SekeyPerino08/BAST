@@ -46,7 +46,7 @@ export function LibraryLoanList() {
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <header>
-        <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">Student services</p>
+        <p className="text-sm font-semibold uppercase tracking-wide text-[#1d6a45]">{user?.role === "ADMIN" ? "Student services" : "Advisory"}</p>
         <h1 className="mt-1 text-3xl font-bold text-slate-900">Library loans</h1>
         <p className="mt-1 text-sm text-slate-500">A read-only view of loans synced from the library system.</p>
       </header>
@@ -75,7 +75,7 @@ export function LibraryLoanList() {
                 <table className="w-full min-w-[850px] text-left text-sm">
                   <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-4 py-3">Student</th><th className="px-4 py-3">Book</th><th className="px-4 py-3">Loaned</th><th className="px-4 py-3">Due</th><th className="px-4 py-3">Returned</th><th className="px-4 py-3">Status</th></tr></thead>
                   <tbody className="divide-y divide-slate-100">{loans.data.data.map((loan) => <tr key={loan.id}>
-                    <td className="px-4 py-3"><Link href={user?.role === "ADMIN" ? `/admin/students/${encodeURIComponent(loan.student.id)}` : `/teacher/advisory/report-cards/${encodeURIComponent(loan.student.id)}`} className="font-semibold text-indigo-700 hover:underline">{loan.student.lastName}, {loan.student.firstName}</Link><span className="block text-xs text-slate-500">{loan.student.studentNo}</span></td>
+                    <td className="px-4 py-3"><Link href={user?.role === "ADMIN" ? `/admin/students/${encodeURIComponent(loan.student.id)}` : `/teacher/advisory/report-cards/${encodeURIComponent(loan.student.id)}`} className="font-semibold text-[#1d6a45] hover:underline">{loan.student.lastName}, {loan.student.firstName}</Link><span className="block text-xs text-slate-500">{loan.student.studentNo}</span></td>
                     <td className="px-4 py-3 font-medium text-slate-800">{loan.bookTitle}</td>
                     <td className="px-4 py-3">{date(loan.loanedOn)}</td><td className="px-4 py-3">{date(loan.dueOn)}</td><td className="px-4 py-3">{loan.returnedOn ? date(loan.returnedOn) : "—"}</td>
                     <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${loan.status === "Overdue" ? "bg-rose-50 text-rose-700" : loan.status === "Returned" ? "bg-slate-100 text-slate-600" : "bg-emerald-50 text-emerald-700"}`}>{loan.status}</span></td>
@@ -91,7 +91,7 @@ export function LibraryLoanList() {
 
 function SummaryCard({ label, value, danger = false }: Readonly<{ label: string; value: number; danger?: boolean }>) {
   return <article className={`rounded-2xl border p-5 shadow-sm ${danger ? "border-rose-200 bg-rose-50" : "border-slate-200 bg-white"}`}>
-    <div className="flex items-center justify-between"><p className="text-sm font-medium text-slate-600">{label}</p><BookOpen size={18} className={danger ? "text-rose-700" : "text-indigo-700"} /></div>
+    <div className="flex items-center justify-between"><p className="text-sm font-medium text-slate-600">{label}</p><BookOpen size={18} className={danger ? "text-rose-700" : "text-[#1d6a45]"} /></div>
     <p className={`mt-3 text-2xl font-bold ${danger ? "text-rose-800" : "text-slate-900"}`}>{value.toLocaleString()}</p>
   </article>;
 }

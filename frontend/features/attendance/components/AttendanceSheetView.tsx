@@ -157,7 +157,7 @@ export function AttendanceSheetView({ offeringId }: Readonly<{ offeringId: strin
   if (isAccessError) return <div className="mx-auto max-w-4xl rounded-2xl border border-slate-200 bg-white p-10 text-center">
     <h1 className="text-xl font-semibold text-slate-900">You don’t have access to this class</h1>
     <p className="mt-2 text-sm text-slate-500">The class may not exist or may not be assigned to your account.</p>
-    <Link href="/teacher/classes" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-indigo-700"><ArrowLeft size={16} /> Back to classes</Link>
+    <Link href="/teacher/classes" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#1d6a45]"><ArrowLeft size={16} /> Back to classes</Link>
   </div>;
 
   if (sheet.isLoading || offering.isLoading) return <div className="mx-auto max-w-6xl animate-pulse space-y-5"><div className="h-8 w-56 rounded bg-slate-200" /><div className="h-24 rounded-2xl bg-slate-200" /><div className="h-72 rounded-2xl bg-slate-200" /></div>;
@@ -186,8 +186,8 @@ export function AttendanceSheetView({ offeringId }: Readonly<{ offeringId: strin
   return <div className="mx-auto max-w-6xl space-y-5">
     <header className="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <Link href={classBackHref} className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-700"><ArrowLeft size={16} /> Back to class</Link>
-        <p className="mt-4 text-sm font-semibold uppercase tracking-wide text-indigo-600">{item.subject.code}</p>
+        <Link href={classBackHref} className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-[#1d6a45]"><ArrowLeft size={16} /> Back to class</Link>
+        <p className="mt-4 text-sm font-semibold uppercase tracking-wide text-[#1d6a45]">{item.subject.code}</p>
         <h1 className="mt-1 text-2xl font-bold text-slate-900">Attendance · {item.subject.name}</h1>
         <p className="mt-1 text-slate-600">Grade {item.section.gradeLevel} · {item.section.name}</p>
       </div>
@@ -195,24 +195,24 @@ export function AttendanceSheetView({ offeringId }: Readonly<{ offeringId: strin
     </header>
 
     <section className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <label className="block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Attendance date</span><input aria-label="Attendance date" type="date" max={today} value={date} onChange={(event) => requestDateChange(event.target.value)} className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500" /></label>
+      <label className="block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Attendance date</span><input aria-label="Attendance date" type="date" max={today} value={date} onChange={(event) => requestDateChange(event.target.value)} className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d6a45]" /></label>
       <button type="button" aria-label="Previous day" onClick={() => requestDateChange(addDays(date, -1))} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-medium hover:bg-slate-50"><ArrowLeft size={16} /> Previous</button>
       <button type="button" aria-label="Next day" disabled={date >= today} onClick={() => requestDateChange(addDays(date, 1))} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-medium hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"><ArrowRight size={16} /> Next</button>
-      <button type="button" disabled={date === today} onClick={() => requestDateChange(today)} className="min-h-11 rounded-lg border border-indigo-200 px-3 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-40">Today</button>
+      <button type="button" disabled={date === today} onClick={() => requestDateChange(today)} className="min-h-11 rounded-lg border border-[#b9d7bf] px-3 text-sm font-semibold text-[#0d412e] hover:bg-[#edf7ef] disabled:opacity-40">Today</button>
       <p className="flex basis-full items-center gap-2 text-sm text-slate-600 sm:basis-auto"><CalendarDays size={16} aria-hidden="true" />{formatDisplayDate(date)}</p>
     </section>
     {(weekday === 0 || weekday === 6) && <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-950">Weekend: is there a class today?</p>}
 
-    {!sheetData.recorded && <p className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-950" role="status">This date has not been recorded yet. Draft students default to Present until you save.</p>}
+    {!sheetData.recorded && <p className="rounded-xl border border-[#b9d7bf] bg-[#edf7ef] px-4 py-3 text-sm text-[#0d412e]" role="status">This date has not been recorded yet. Draft students default to Present until you save.</p>}
     {sheetData.recorded && sheetData.unmarkedCount > 0 && <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="status">Attendance is partial: {sheetData.markedCount} of {sheetData.expectedCount} students have saved records. {sheetData.unmarkedCount} still need to be recorded.</p>}
     {!sheetData.editable && <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">This date can no longer be edited. Ask an administrator to make a correction.</p>}
     {sheetData.editable && <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" onClick={markAllPresent} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Check size={16} /> Mark all present</button>
-          <label className="relative block w-full sm:w-64"><span className="sr-only">Search students</span><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search roster" className="min-h-11 w-full rounded-lg border border-slate-300 pl-9 pr-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500" /></label>
+          <label className="relative block w-full sm:w-64"><span className="sr-only">Search students</span><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search roster" className="min-h-11 w-full rounded-lg border border-slate-300 pl-9 pr-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d6a45]" /></label>
         </div>
-        <button type="button" disabled={!dirty || save.isPending} onClick={() => void saveDraft()} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-indigo-600 px-4 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"><Save size={16} />{save.isPending ? "Saving…" : "Save attendance"}</button>
+        <button type="button" disabled={!dirty || save.isPending} onClick={() => void saveDraft()} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#1d6a45] px-4 text-sm font-semibold text-white hover:bg-[#0d412e] disabled:cursor-not-allowed disabled:opacity-50"><Save size={16} />{save.isPending ? "Saving…" : "Save attendance"}</button>
       </div>
       <p className="sr-only" role="status" aria-live="polite">{savedAnnouncement}</p>
 
@@ -257,5 +257,5 @@ export function AttendanceSheetView({ offeringId }: Readonly<{ offeringId: strin
 }
 
 function RemarksInput({ studentId, value, onChange }: Readonly<{ studentId: string; value: string; onChange: (value: string) => void }>) {
-  return <input aria-label={`Remarks for student ${studentId}`} maxLength={200} value={value} onChange={(event) => onChange(event.target.value)} placeholder="Optional remarks" className="min-h-10 w-full rounded-lg border border-slate-300 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500" />;
+  return <input aria-label={`Remarks for student ${studentId}`} maxLength={200} value={value} onChange={(event) => onChange(event.target.value)} placeholder="Optional remarks" className="min-h-10 w-full rounded-lg border border-slate-300 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d6a45]" />;
 }
