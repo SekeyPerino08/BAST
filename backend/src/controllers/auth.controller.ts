@@ -3,7 +3,9 @@ import type {
   ChangePasswordBody,
   LoginBody,
   PasswordResetCompleteBody,
+  PasswordResetCodeCompleteBody,
   PasswordResetRequestBody,
+  VerifyResetCodeBody,
 } from "../schemas/auth.schema.js";
 import { audit } from "../audit.js";
 import { logAudit } from "../services/audit.service.js";
@@ -11,10 +13,13 @@ import { prisma } from "../lib/prisma.js";
 import {
   changePassword,
   completePasswordReset,
+  completePasswordResetWithCode,
   getAuthUser,
   login,
   logoutAll,
   requestPasswordReset,
+  requestPasswordResetCode,
+  verifyPasswordResetCode,
 } from "../services/auth.service.js";
 import { clearAuthCookie, setAuthCookie } from "../utils/cookies.js";
 
@@ -35,6 +40,41 @@ export const requestPasswordResetController: RequestHandler<object, unknown, Pas
 ) => {
   try {
     res.status(202).json(await requestPasswordReset(req.body.email));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const requestPasswordResetCodeController: RequestHandler<object, unknown, PasswordResetRequestBody> = async (
+  req,
+  res,
+  next,
+) => {
+  try {
+    res.status(202).json(await requestPasswordResetCode(req.body.email));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const verifyResetCodeController: RequestHandler<object, unknown, VerifyResetCodeBody> = async (req, res, next) => {
+  try {
+    await verifyPasswordResetCode(req.body.email, req.body.code);
+    res.status(200).json({ message: "Verification code accepted." });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const completePasswordResetWithCodeController: RequestHandler<
+  object,
+  unknown,
+  PasswordResetCodeCompleteBody
+> = async (req, res, next) => {
+  try {
+    await completePasswordResetWithCode(req.body.email, req.body.code, req.body.newPassword, req);
+    clearAuthCookie(res);
+    res.status(204).end();
   } catch (error) {
     next(error);
   }

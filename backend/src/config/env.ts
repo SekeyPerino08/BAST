@@ -67,21 +67,28 @@ const envSchema = z.object({
     (value) => value === "" ? undefined : value,
     z.string().min(32).optional(),
   ),
+  SMTP_HOST: z.preprocess((value) => value === "" ? undefined : value, z.string().min(1).optional()),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_SECURE: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
+  SMTP_USER: z.preprocess((value) => value === "" ? undefined : value, z.string().min(1).optional()),
+  SMTP_PASSWORD: z.preprocess((value) => value === "" ? undefined : value, z.string().min(1).optional()),
+  MAIL_FROM: z.preprocess((value) => value === "" ? undefined : value, z.string().email().optional()),
   TRUST_PROXY: z.coerce.number().int().nonnegative().default(0),
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(300),
 }).superRefine((values, context) => {
-  if (values.NODE_ENV !== "production") return;
-  if (!values.PASSWORD_RESET_DELIVERY_URL || !values.PASSWORD_RESET_DELIVERY_SECRET) {
+  if (Boolean(values.SMTP_USER) !== Boolean(values.SMTP_PASSWORD)) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
-      path: ["PASSWORD_RESET_DELIVERY_URL"],
-      message: "Production password resets require a delivery webhook URL and secret",
+      path: ["SMTP_PASSWORD"],
+      message: "SMTP_USER and SMTP_PASSWORD must be configured together",
     });
-  } else if (!values.PASSWORD_RESET_DELIVERY_URL.startsWith("https://")) {
+  }
+  if (values.NODE_ENV !== "production") return;
+  if (!values.SMTP_HOST || !values.MAIL_FROM) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
-      path: ["PASSWORD_RESET_DELIVERY_URL"],
-      message: "Production password reset delivery must use HTTPS",
+      path: ["SMTP_HOST"],
+      message: "Production password resets require SMTP_HOST and MAIL_FROM",
     });
   }
   if (values.JWT_SECRET.length < 48 || /placeholder|replace|example|changeme|your[_ -]?secret/i.test(values.JWT_SECRET)) {

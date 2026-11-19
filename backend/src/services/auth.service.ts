@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomInt } from "node:crypto";
 import { Prisma, Role } from "@prisma/client";
 import type { Request } from "express";
 import { audit } from "../audit.js";
@@ -8,6 +8,8 @@ import { prisma } from "../lib/prisma.js";
 import { AppError } from "../utils/AppError.js";
 import { signToken } from "../utils/jwt.js";
 import { logAudit } from "./audit.service.js";
+import { sendPasswordResetCode } from "./email.service.js";
+import { logger } from "../lib/logger.js";
 import { isAccountLocked, nextLoginFailureState, passwordPolicyError } from "../utils/password-policy.js";
 
 const authUserInclude = {
@@ -324,6 +326,115 @@ export async function requestPasswordReset(
   }
 
   return { message: "If an active account matches that email, password reset instructions will be sent." };
+}
+
+const passwordResetCodeMessage =
+  "If an active account matches that email, a password reset code will be sent.";
+
+export async function requestPasswordResetCode(email: string): Promise<{ message: string }> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const user = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+    select: { id: true, email: true, isActive: true },
+  });
+  if (!user?.isActive) return { message: passwordResetCodeMessage };
+
+  const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      resetCode: code,
+      resetCodeExpires: new Date(Date.now() + 10 * 60 * 1000),
+    },
+  });
+
+  try {
+    await sendPasswordResetCode(user.email, code);
+  } catch (error) {
+    await prisma.user.updateMany({
+      where: { id: user.id, resetCode: code },
+      data: { resetCode: null, resetCodeExpires: null },
+    });
+    logger.error({ err: error, userId: user.id }, "Password reset code email delivery failed");
+  }
+
+  return { message: passwordResetCodeMessage };
+}
+
+async function findValidPasswordResetCode(email: string, code: string) {
+  const user = await prisma.user.findUnique({
+    where: { email: email.trim().toLowerCase() },
+    select: {
+      id: true,
+      email: true,
+      passwordHash: true,
+      isActive: true,
+      resetCode: true,
+      resetCodeExpires: true,
+    },
+  });
+  if (!user?.isActive || user.resetCode !== code || !user.resetCodeExpires || user.resetCodeExpires <= new Date()) {
+    throw new AppError("The verification code is invalid or expired", 400, "INVALID_PASSWORD_RESET");
+  }
+  return user;
+}
+
+export async function verifyPasswordResetCode(email: string, code: string): Promise<void> {
+  await findValidPasswordResetCode(email, code);
+}
+
+export async function completePasswordResetWithCode(
+  email: string,
+  code: string,
+  newPassword: string,
+  request: Pick<Request, "ip" | "user">,
+): Promise<void> {
+  const user = await findValidPasswordResetCode(email, code);
+  if (await bcrypt.compare(newPassword, user.passwordHash)) {
+    throw new AppError("New password must differ from the current password", 400, "PASSWORD_POLICY");
+  }
+  const policyError = passwordPolicyError(newPassword, "", user.email);
+  if (policyError) throw new AppError(policyError, 400, "PASSWORD_POLICY");
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  const now = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.user.updateMany({
+      where: {
+        id: user.id,
+        isActive: true,
+        resetCode: code,
+        resetCodeExpires: { gt: now },
+      },
+      data: {
+        passwordHash,
+        passwordChangedAt: now,
+        mustChangePassword: false,
+        failedLoginCount: 0,
+        lockedUntil: null,
+        tokenVersion: { increment: 1 },
+        resetCode: null,
+        resetCodeExpires: null,
+      },
+    });
+    if (updated.count !== 1) {
+      throw new AppError("The verification code is invalid or expired", 400, "INVALID_PASSWORD_RESET");
+    }
+
+    await audit(tx, request, {
+      action: "PASSWORD_RESET",
+      entityType: "User",
+      entityId: user.id,
+      after: { credentialChanged: true },
+    });
+    await logAudit({
+      userId: user.id,
+      action: "PASSWORD_RESET",
+      entity: "User",
+      entityId: user.id,
+      ipAddress: request.ip,
+    }, tx);
+  });
 }
 
 export async function completePasswordReset(
