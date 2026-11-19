@@ -150,6 +150,7 @@ model User {
   importJobs         ImportJob[]
   feedImportRuns     FeedImportRun[]
   passwordResetTokens PasswordResetToken[]
+  passwordResetSessions PasswordResetSession[]
   announcementsCreated Announcement[] @relation("AnnouncementCreator")
   notifications       Notification[]
 }
@@ -578,6 +579,18 @@ model PasswordResetToken {
   consumedAt DateTime? @db.Timestamptz(6)
   createdAt DateTime  @default(now()) @db.Timestamptz(6)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+}
+
+model PasswordResetSession {
+  id         String   @id @default(cuid())
+  userId     String
+  sessionHash String  @unique
+  expiresAt  DateTime @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expiresAt])
   @@index([expiresAt])

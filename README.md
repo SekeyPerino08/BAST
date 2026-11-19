@@ -60,12 +60,11 @@ New Student and Teacher records receive a linked User account in the same transa
 | `COOKIE_SAMESITE` | No | Must remain `lax` |
 | `TRUST_PROXY` | No | Number of trusted reverse proxies; configure accurately for Render/Fly |
 | `RATE_LIMIT_PER_MINUTE` | No | Per-IP API request limit |
-| `PASSWORD_RESET_DELIVERY_URL` | Production | HTTPS webhook that sends the reset message |
-| `PASSWORD_RESET_DELIVERY_SECRET` | Production | At least 32 characters; sent as a bearer credential to the configured webhook |
+| `RESEND_API_KEY` | Production | API key used to send 6-digit password reset codes |
+| `MAIL_FROM` | Production | Verified sender email address |
 | `INTEGRATION_TEST_DATABASE_URL` | Tests only | Dedicated Neon test-branch URL; never production |
 
-The reset webhook receives `POST` JSON `{ "to": "...", "resetUrl": "..." }` with `Authorization: Bearer <secret>`. It must deliver the link without logging or retaining it longer than needed. Requests time out after five seconds. Production startup fails if delivery is not configured.
-The first entry in `CORS_ORIGIN` is used as the reset-link web origin. Keep it set to the canonical production frontend origin.
+Password reset codes are sent through Resend, expire after 10 minutes, and are stored only as an HMAC hash. Production requires `RESEND_API_KEY` and a verified `MAIL_FROM` address.
 
 ## Scripts
 
@@ -123,7 +122,7 @@ The database integration suite checks role restrictions, student ID substitution
 1. Deploy the `backend/` directory using Node.js 22. Run `npm ci` (which generates Prisma Client), then `npm run build`; start with `npm run start`.
 2. Set `NODE_ENV=production`, `PORT` to the platform's assigned port, a strong `JWT_SECRET`, exact `CORS_ORIGIN` for the Vercel web origin, and the production Neon `DATABASE_URL` (pooled) plus `DIRECT_URL` (direct).
 3. Configure `TRUST_PROXY` to the actual trusted proxy hop count, `COOKIE_NAME`, and `JWT_EXPIRES_IN`. Keep `COOKIE_SAMESITE=lax`.
-4. Configure the HTTPS `PASSWORD_RESET_DELIVERY_URL` and `PASSWORD_RESET_DELIVERY_SECRET`.
+4. Configure `RESEND_API_KEY` and a verified `MAIL_FROM` address for password reset code delivery.
 5. Apply migrations as a release/pre-deploy command: `npm run prisma:migrate:deploy`. Do not run `prisma migrate dev` against production.
 6. Confirm `GET /api/health` returns HTTP 200 with `db: "connected"`.
 

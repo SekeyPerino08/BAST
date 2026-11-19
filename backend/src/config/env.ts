@@ -59,29 +59,17 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: jwtExpirationSchema,
   COOKIE_NAME: z.string().min(1, "COOKIE_NAME must not be empty").default("school_token"),
   COOKIE_SAMESITE: z.literal("lax").default("lax"),
-  PASSWORD_RESET_DELIVERY_URL: z.preprocess(
-    (value) => value === "" ? undefined : value,
-    z.string().url().optional(),
-  ),
-  PASSWORD_RESET_DELIVERY_SECRET: z.preprocess(
-    (value) => value === "" ? undefined : value,
-    z.string().min(32).optional(),
-  ),
+  RESEND_API_KEY: z.preprocess((value) => value === "" ? undefined : value, z.string().min(1).optional()),
+  MAIL_FROM: z.preprocess((value) => value === "" ? undefined : value, z.string().email().optional()),
   TRUST_PROXY: z.coerce.number().int().nonnegative().default(0),
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(300),
 }).superRefine((values, context) => {
   if (values.NODE_ENV !== "production") return;
-  if (!values.PASSWORD_RESET_DELIVERY_URL || !values.PASSWORD_RESET_DELIVERY_SECRET) {
+  if (!values.RESEND_API_KEY || !values.MAIL_FROM) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
-      path: ["PASSWORD_RESET_DELIVERY_URL"],
-      message: "Production password resets require a delivery webhook URL and secret",
-    });
-  } else if (!values.PASSWORD_RESET_DELIVERY_URL.startsWith("https://")) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["PASSWORD_RESET_DELIVERY_URL"],
-      message: "Production password reset delivery must use HTTPS",
+      path: ["RESEND_API_KEY"],
+      message: "Production password resets require RESEND_API_KEY and MAIL_FROM",
     });
   }
   if (values.JWT_SECRET.length < 48 || /placeholder|replace|example|changeme|your[_ -]?secret/i.test(values.JWT_SECRET)) {

@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { Prisma, Role } from "@prisma/client";
 import type { Request } from "express";
 import { audit } from "../audit.js";
@@ -8,6 +8,8 @@ import { prisma } from "../lib/prisma.js";
 import { AppError } from "../utils/AppError.js";
 import { signToken } from "../utils/jwt.js";
 import { logAudit } from "./audit.service.js";
+import { sendPasswordResetCode } from "./email.service.js";
+import { logger } from "../lib/logger.js";
 import { isAccountLocked, nextLoginFailureState, passwordPolicyError } from "../utils/password-policy.js";
 
 const authUserInclude = {
@@ -252,118 +254,168 @@ export async function changePassword(
   return signToken({ sub: updated.id, role: updated.role, ver: updated.tokenVersion });
 }
 
+const passwordResetRequestMessage =
+  "If an active account matches that email, a verification code will be sent.";
+
+function passwordResetCodeHash(userId: string, challengeId: string, code: string): string {
+  return createHmac("sha256", env.JWT_SECRET)
+    .update(`${userId}:${challengeId}:${code}`)
+    .digest("hex");
+}
+
+function passwordResetSessionHash(sessionToken: string): string {
+  return createHash("sha256").update(sessionToken).digest("hex");
+}
+
+function matchesPasswordResetCode(userId: string, challengeId: string, code: string, storedHash: string): boolean {
+  const expected = Buffer.from(passwordResetCodeHash(userId, challengeId, code), "hex");
+  const stored = Buffer.from(storedHash, "hex");
+  return expected.length === stored.length && timingSafeEqual(expected, stored);
+}
+
+function invalidPasswordResetCode(): AppError {
+  return new AppError("The verification code is invalid or expired", 400, "INVALID_PASSWORD_RESET");
+}
+
 export async function requestPasswordReset(
   email: string,
   request?: Pick<Request, "ip" | "user">,
 ): Promise<{ message: string }> {
-  if (!env.PASSWORD_RESET_DELIVERY_URL || !env.PASSWORD_RESET_DELIVERY_SECRET) {
-    throw new AppError("Password reset delivery is not configured", 503, "PASSWORD_RESET_UNAVAILABLE");
-  }
-
   const normalizedEmail = email.trim().toLowerCase();
   const user = await prisma.user.findUnique({
     where: { email: normalizedEmail },
     select: { id: true, email: true, isActive: true },
   });
-  const rawToken = randomBytes(32).toString("base64url");
-  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
-  const validUser = user?.isActive ? user : null;
+  if (!user?.isActive) return { message: passwordResetRequestMessage };
 
-  if (validUser) {
-    await prisma.$transaction(async (tx) => {
-      await tx.passwordResetToken.updateMany({
-        where: { userId: validUser.id, consumedAt: null },
-        data: { consumedAt: new Date() },
-      });
-      await tx.passwordResetToken.create({
-        data: {
-          userId: validUser.id,
-          tokenHash,
-          expiresAt: new Date(Date.now() + 30 * 60 * 1000),
-        },
-      });
-      if (request?.user) {
-        await audit(tx, request, {
-          action: "PASSWORD_RESET_REQUESTED",
-          entityType: "User",
-          entityId: validUser.id,
-          after: { resetLinkIssued: true },
-        });
-      }
+  const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
+  const challengeId = randomBytes(16).toString("hex");
+  const tokenHash = passwordResetCodeHash(user.id, challengeId, code);
+  const now = new Date();
+  await prisma.$transaction(async (tx) => {
+    await tx.passwordResetSession.deleteMany({ where: { expiresAt: { lte: now } } });
+    await tx.passwordResetToken.updateMany({
+      where: { userId: user.id, consumedAt: null },
+      data: { consumedAt: now },
     });
-  }
-
-  const resetUrl = new URL("/reset-password", env.CORS_ORIGIN[0]);
-  resetUrl.hash = new URLSearchParams({ token: rawToken }).toString();
-  const expirePendingToken = async () => {
-    if (validUser) {
-      await prisma.passwordResetToken.updateMany({
-        where: { userId: validUser.id, tokenHash, consumedAt: null },
-        data: { consumedAt: new Date() },
+    await tx.passwordResetSession.deleteMany({ where: { userId: user.id } });
+    await tx.passwordResetToken.create({
+      data: {
+        id: challengeId,
+        userId: user.id,
+        tokenHash,
+        expiresAt: new Date(now.getTime() + 10 * 60 * 1000),
+        createdAt: now,
+      },
+    });
+    if (request?.user) {
+      await audit(tx, request, {
+        action: "PASSWORD_RESET_REQUESTED",
+        entityType: "User",
+        entityId: user.id,
+        after: { verificationCodeIssued: true },
       });
     }
-  };
-  let delivery: Response;
+  });
+
   try {
-    delivery = await fetch(env.PASSWORD_RESET_DELIVERY_URL, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${env.PASSWORD_RESET_DELIVERY_SECRET}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({ to: normalizedEmail, resetUrl: resetUrl.toString() }),
-      signal: AbortSignal.timeout(5_000),
+    await sendPasswordResetCode(user.email, code);
+  } catch (error) {
+    await prisma.passwordResetToken.updateMany({
+      where: { id: challengeId, consumedAt: null },
+      data: { consumedAt: new Date() },
     });
-  } catch {
-    await expirePendingToken();
-    throw new AppError("Password reset delivery is temporarily unavailable", 503, "PASSWORD_RESET_DELIVERY_FAILED");
-  }
-  if (!delivery.ok) {
-    await expirePendingToken();
-    throw new AppError("Password reset delivery is temporarily unavailable", 503, "PASSWORD_RESET_DELIVERY_FAILED");
+    logger.error({ err: error, userId: user.id }, "Password reset code delivery failed");
   }
 
-  return { message: "If an active account matches that email, password reset instructions will be sent." };
+  return { message: passwordResetRequestMessage };
+}
+
+export async function verifyPasswordResetCode(email: string, code: string): Promise<string> {
+  const user = await prisma.user.findUnique({
+    where: { email: email.trim().toLowerCase() },
+    select: { id: true, isActive: true },
+  });
+  if (!user?.isActive) throw invalidPasswordResetCode();
+
+  const now = new Date();
+  const challenges = await prisma.passwordResetToken.findMany({
+    where: { userId: user.id, consumedAt: null, expiresAt: { gt: now } },
+    select: { id: true, tokenHash: true },
+    orderBy: { createdAt: "desc" },
+  });
+  const match = challenges.find(({ id, tokenHash }) => matchesPasswordResetCode(user.id, id, code, tokenHash));
+  if (!match) throw invalidPasswordResetCode();
+
+  const sessionToken = randomBytes(32).toString("base64url");
+  const sessionHash = passwordResetSessionHash(sessionToken);
+  const sessionExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+  await prisma.$transaction(async (tx) => {
+    await tx.passwordResetSession.deleteMany({ where: { expiresAt: { lte: now } } });
+    const consumed = await tx.passwordResetToken.updateMany({
+      where: { id: match.id, userId: user.id, consumedAt: null, expiresAt: { gt: now } },
+      data: { consumedAt: now },
+    });
+    if (consumed.count !== 1) throw invalidPasswordResetCode();
+
+    await tx.passwordResetSession.deleteMany({ where: { userId: user.id } });
+    await tx.passwordResetSession.create({
+      data: { userId: user.id, sessionHash, expiresAt: sessionExpiresAt },
+    });
+  });
+  return sessionToken;
+}
+
+export async function getPasswordResetSession(sessionToken: string) {
+  if (!sessionToken) {
+    throw new AppError("Password reset verification is required", 401, "INVALID_PASSWORD_RESET_SESSION");
+  }
+  const session = await prisma.passwordResetSession.findUnique({
+    where: { sessionHash: passwordResetSessionHash(sessionToken) },
+    select: { id: true, userId: true, expiresAt: true, user: { select: { isActive: true } } },
+  });
+  if (!session || session.expiresAt <= new Date() || !session.user.isActive) {
+    throw new AppError("Password reset verification is invalid or expired", 401, "INVALID_PASSWORD_RESET_SESSION");
+  }
+  return session;
 }
 
 export async function completePasswordReset(
-  token: string,
   newPassword: string,
+  sessionToken: string,
   request: Pick<Request, "ip" | "user">,
 ): Promise<void> {
-  const tokenHash = createHash("sha256").update(token).digest("hex");
-  const reset = await prisma.passwordResetToken.findUnique({
-    where: { tokenHash },
-    select: {
-      id: true,
-      userId: true,
-      expiresAt: true,
-      consumedAt: true,
-      user: { select: { id: true, email: true, passwordHash: true, isActive: true } },
-    },
+  const resetSession = await getPasswordResetSession(sessionToken);
+  const user = await prisma.user.findUnique({
+    where: { id: resetSession.userId },
+    select: { id: true, email: true, passwordHash: true, isActive: true },
   });
-  const now = new Date();
-  if (!reset || reset.consumedAt || reset.expiresAt <= now || !reset.user.isActive) {
-    throw new AppError("This password reset link is invalid or expired", 400, "INVALID_PASSWORD_RESET");
+  if (!user?.isActive) {
+    throw new AppError("Password reset verification is invalid or expired", 401, "INVALID_PASSWORD_RESET_SESSION");
   }
-  if (await bcrypt.compare(newPassword, reset.user.passwordHash)) {
+  if (await bcrypt.compare(newPassword, user.passwordHash)) {
     throw new AppError("New password must differ from the current password", 400, "PASSWORD_POLICY");
   }
 
-  const policyError = passwordPolicyError(newPassword, "", reset.user.email);
+  const policyError = passwordPolicyError(newPassword, "", user.email);
   if (policyError) throw new AppError(policyError, 400, "PASSWORD_POLICY");
   const passwordHash = await bcrypt.hash(newPassword, 12);
+  const now = new Date();
 
   await prisma.$transaction(async (tx) => {
-    const consumed = await tx.passwordResetToken.updateMany({
-      where: { id: reset.id, consumedAt: null, expiresAt: { gt: now } },
-      data: { consumedAt: now },
+    const consumed = await tx.passwordResetSession.deleteMany({
+      where: {
+        id: resetSession.id,
+        sessionHash: passwordResetSessionHash(sessionToken),
+        expiresAt: { gt: now },
+      },
     });
     if (consumed.count !== 1) {
-      throw new AppError("This password reset link is invalid or expired", 400, "INVALID_PASSWORD_RESET");
+      throw new AppError("Password reset verification is invalid or expired", 401, "INVALID_PASSWORD_RESET_SESSION");
     }
+
     const updatedUser = await tx.user.update({
-      where: { id: reset.userId, isActive: true },
+      where: { id: user.id, isActive: true },
       data: {
         passwordHash,
         passwordChangedAt: now,
@@ -373,6 +425,11 @@ export async function completePasswordReset(
         tokenVersion: { increment: 1 },
       },
     });
+    await tx.passwordResetToken.updateMany({
+      where: { userId: user.id, consumedAt: null },
+      data: { consumedAt: now },
+    });
+    await tx.passwordResetSession.deleteMany({ where: { userId: user.id } });
     await audit(tx, request, {
       action: "PASSWORD_RESET",
       entityType: "User",

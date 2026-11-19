@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Image from "next/image";
@@ -18,9 +18,19 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+function subscribeToHistory(callback: () => void) {
+  window.addEventListener("popstate", callback);
+  return () => window.removeEventListener("popstate", callback);
+}
+
+function getPasswordResetSuccess() {
+  return new URLSearchParams(window.location.search).get("passwordReset") === "success";
+}
+
 export default function LoginPage() {
   const { user, loading, login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const resetSuccess = useSyncExternalStore(subscribeToHistory, getPasswordResetSuccess, () => false);
   const [serverError, setServerError] = useState("");
   const [redirecting, setRedirecting] = useState(false);
   const {
@@ -101,6 +111,11 @@ export default function LoginPage() {
                 Welcome back
               </h1>
               <p className="mt-2 text-sm leading-6 text-slate-600">Sign in to your school account to continue.</p>
+              {resetSuccess && (
+                <p role="status" className="mt-3 rounded-xl bg-[#ecf9f0] p-3 text-sm text-[#0d412e]">
+                  Your password has been updated. Sign in with your new password.
+                </p>
+              )}
             </div>
 
             <form onSubmit={onSubmit} noValidate className="space-y-5">

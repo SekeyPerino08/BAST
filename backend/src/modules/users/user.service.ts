@@ -235,7 +235,7 @@ export async function resetUserPassword(
   await requestPasswordReset(target.email, request);
   try {
     await logAudit({ userId: actorId, action: "PASSWORD_RESET_REQUESTED", entity: "User", entityId: id, ipAddress: request.ip });
-    return { message: "Password reset instructions have been sent." };
+    return { message: "A password reset verification code has been requested." };
   } catch (error) {
     mapPrismaError(error);
   }
