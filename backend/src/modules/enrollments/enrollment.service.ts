@@ -14,6 +14,25 @@ import {
 
 type EnrollmentTransaction = Prisma.TransactionClient;
 
+async function assertSectionHasCapacity(transaction: EnrollmentTransaction, sectionId: string) {
+  await transaction.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${sectionId})::bigint)`;
+  const section = await transaction.section.findUnique({
+    where: { id: sectionId },
+    select: { id: true, name: true, capacity: true },
+  });
+  if (!section) throw new AppError("Section not found", 404);
+  if (section.capacity === null) return;
+  const activeCount = await transaction.enrollment.count({
+    where: { sectionId, status: EnrollmentStatus.ENROLLED },
+  });
+  if (activeCount >= section.capacity) {
+    throw new AppError(`${section.name} has reached its ${section.capacity}-student capacity`, 409, "SECTION_FULL", {
+      capacity: section.capacity,
+      enrolled: activeCount,
+    });
+  }
+}
+
 function isKnownError(error: unknown, code: string): error is Prisma.PrismaClientKnownRequestError {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === code;
 }
@@ -78,6 +97,7 @@ async function enrollOne(
   if (existing?.status === EnrollmentStatus.COMPLETED) {
     throw new AppError("The student's enrollment for this school year is already completed", 409, "ALREADY_COMPLETED");
   }
+  await assertSectionHasCapacity(transaction, section.id);
   if (existing) {
     return transaction.enrollment.update({
       where: { id: existing.id },
@@ -234,6 +254,7 @@ export async function transferEnrollment(id: string, input: TransferEnrollmentIn
       if (nextSection.id === enrollment.sectionId) {
         throw new AppError("The student is already in this section", 400, "SAME_SECTION");
       }
+      await assertSectionHasCapacity(transaction, nextSection.id);
       // Attendance and grades remain with their original class offerings to preserve the historical class record.
       const updated = await transaction.enrollment.update({
         where: { id },
@@ -276,9 +297,12 @@ export async function updateEnrollmentStatus(
     const result = await prisma.$transaction(async (transaction) => {
       const existing = await transaction.enrollment.findUnique({
         where: { id },
-        select: { status: true, studentId: true },
+        select: { status: true, studentId: true, sectionId: true },
       });
       if (!existing) throw new AppError("Enrollment not found", 404);
+      if (input.status === EnrollmentStatus.ENROLLED && existing.status !== EnrollmentStatus.ENROLLED && existing.sectionId) {
+        await assertSectionHasCapacity(transaction, existing.sectionId);
+      }
       const updated = await transaction.enrollment.update({
         where: { id },
         data: { status: input.status },

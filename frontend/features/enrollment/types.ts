@@ -1,5 +1,52 @@
 import type { Sex, StudentStatus } from "../../types/student";
 
+export const seniorHighStrands = ["GAS", "ABM", "STEM", "HUMSS", "TVL_ICT"] as const;
+export type SeniorHighStrand = (typeof seniorHighStrands)[number];
+export const enrollmentRequirementCategories = [
+  "NEW",
+  "RETURNING",
+  "TRANSFEREE",
+  "SCHOLARSHIP",
+  "SUPPORT",
+  "INTERNATIONAL",
+  "LATE",
+] as const;
+export type EnrollmentRequirementCategory = (typeof enrollmentRequirementCategories)[number];
+
+export interface EnrollmentRequirement {
+  category: EnrollmentRequirementCategory;
+  name: string;
+  required: boolean;
+}
+
+export interface EnrollmentStrandTarget {
+  gradeLevel: 11 | 12;
+  strand: SeniorHighStrand;
+  expectedNew: number | null;
+  expectedReturning: number | null;
+  plannedSections: number | null;
+}
+
+export interface EnrollmentPlan {
+  id: string | null;
+  schoolYear: { id: string; name: string; startDate: string; endDate: string };
+  registrationOpensAt: string | null;
+  registrationClosesAt: string | null;
+  firstDayOfClasses: string | null;
+  modality: "HYBRID";
+  paymentMethod: "CASH";
+  requirements: EnrollmentRequirement[];
+  specialPolicies: {
+    transfers: string;
+    scholarships: string;
+    support: string;
+    international: string;
+    lateApplicants: string;
+  };
+  targets: EnrollmentStrandTarget[];
+  updatedAt: string | null;
+}
+
 export type EnrollmentState = "ENROLLED" | "DROPPED" | "COMPLETED";
 export type EnrollmentStatus = EnrollmentState;
 
@@ -17,6 +64,8 @@ export interface EnrollmentSection {
   id: string;
   name: string;
   gradeLevel: number;
+  strand?: SeniorHighStrand | null;
+  capacity?: number | null;
 }
 
 export interface EnrollmentRecord {

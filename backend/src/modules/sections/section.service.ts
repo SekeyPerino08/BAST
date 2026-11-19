@@ -99,6 +99,7 @@ export async function listSections(rawQuery: unknown) {
   const where: Prisma.SectionWhereInput = {
     schoolYearId,
     ...(query.gradeLevel === undefined ? {} : { gradeLevel: query.gradeLevel }),
+    ...(query.strand === undefined ? {} : { strand: query.strand }),
     ...(query.search ? { name: { contains: query.search, mode: "insensitive" } } : {}),
   };
   const [sections, total] = await prisma.$transaction([
@@ -189,15 +190,56 @@ export async function updateSection(id: string, input: UpdateSectionInput, reque
       const before = await transaction.section.findUnique({ where: { id } });
       if (!before) throw new AppError("Section not found", 404);
       const enrollmentCount = await transaction.enrollment.count({ where: { sectionId: id } });
+      const activeEnrollmentCount = await transaction.enrollment.count({
+        where: { sectionId: id, status: EnrollmentStatus.ENROLLED },
+      });
       const movesSection = (input.schoolYearId !== undefined && input.schoolYearId !== before.schoolYearId) ||
         (input.gradeLevel !== undefined && input.gradeLevel !== before.gradeLevel);
       if (movesSection && enrollmentCount > 0) {
         throw new AppError("School year or grade level cannot be changed while the section has enrollments", 409, "SECTION_HAS_ENROLLMENTS", { enrollmentCount });
       }
+      const nextGradeLevel = input.gradeLevel ?? before.gradeLevel;
+      const nextStrand = input.strand === undefined ? before.strand : input.strand;
+      if ((input.gradeLevel !== undefined || input.strand !== undefined) && nextGradeLevel >= 11 && !nextStrand) {
+        throw new AppError("Choose a strand for Grade 11 or 12", 400, "STRAND_REQUIRED");
+      }
+      if (nextGradeLevel < 11 && nextStrand) {
+        throw new AppError("Strands are only available for Grades 11 and 12", 400, "STRAND_NOT_ALLOWED");
+      }
+      if (
+        input.strand !== undefined &&
+        before.strand !== null &&
+        before.strand !== input.strand &&
+        activeEnrollmentCount > 0
+      ) {
+        throw new AppError("A strand cannot be changed while students are enrolled in the section", 409, "SECTION_HAS_ENROLLMENTS");
+      }
+      if (input.capacity !== undefined && input.capacity !== null && input.capacity < activeEnrollmentCount) {
+        throw new AppError(
+          `Section capacity cannot be lower than its ${activeEnrollmentCount} enrolled students`,
+          409,
+          "SECTION_CAPACITY_BELOW_ENROLLMENT",
+          { activeEnrollmentCount },
+        );
+      }
       const schoolYearId = input.schoolYearId ?? before.schoolYearId;
       const adviserId = input.adviserId === undefined ? before.adviserId : input.adviserId;
       adviserContext = { adviserId, schoolYearId };
       await assertAdviserAvailable(transaction, adviserId, schoolYearId, id);
+      if (input.capacity !== undefined) {
+        await transaction.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${id})::bigint)`;
+        const latestEnrollmentCount = await transaction.enrollment.count({
+          where: { sectionId: id, status: EnrollmentStatus.ENROLLED },
+        });
+        if (input.capacity !== null && input.capacity < latestEnrollmentCount) {
+          throw new AppError(
+            `Section capacity cannot be lower than its ${latestEnrollmentCount} enrolled students`,
+            409,
+            "SECTION_CAPACITY_BELOW_ENROLLMENT",
+            { activeEnrollmentCount: latestEnrollmentCount },
+          );
+        }
+      }
       const section = await transaction.section.update({ where: { id }, data: input });
       return { section, before };
     });

@@ -10,6 +10,7 @@ import { useCurrentSchoolYear, useSchoolYears } from "../../school-years/hooks";
 import { useSections } from "../../sections/hooks";
 import { useBulkEnroll, useEnrollments, useUnassignedStudents } from "../hooks";
 import type { EnrollmentRecord, UnassignedStudent } from "../types";
+import { EnrollmentPlanPanel } from "./EnrollmentPlanPanel";
 import { ChangeEnrollmentStatusDialog, EnrollmentStatusBadge, TransferEnrollmentDialog } from "./EnrollmentDialogs";
 
 const defaults = { page: "1", pageSize: "10" };
@@ -25,6 +26,7 @@ export function EnrollmentPage() {
   const sections = useMemo(() => sectionsQuery.data?.data ?? [], [sectionsQuery.data?.data]);
   const selectedSection = sections.find((section) => section.id === values.sectionId);
   const [tab, setTab] = useState<"enrolled" | "add">("enrolled");
+  const [pageView, setPageView] = useState<"roster" | "plan">("roster");
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [selectedNames, setSelectedNames] = useState<Record<string, string>>({});
   const [transfer, setTransfer] = useState<EnrollmentRecord | null>(null);
@@ -116,8 +118,16 @@ export function EnrollmentPage() {
 
   return <div className="mx-auto max-w-[1500px] space-y-5">
     <header className="flex flex-wrap items-end justify-between gap-4">
-      <div><p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">Administration</p><h1 className="mt-1 text-3xl font-bold text-slate-900">Enrollment</h1><p className="mt-1 text-sm text-slate-500">Manage student enrollment and class placement.</p></div>
+      <div><p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">Administration</p><h1 className="mt-1 text-3xl font-bold text-slate-900">Enrollment</h1><p className="mt-1 text-sm text-slate-500">Manage enrollment settings, capacities, and class placement.</p></div>
+      <div className="flex gap-2 rounded-xl border border-slate-200 bg-white p-1">
+        <button type="button" onClick={() => setPageView("roster")} aria-pressed={pageView === "roster"} className={`rounded-lg px-3 py-2 text-sm font-semibold ${pageView === "roster" ? "bg-indigo-600 text-white" : "text-slate-600 hover:bg-slate-50"}`}>Student roster</button>
+        <button type="button" onClick={() => setPageView("plan")} aria-pressed={pageView === "plan"} className={`rounded-lg px-3 py-2 text-sm font-semibold ${pageView === "plan" ? "bg-indigo-600 text-white" : "text-slate-600 hover:bg-slate-50"}`}>Plan & capacity</button>
+      </div>
     </header>
+    {pageView === "plan" ? <EnrollmentPlanPanel
+      schoolYearId={schoolYearId}
+      onSchoolYearChange={(id) => update({ schoolYearId: id || null, sectionId: null })}
+    /> : <>
     <section className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2">
       <label className="block text-sm font-medium text-slate-700">School year
         <select value={schoolYearId ?? ""} onChange={(event) => { setSelected(new Set()); setSelectedNames({}); update({ schoolYearId: event.target.value || null, sectionId: null }); }} className={`${inputClass} mt-1`}>
@@ -164,6 +174,7 @@ export function EnrollmentPage() {
     {transfer && selectedSection && <TransferEnrollmentDialog enrollment={transfer} schoolYearId={selectedSection.schoolYearId} currentSectionId={selectedSection.id} sections={sections} onClose={() => setTransfer(null)} />}
     {status && <ChangeEnrollmentStatusDialog enrollment={status} onClose={() => setStatus(null)} />}
     {bulkResults && <BulkResultsDialog enrolledCount={bulkResults.enrolledCount} skipped={bulkResults.skipped} onClose={() => setBulkResults(null)} />}
+    </>}
   </div>;
 }
 

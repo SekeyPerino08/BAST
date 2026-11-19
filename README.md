@@ -102,6 +102,12 @@ From `backend/`:
 
 The UI may hide unavailable actions for convenience, but the API performs authorization and record scoping in server middleware/services. Out-of-scope student integration records return 404. Changing a student ID in a URL must not expose another student's records.
 
+## Enrollment planning
+
+Administrators can configure enrollment dates, expected new/returning counts, planned sections, required-document checklists, and special-case policy notes for each school year from **Admin → Enrollment → Plan & capacity**. The plan includes Grade 11 and 12 offerings for GAS, ABM, STEM, HUMSS, and TVL-ICT; modality is hybrid and payment method is cash.
+
+Create Senior High sections from **Admin → Sections**, assign each a strand, and set its maximum student count. Enrollment creation, transfers, and reactivation enforce configured section capacity. Existing sections without a capacity remain uncapped until an administrator sets one. The new Prisma migration `20261119223000_enrollment_planning` must be applied before using these settings.
+
 ## Tests and GitHub Actions
 
 The CI workflow runs migrations, seeds, and backend tests against an isolated Neon test branch on pull requests and pushes to `main`. Configure these GitHub Actions secrets:

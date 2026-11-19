@@ -17,6 +17,9 @@ import {
   lmsEventSchema,
 } from "../src/modules/integrations/integration.schema.js";
 import { passwordPolicyError } from "../src/utils/password-policy.js";
+import { seniorHighStrands } from "../src/constants/education.js";
+import { enrollmentPlanSchema } from "../src/modules/enrollments/enrollment-plan.schema.js";
+import { createSectionSchema } from "../src/modules/sections/section.schema.js";
 
 const { resendSendMock } = vi.hoisted(() => ({ resendSendMock: vi.fn() }));
 vi.mock("resend", () => ({
@@ -106,6 +109,56 @@ describe("security and data quality rules", () => {
     expect(passwordPolicyError("password1", "", "user@example.test")).not.toBeNull();
     expect(passwordPolicyError("user12345", "", "user@example.test")).not.toBeNull();
     expect(passwordPolicyError("SaferValue123", "", "user@example.test")).toBeNull();
+  });
+
+  it("validates the ten configurable Senior High offerings and section caps", () => {
+    const targets = [11, 12].flatMap((gradeLevel) => seniorHighStrands.map((strand) => ({
+      gradeLevel,
+      strand,
+      expectedNew: null,
+      expectedReturning: null,
+      plannedSections: null,
+    })));
+    const plan = {
+      registrationOpensAt: "2027-01-01",
+      registrationClosesAt: "2027-02-01",
+      firstDayOfClasses: "2027-06-01",
+      requirements: [{ category: "NEW", name: "Latest report card", required: true }],
+      specialPolicies: {
+        transfers: "",
+        scholarships: "",
+        support: "",
+        international: "",
+        lateApplicants: "",
+      },
+      targets,
+    };
+    expect(enrollmentPlanSchema.safeParse(plan).success).toBe(true);
+    expect(enrollmentPlanSchema.safeParse({
+      ...plan,
+      registrationClosesAt: "2026-12-31",
+    }).success).toBe(false);
+    expect(enrollmentPlanSchema.safeParse({
+      ...plan,
+      targets: [...targets.slice(1), targets[1]],
+    }).success).toBe(false);
+    expect(createSectionSchema.safeParse({
+      gradeLevel: 11,
+      name: "STEM A",
+      strand: "STEM",
+      capacity: 40,
+    }).success).toBe(true);
+    expect(createSectionSchema.safeParse({
+      gradeLevel: 11,
+      name: "Missing strand",
+      capacity: 40,
+    }).success).toBe(false);
+    expect(createSectionSchema.safeParse({
+      gradeLevel: 11,
+      name: "Invalid capacity",
+      strand: "STEM",
+      capacity: 0,
+    }).success).toBe(false);
   });
 
   it("sends reset codes through Resend and surfaces provider failures", async () => {

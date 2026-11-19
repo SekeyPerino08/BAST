@@ -1,6 +1,9 @@
 import { apiFetch } from "../../lib/api";
 import type {
   EnrollmentListParams,
+  EnrollmentPlan,
+  EnrollmentRequirement,
+  EnrollmentStrandTarget,
   EnrollmentsPage,
   UnassignedParams,
   UnassignedStudentsPage,
@@ -43,6 +46,25 @@ export function transferEnrollment(id: string, input: { sectionId: string; effec
 export function updateEnrollmentStatus(id: string, input: { status: "ENROLLED" | "DROPPED" | "COMPLETED"; reason?: string }) {
   return apiFetch<{ data: unknown }>(`/api/enrollments/${encodeURIComponent(id)}/status`, {
     method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export function fetchEnrollmentPlan(schoolYearId: string) {
+  return apiFetch<{ data: EnrollmentPlan }>(`/api/enrollments/settings/${encodeURIComponent(schoolYearId)}`);
+}
+
+export function saveEnrollmentPlan(
+  schoolYearId: string,
+  input: Pick<EnrollmentPlan, "registrationOpensAt" | "registrationClosesAt" | "firstDayOfClasses">
+    & {
+      requirements: EnrollmentRequirement[];
+      specialPolicies: EnrollmentPlan["specialPolicies"];
+      targets: EnrollmentStrandTarget[];
+    },
+) {
+  return apiFetch<{ data: EnrollmentPlan }>(`/api/enrollments/settings/${encodeURIComponent(schoolYearId)}`, {
+    method: "PUT",
     body: JSON.stringify(input),
   });
 }
