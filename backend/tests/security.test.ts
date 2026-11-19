@@ -3,13 +3,7 @@ import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import bcrypt from "bcryptjs";
 import { EnrollmentStatus, Role, Sex } from "@prisma/client";
 import request from "supertest";
-import {
-  loginSchema,
-  passwordResetCodeCompleteSchema,
-  passwordResetCompleteSchema,
-  passwordResetRequestSchema,
-  verifyResetCodeSchema,
-} from "../src/schemas/auth.schema.js";
+import { loginSchema, passwordResetCompleteSchema, passwordResetRequestSchema } from "../src/schemas/auth.schema.js";
 import { createAdminUserSchema } from "../src/modules/users/user.schema.js";
 import { createStudentSchema, updateStatusSchema } from "../src/modules/students/student.schema.js";
 import { saveGradesSchema } from "../src/modules/grades/grades.schema.js";
@@ -75,11 +69,6 @@ describe("security and data quality rules", () => {
     }).success).toBe(false);
     expect(passwordResetRequestSchema.safeParse({ email: "not-an-email" }).success).toBe(false);
     expect(passwordResetCompleteSchema.safeParse({ token: "short", newPassword: "GoodPass123" }).success).toBe(false);
-    expect(verifyResetCodeSchema.safeParse({ email: "person@example.test", code: "012345" }).success).toBe(true);
-    expect(verifyResetCodeSchema.safeParse({ email: "person@example.test", code: "12345" }).success).toBe(false);
-    expect(passwordResetCodeCompleteSchema.safeParse({
-      email: "person@example.test", code: "123456", newPassword: "GoodPass123",
-    }).success).toBe(true);
     expect(updateStatusSchema.safeParse({ status: "ACTIVE" }).success).toBe(true);
     expect(updateStatusSchema.safeParse({ status: "UNKNOWN" }).success).toBe(false);
   });
@@ -111,10 +100,6 @@ integrationDescribe("API authorization and integration coverage", () => {
     process.env.CORS_ORIGIN = "http://localhost:3000";
     process.env.JWT_SECRET = "test-only-jwt-secret-with-at-least-sixty-four-characters";
     process.env.PASSWORD_RESET_DELIVERY_SECRET = "test-only-reset-delivery-secret-with-32-characters";
-    delete process.env.SMTP_HOST;
-    delete process.env.MAIL_FROM;
-    delete process.env.SMTP_USER;
-    delete process.env.SMTP_PASSWORD;
 
     webhook = createServer((request, response) => {
       const chunks: Buffer[] = [];
@@ -351,48 +336,5 @@ integrationDescribe("API authorization and integration coverage", () => {
     expect((await complete()).status).toBe(204);
     expect((await complete()).status).toBe(400);
     expect(await prisma.passwordResetToken.count({ where: { userId: testResetUserId, consumedAt: { not: null } } })).toBe(1);
-  });
-
-  it("sends generic code-request responses and resets passwords with a valid unexpired code", async () => {
-    const testEmail = `${testResetUserId}@example.test`;
-    const requestCode = (email: string) => request(app).post("/api/auth/forgot-password")
-      .set("Origin", "http://localhost:3000").send({ email });
-    const activeResponse = await requestCode(testEmail);
-    const unknownResponse = await requestCode("absent@example.test");
-    expect(activeResponse.status).toBe(202);
-    expect(unknownResponse.status).toBe(202);
-    expect(activeResponse.body.message).toBe(unknownResponse.body.message);
-    expect(await prisma.user.findUniqueOrThrow({
-      where: { id: testResetUserId },
-      select: { resetCode: true, resetCodeExpires: true },
-    })).toMatchObject({ resetCode: null, resetCodeExpires: null });
-
-    const code = "001234";
-    await prisma.user.update({
-      where: { id: testResetUserId },
-      data: { resetCode: code, resetCodeExpires: new Date(Date.now() - 1_000) },
-    });
-    const expired = await request(app).post("/api/auth/verify-reset-code")
-      .set("Origin", "http://localhost:3000").send({ email: testEmail, code });
-    expect(expired.status).toBe(400);
-
-    await prisma.user.update({
-      where: { id: testResetUserId },
-      data: { resetCodeExpires: new Date(Date.now() + 10 * 60_000) },
-    });
-    const verified = await request(app).post("/api/auth/verify-reset-code")
-      .set("Origin", "http://localhost:3000").send({ email: testEmail, code });
-    expect(verified.status).toBe(200);
-    const reset = await request(app).post("/api/auth/reset-password")
-      .set("Origin", "http://localhost:3000")
-      .send({ email: testEmail, code, newPassword: "CodeResetValue123" });
-    expect(reset.status).toBe(204);
-
-    const updatedUser = await prisma.user.findUniqueOrThrow({
-      where: { id: testResetUserId },
-      select: { resetCode: true, resetCodeExpires: true, passwordHash: true },
-    });
-    expect(updatedUser).toMatchObject({ resetCode: null, resetCodeExpires: null });
-    expect(await bcrypt.compare("CodeResetValue123", updatedUser.passwordHash)).toBe(true);
   });
 });

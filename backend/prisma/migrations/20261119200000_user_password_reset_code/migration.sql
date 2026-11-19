@@ -1,3 +1,0 @@
-ALTER TABLE "User"
-ADD COLUMN "resetCode" TEXT,
-ADD COLUMN "resetCodeExpires" TIMESTAMPTZ(6);

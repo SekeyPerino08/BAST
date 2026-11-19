@@ -9,21 +9,11 @@ import {
   logoutAllController,
   meController,
   completePasswordResetController,
-  completePasswordResetWithCodeController,
   requestPasswordResetController,
-  requestPasswordResetCodeController,
-  verifyResetCodeController,
 } from "../controllers/auth.controller.js";
 import { authenticate, authenticateAllowPending } from "../middleware/authenticate.js";
 import { validateBody } from "../middleware/validate.js";
-import {
-  changePasswordSchema,
-  loginSchema,
-  passwordResetCodeCompleteSchema,
-  passwordResetCompleteSchema,
-  passwordResetRequestSchema,
-  verifyResetCodeSchema,
-} from "../schemas/auth.schema.js";
+import { changePasswordSchema, loginSchema, passwordResetCompleteSchema, passwordResetRequestSchema } from "../schemas/auth.schema.js";
 import { env } from "../config/env.js";
 
 const authRouter = Router();
@@ -79,32 +69,10 @@ const resetEmailLimiter = rateLimit({
     res.status(429).json({ message: "Too many password reset attempts. Try again later.", code: "RATE_LIMITED", requestId: String(req.id) });
   },
 });
-const resetCodeIpLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  limit: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => {
-    res.status(429).json({ message: "Too many password reset attempts. Try again later.", code: "RATE_LIMITED", requestId: String(req.id) });
-  },
-});
-const resetCodeEmailLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  limit: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => identifierKey(req.body?.email, ipKeyGenerator(req.ip ?? "unknown")),
-  handler: (req, res) => {
-    res.status(429).json({ message: "Too many password reset attempts. Try again later.", code: "RATE_LIMITED", requestId: String(req.id) });
-  },
-});
 
 authRouter.post("/login", loginLimiter, validateBody(loginSchema), loginIdentifierLimiter, loginController);
 authRouter.post("/password-reset/request", resetIpLimiter, validateBody(passwordResetRequestSchema), resetEmailLimiter, requestPasswordResetController);
 authRouter.post("/password-reset/complete", resetIpLimiter, validateBody(passwordResetCompleteSchema), completePasswordResetController);
-authRouter.post("/forgot-password", resetCodeIpLimiter, validateBody(passwordResetRequestSchema), resetCodeEmailLimiter, requestPasswordResetCodeController);
-authRouter.post("/verify-reset-code", resetCodeIpLimiter, validateBody(verifyResetCodeSchema), resetCodeEmailLimiter, verifyResetCodeController);
-authRouter.post("/reset-password", resetCodeIpLimiter, validateBody(passwordResetCodeCompleteSchema), resetCodeEmailLimiter, completePasswordResetWithCodeController);
 const changePasswordLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: CHANGE_PASSWORD_RATE_LIMIT,
