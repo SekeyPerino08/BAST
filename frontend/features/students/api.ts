@@ -22,7 +22,7 @@ export async function fetchStudent(id: string) {
 }
 
 export async function createStudent(input: StudentInput) {
-  const response = await apiFetch<{ data: Student }>("/api/students", {
+  const response = await apiFetch<{ data: Student & { account: { email: string; temporaryPassword: string } } }>("/api/students", {
     method: "POST",
     body: JSON.stringify(input),
   });

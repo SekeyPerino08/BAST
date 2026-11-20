@@ -16,7 +16,12 @@ export function dashboardPath(role: Role): string {
 export function userDisplayName(user: {
   email: string;
   firstName?: string;
-  profile: { firstName?: string; lastName?: string } | null;
+  lastName?: string;
+  profile: { firstName?: string; middleName?: string | null; lastName?: string } | null;
 }): string {
-  return user.profile?.firstName || user.firstName || user.email;
+  const profileName = [user.profile?.firstName, user.profile?.middleName, user.profile?.lastName]
+    .filter(Boolean)
+    .join(" ");
+  const accountName = [user.firstName, user.lastName].filter(Boolean).join(" ");
+  return profileName || accountName || user.email;
 }

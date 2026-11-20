@@ -42,7 +42,10 @@ function sendError(
 }
 
 export const errorHandler: ErrorRequestHandler = (error: unknown, req, res, _next) => {
-  logger.error({ err: error, requestId: req.id }, "Request failed");
+  logger.error(
+    { err: error, requestId: req.id, method: req.method, path: req.originalUrl },
+    "Request failed",
+  );
 
   if (error instanceof AppError) {
     const detailsErrors = error.details?.errors;

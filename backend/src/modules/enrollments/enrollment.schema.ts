@@ -13,7 +13,10 @@ export const createEnrollmentSchema = z.object({
 
 export const bulkEnrollSchema = z.object({
   sectionId: id,
-  studentIds: z.array(id).min(1, "Select at least one student").max(100, "Enroll at most 100 students at a time"),
+  studentIds: z.array(id)
+    .min(1, "Select at least one student")
+    .max(100, "Enroll at most 100 students at a time")
+    .refine((studentIds) => new Set(studentIds).size === studentIds.length, "Select each student only once"),
 });
 
 export const transferEnrollmentSchema = z.object({

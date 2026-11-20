@@ -88,6 +88,10 @@ export const importRowsController: RequestHandler = asyncHandler(async (request,
 
 export const rejectedCsvController: RequestHandler = asyncHandler(async (request, response) => {
   const { fileName, content } = await getRejectedCsv(request.params.id);
+  const fallbackName = fileName.replace(/[^\x20-\x7e]/g, "_");
+  const encodedName = encodeURIComponent(fileName).replace(/[!'()*]/g, (character) =>
+    `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
   await logAudit({
     userId: auditActor(request),
     action: "IMPORT_REJECTED_DOWNLOAD",
@@ -96,7 +100,10 @@ export const rejectedCsvController: RequestHandler = asyncHandler(async (request
     ipAddress: request.ip,
   });
   response.setHeader("Content-Type", "text/csv; charset=utf-8");
-  response.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(fileName)}"`);
+  response.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${fallbackName}"; filename*=UTF-8''${encodedName}`,
+  );
   response.send(content);
 });
 

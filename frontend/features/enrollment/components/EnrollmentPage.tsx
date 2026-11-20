@@ -4,12 +4,15 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Check, Search, Users } from "lucide-react";
 import { toast } from "sonner";
+import { ApiError } from "../../../lib/api";
 import { useUrlState } from "../../../hooks/useUrlState";
 import { DataTablePagination, EmptyState, ErrorState, Modal, StatusBadge, TableSkeleton } from "../../../components/shared";
 import { useCurrentSchoolYear, useSchoolYears } from "../../school-years/hooks";
 import { useSections } from "../../sections/hooks";
+import type { Section } from "../../sections/types";
 import { useBulkEnroll, useEnrollments, useUnassignedStudents } from "../hooks";
 import type { EnrollmentRecord, UnassignedStudent } from "../types";
+import { EnrollmentPlanPanel } from "./EnrollmentPlanPanel";
 import { ChangeEnrollmentStatusDialog, EnrollmentStatusBadge, TransferEnrollmentDialog } from "./EnrollmentDialogs";
 
 const defaults = { page: "1", pageSize: "10" };
@@ -21,10 +24,11 @@ export function EnrollmentPage() {
   const currentYear = useCurrentSchoolYear();
   const schoolYears = useSchoolYears();
   const schoolYearId = values.schoolYearId || currentYear.data?.data.id;
-  const sectionsQuery = useSections({ page: 1, pageSize: 100, schoolYearId });
+  const sectionsQuery = useSections({ page: 1, pageSize: 100, schoolYearId }, Boolean(schoolYearId), false);
   const sections = useMemo(() => sectionsQuery.data?.data ?? [], [sectionsQuery.data?.data]);
   const selectedSection = sections.find((section) => section.id === values.sectionId);
   const [tab, setTab] = useState<"enrolled" | "add">("enrolled");
+  const [pageView, setPageView] = useState<"roster" | "plan">("roster");
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [selectedNames, setSelectedNames] = useState<Record<string, string>>({});
   const [transfer, setTransfer] = useState<EnrollmentRecord | null>(null);
@@ -51,10 +55,11 @@ export function EnrollmentPage() {
     }
   }, [currentYear.data?.data.id, update, values.schoolYearId]);
   useEffect(() => {
-    if (values.sectionId && !sections.some((section) => section.id === values.sectionId)) {
+    if (schoolYearId && !sectionsQuery.isFetching && !sectionsQuery.isError
+      && values.sectionId && !sections.some((section) => section.id === values.sectionId)) {
       update({ sectionId: null }, false);
     }
-  }, [sections, update, values.sectionId]);
+  }, [schoolYearId, sections, sectionsQuery.isError, sectionsQuery.isFetching, update, values.sectionId]);
 
   function changeTab(next: "enrolled" | "add") {
     setTab(next);
@@ -105,19 +110,28 @@ export function EnrollmentPage() {
         reason: friendlySkippedReason(item.code, item.reason),
       }));
       setBulkResults({ enrolledCount: result.enrolled.length, skipped });
-      const retryableIds = result.skipped.filter(({ code }) => code === "STUDENT_NOT_ACTIVE").map(({ studentId }) => studentId);
-      setSelected(new Set(retryableIds));
-      setSelectedNames(Object.fromEntries(retryableIds.map((studentId) => [studentId, selectedNames[studentId] ?? studentId])));
-      toast.success(`${result.enrolled.length} student${result.enrolled.length === 1 ? "" : "s"} enrolled`);
-    } catch {
-      toast.error("Could not enroll selected students. Please try again.");
+      setSelected(new Set());
+      setSelectedNames({});
+      setTab("enrolled");
+      update({ page: 1 }, false);
+      toast.success(`${result.enrolled.length} student${result.enrolled.length === 1 ? "" : "s"} enrolled in ${selectedSection.name}`);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Could not enroll selected students. Please try again.");
     }
   }
 
   return <div className="mx-auto max-w-[1500px] space-y-5">
     <header className="flex flex-wrap items-end justify-between gap-4">
-      <div><p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">Administration</p><h1 className="mt-1 text-3xl font-bold text-slate-900">Enrollment</h1><p className="mt-1 text-sm text-slate-500">Manage student enrollment and class placement.</p></div>
+      <div><p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">Administration</p><h1 className="mt-1 text-3xl font-bold text-slate-900">Enrollment</h1><p className="mt-1 text-sm text-slate-500">Manage enrollment settings, capacities, and class placement.</p></div>
+      <div className="flex gap-2 rounded-xl border border-slate-200 bg-white p-1">
+        <button type="button" onClick={() => setPageView("roster")} aria-pressed={pageView === "roster"} className={`rounded-lg px-3 py-2 text-sm font-semibold ${pageView === "roster" ? "bg-indigo-600 text-white" : "text-slate-600 hover:bg-slate-50"}`}>Student roster</button>
+        <button type="button" onClick={() => setPageView("plan")} aria-pressed={pageView === "plan"} className={`rounded-lg px-3 py-2 text-sm font-semibold ${pageView === "plan" ? "bg-indigo-600 text-white" : "text-slate-600 hover:bg-slate-50"}`}>Plan & capacity</button>
+      </div>
     </header>
+    {pageView === "plan" ? <EnrollmentPlanPanel
+      schoolYearId={schoolYearId}
+      onSchoolYearChange={(id) => { setSelected(new Set()); setSelectedNames({}); update({ schoolYearId: id || null, sectionId: null }); }}
+    /> : <>
     <section className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2">
       <label className="block text-sm font-medium text-slate-700">School year
         <select value={schoolYearId ?? ""} onChange={(event) => { setSelected(new Set()); setSelectedNames({}); update({ schoolYearId: event.target.value || null, sectionId: null }); }} className={`${inputClass} mt-1`}>
@@ -125,14 +139,26 @@ export function EnrollmentPage() {
         </select>
       </label>
       <label className="block text-sm font-medium text-slate-700">Section
-        <select value={selectedSection?.id ?? ""} onChange={(event) => { setSelected(new Set()); setSelectedNames({}); update({ sectionId: event.target.value || null }); }} className={`${inputClass} mt-1`} disabled={!schoolYearId || sectionsQuery.isLoading}>
-          <option value="">Select section</option>
+        <select value={selectedSection?.id ?? ""} onChange={(event) => { setSelected(new Set()); setSelectedNames({}); update({ sectionId: event.target.value || null }); }} className={`${inputClass} mt-1`} disabled={!schoolYearId || sectionsQuery.isFetching || sectionsQuery.isError}>
+          <option value="">{!schoolYearId ? "Select school year" : sectionsQuery.isFetching ? "Loading sections..." : "Select section"}</option>
           {[7, 8, 9, 10, 11, 12].map((grade) => {
             const gradeSections = sections.filter((section) => section.gradeLevel === grade);
-            return gradeSections.length ? <optgroup key={grade} label={`Grade ${grade}`}>{gradeSections.map((section) => <option key={section.id} value={section.id}>{section.name}</option>)}</optgroup> : null;
+            return gradeSections.length ? <optgroup key={grade} label={`Grade ${grade}`}>{gradeSections.map((section) => <option key={section.id} value={section.id}>{sectionLabel(section)}</option>)}</optgroup> : null;
           })}
         </select>
       </label>
+      {sectionsQuery.isError && <div className="sm:col-span-2 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800" role="alert">
+        <p className="font-semibold">Could not load sections for this school year.</p>
+        <p className="mt-1">{sectionsQuery.error instanceof Error ? sectionsQuery.error.message : "Please try again."}</p>
+        <button type="button" onClick={() => void sectionsQuery.refetch()} className="mt-2 font-semibold underline">Retry</button>
+      </div>}
+      {schoolYearId && !sectionsQuery.isError && !sectionsQuery.isFetching && sections.length === 0 && <div className="sm:col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="status">
+        <p>No sections found for this school year. Create sections in Plan &amp; capacity or use the Sections page.</p>
+        <div className="mt-2 flex flex-wrap gap-4">
+          <button type="button" onClick={() => setPageView("plan")} className="font-semibold underline">Open Plan &amp; capacity</button>
+          <Link href={`/admin/sections?schoolYearId=${encodeURIComponent(schoolYearId)}`} className="font-semibold underline">Create sections</Link>
+        </div>
+      </div>}
     </section>
 
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -148,8 +174,8 @@ export function EnrollmentPage() {
           : !enrollmentQuery.isLoading && !enrollmentQuery.data?.data.length ? <EmptyState title="No students enrolled yet" description="Use Add students to enroll active students in this section." />
             : <><div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-4 py-3">Student No</th><th className="px-4 py-3">Name</th><th className="px-4 py-3">Sex</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Enrolled date</th><th className="px-4 py-3 text-right">Actions</th></tr></thead>
               {enrollmentQuery.isLoading && !enrollmentQuery.data ? <TableSkeleton columns={6} rows={pageSize} /> : <tbody className="divide-y divide-slate-100">{enrollmentQuery.data?.data.map((enrollment) => <tr key={enrollment.id}>
-                <td className="px-4 py-3">{enrollment.student.studentNo}</td><td className="px-4 py-3"><Link href={`/admin/students/${enrollment.student.id}`} className="font-medium text-indigo-700 hover:underline">{studentName(enrollment.student)}</Link></td><td className="px-4 py-3">{enrollment.student.sex ? humanSex(enrollment.student.sex) : "—"}</td><td className="px-4 py-3"><EnrollmentStatusBadge status={enrollment.status} /></td><td className="px-4 py-3">{formatDate(enrollment.enrolledAt)}</td>
-                <td className="px-4 py-3 text-right"><div className="flex justify-end gap-2"><Link href={`/admin/students/${enrollment.student.id}`} className="rounded-lg px-2 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">View</Link>{enrollment.status === "ENROLLED" && <button type="button" onClick={() => setTransfer(enrollment)} className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">Transfer</button>}<button type="button" onClick={() => setStatus(enrollment)} className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">Change status</button></div></td>
+                <td className="px-4 py-3">{enrollment.student.studentNo}</td><td className="px-4 py-3"><Link href={`/admin/students/${encodeURIComponent(enrollment.student.studentNo)}`} className="font-medium text-indigo-700 hover:underline">{studentName(enrollment.student)}</Link></td><td className="px-4 py-3">{enrollment.student.sex ? humanSex(enrollment.student.sex) : "—"}</td><td className="px-4 py-3"><EnrollmentStatusBadge status={enrollment.status} /></td><td className="px-4 py-3">{formatDate(enrollment.enrolledAt)}</td>
+                <td className="px-4 py-3 text-right"><div className="flex justify-end gap-2"><Link href={`/admin/students/${encodeURIComponent(enrollment.student.studentNo)}`} className="rounded-lg px-2 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">View</Link>{enrollment.status === "ENROLLED" && <button type="button" onClick={() => setTransfer(enrollment)} className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">Transfer</button>}<button type="button" onClick={() => setStatus(enrollment)} className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">Change status</button></div></td>
               </tr>)}</tbody>}</table></div>
               {enrollmentQuery.data && <DataTablePagination page={page} pageSize={pageSize} total={enrollmentQuery.data.meta.total} totalPages={enrollmentQuery.data.meta.totalPages} onPage={(next) => update({ page: next }, false)} onPageSize={(size) => update({ page: 1, pageSize: size }, false)} />}
             </>
@@ -164,6 +190,7 @@ export function EnrollmentPage() {
     {transfer && selectedSection && <TransferEnrollmentDialog enrollment={transfer} schoolYearId={selectedSection.schoolYearId} currentSectionId={selectedSection.id} sections={sections} onClose={() => setTransfer(null)} />}
     {status && <ChangeEnrollmentStatusDialog enrollment={status} onClose={() => setStatus(null)} />}
     {bulkResults && <BulkResultsDialog enrolledCount={bulkResults.enrolledCount} skipped={bulkResults.skipped} onClose={() => setBulkResults(null)} />}
+    </>}
   </div>;
 }
 
@@ -188,6 +215,17 @@ function friendlySkippedReason(code?: string, reason?: string) {
 }
 function studentName(student: { firstName: string; middleName: string | null; lastName: string }) {
   return `${student.lastName}, ${student.firstName}${student.middleName ? ` ${student.middleName.charAt(0)}.` : ""}`;
+}
+function sectionLabel(section: Section) {
+  const strand = section.strand === "TVL_ICT" ? "TVL-ICT" : section.strand;
+  const gradeLabel = `Grade ${section.gradeLevel}${strand ? ` - ${strand}` : ""}`;
+  const enrollmentCount = section._count?.enrollments;
+  const countLabel = enrollmentCount === undefined
+    ? ""
+    : section.capacity === null
+      ? ` · ${enrollmentCount} enrolled`
+      : ` · ${enrollmentCount}/${section.capacity}`;
+  return `${section.name} (${gradeLabel})${countLabel}`;
 }
 function humanSex(sex: "MALE" | "FEMALE") { return sex === "MALE" ? "Male" : "Female"; }
 function formatDate(value: string) {

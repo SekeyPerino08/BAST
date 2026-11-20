@@ -30,7 +30,7 @@ export function ReportCardView({ data }: Readonly<{ data: ReportCard }>) {
         <header className="border-b border-slate-200 p-6 print:p-4">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-700">{schoolName}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#0d412e]">{schoolName}</p>
               <h1 className="mt-2 text-2xl font-bold text-slate-900">Report Card</h1>
             </div>
             <div className="text-right text-sm text-slate-600">

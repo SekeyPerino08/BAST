@@ -27,7 +27,7 @@ export function GradeSheetView({ offeringId }: Readonly<{ offeringId: string }>)
       <div className="mx-auto max-w-4xl rounded-2xl border border-slate-200 bg-white p-10 text-center">
         <h1 className="text-xl font-semibold text-slate-900">You don’t have access to this class</h1>
         <p className="mt-2 text-sm text-slate-500">The class may not exist or may not be assigned to your account.</p>
-        <Link href={user?.role === "ADMIN" ? "/admin/sections" : "/teacher/classes"} className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-indigo-700">
+        <Link href={user?.role === "ADMIN" ? "/admin/sections" : "/teacher/classes"} className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#1d6a45]">
           <ArrowLeft size={16} /> Back to classes
         </Link>
       </div>
@@ -110,12 +110,12 @@ export function GradeSheetView({ offeringId }: Readonly<{ offeringId: string }>)
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      <Link href={classHref} className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-700">
+      <Link href={classHref} className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-[#1d6a45]">
         <ArrowLeft size={17} /> Back to class
       </Link>
       <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">{item.subject.code}</p>
+          <p className="text-sm font-semibold uppercase tracking-wide text-[#1d6a45]">{item.subject.code}</p>
           <h1 className="mt-1 text-2xl font-bold text-slate-900">{item.subject.name}</h1>
           <p className="mt-2 text-slate-600">Grade {item.section.gradeLevel} · {item.section.name}</p>
         </div>
@@ -155,7 +155,7 @@ export function GradeSheetView({ offeringId }: Readonly<{ offeringId: string }>)
               type="button"
               onClick={() => void submitGrades()}
               disabled={!isDirty || invalidScore || saveGrades.isPending}
-              className="inline-flex items-center gap-2 rounded-lg bg-indigo-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-lg bg-[#1d6a45] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#0d412e] disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Save size={16} /> {saveGrades.isPending ? "Saving…" : "Save grades"}
             </button>
@@ -205,7 +205,7 @@ export function GradeSheetView({ offeringId }: Readonly<{ offeringId: string }>)
                               [activeTermId]: { ...(current[activeTermId] ?? {}), [student.studentId]: event.target.value },
                             }))}
                             disabled={saveGrades.isPending}
-                            className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-center font-semibold text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:bg-slate-100"
+                            className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-center font-semibold text-slate-800 focus:border-[#1d6a45] focus:outline-none focus:ring-2 focus:ring-[#1d6a45]/20 disabled:bg-slate-100"
                           />
                         ) : (
                           <div className="font-semibold text-slate-800">

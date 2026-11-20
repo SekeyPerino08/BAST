@@ -7,7 +7,7 @@ export interface Teacher {
   department: string | null;
   contactNo: string | null;
   isActive: boolean;
-  userId?: string | null;
+  userId: string | null;
   hasAccount?: boolean;
   classOfferingCount?: number;
   advisedSectionCount?: number;

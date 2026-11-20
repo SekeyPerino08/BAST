@@ -50,22 +50,28 @@ export function ChangePasswordForm({ forced = false }: Readonly<{ forced?: boole
   const confirmPassword = useWatch({ control, name: "confirmPassword" }) ?? "";
   const emailName = user?.email.split("@")[0]?.toLowerCase() ?? "";
   const checks = [
-    { label: "At least 8 characters", valid: newPassword.length >= 8 },
-    { label: "Contains a letter", valid: /[A-Za-z]/.test(newPassword) },
-    { label: "Contains a number", valid: /\d/.test(newPassword) },
+    { label: "At least 8 characters", valid: Boolean(newPassword) && newPassword.length >= 8 },
+    { label: "Contains a letter", valid: Boolean(newPassword) && /[A-Za-z]/.test(newPassword) },
+    { label: "Contains a number", valid: Boolean(newPassword) && /\d/.test(newPassword) },
     { label: "Differs from current password", valid: Boolean(newPassword) && newPassword !== currentPassword },
-    { label: "Does not contain your email name", valid: !emailName || !newPassword.toLowerCase().includes(emailName) },
+    { label: "Does not contain your email name", valid: Boolean(newPassword) && (!emailName || !newPassword.toLowerCase().includes(emailName)) },
     { label: "Is not a commonly used password", valid: Boolean(newPassword) && !weakPasswords.has(newPassword.toLowerCase()) },
     { label: "Confirmation matches", valid: Boolean(confirmPassword) && newPassword === confirmPassword },
   ];
 
-  const strengthIndex = checks.filter((check) => check.valid).length;
-  const strengthLevel = strengthIndex <= 2 ? "Weak" : strengthIndex <= 4 ? "Fair" : strengthIndex <= 6 ? "Good" : "Strong";
+  const strengthChecks = [checks[0], checks[1], checks[2], checks[4], checks[5]];
+  const strengthIndex = strengthChecks.filter((check) => check.valid).length;
+  const strengthLevel = !newPassword
+    ? "Not rated"
+    : strengthIndex <= 1 ? "Weak" : strengthIndex <= 2 ? "Fair" : strengthIndex <= 4 ? "Good" : "Strong";
+  const strengthColor = strengthIndex <= 1
+    ? "bg-rose-500"
+    : strengthIndex <= 2 ? "bg-amber-500" : strengthIndex <= 4 ? "bg-sky-600" : "bg-emerald-600";
   const strengthSegments = [
-    strengthIndex >= 2,
-    strengthIndex >= 4,
-    strengthIndex >= 6,
-    strengthIndex >= 7,
+    Boolean(newPassword) && strengthIndex >= 1,
+    Boolean(newPassword) && strengthIndex >= 2,
+    Boolean(newPassword) && strengthIndex >= 3,
+    Boolean(newPassword) && strengthIndex >= 5,
   ];
 
   const submit = handleSubmit(async ({ currentPassword: current, newPassword: next }) => {
@@ -126,11 +132,12 @@ export function ChangePasswordForm({ forced = false }: Readonly<{ forced?: boole
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,440px)_minmax(260px,1fr)]">
-      <form onSubmit={(event) => void submit(event)} className="space-y-4" noValidate>
+    <div className="grid items-start gap-8 md:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)]">
+      <form onSubmit={(event) => void submit(event)} className="space-y-5" noValidate>
         {forced && (
-          <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-medium text-amber-950">
-            For your security, please choose a new password before continuing.
+          <div role="status" className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-100">
+            <ShieldCheck size={19} className="mt-0.5 shrink-0" aria-hidden="true" />
+            <span><span className="font-semibold">One more step.</span> Choose a new password before continuing to your account.</span>
           </div>
         )}
 
@@ -147,14 +154,14 @@ export function ChangePasswordForm({ forced = false }: Readonly<{ forced?: boole
         <button
           type="submit"
           disabled={isSubmitting || checks.some((check) => !check.valid)}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0d412e] px-4 py-3 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(13,65,46,0.18)] transition hover:bg-[#135b3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d6a45] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none motion-reduce:transition-none"
+          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0d412e] px-4 py-3 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(13,65,46,0.18)] transition hover:bg-[#135b3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d6a45] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none motion-reduce:transition-none"
         >
           {isSubmitting && <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />}
           {isSubmitting ? "Updating password…" : "Change password"}
         </button>
       </form>
 
-      <aside className="rounded-[18px] border border-slate-200 bg-slate-50/80 p-4 shadow-sm xl:sticky xl:top-6 xl:h-fit dark:border-slate-700 dark:bg-slate-900">
+      <aside className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-700 dark:bg-slate-900 md:sticky md:top-6">
         <div className="flex items-center gap-2 border-b border-slate-200 pb-3 dark:border-slate-700">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#edf7ef] text-[#0d412e]">
             <ShieldCheck size={16} aria-hidden="true" />
@@ -164,15 +171,15 @@ export function ChangePasswordForm({ forced = false }: Readonly<{ forced?: boole
 
         <div className="mt-4">
           <div className="flex items-center justify-between text-sm text-slate-600">
-            <span className="font-medium">Security level</span>
-            <span className="font-semibold text-[#0d412e] dark:text-[#dfeee4]">{strengthLevel}</span>
+            <span className="font-medium">Password strength</span>
+            <span className={`font-semibold ${newPassword ? strengthIndex <= 1 ? "text-rose-700 dark:text-rose-300" : strengthIndex <= 2 ? "text-amber-700 dark:text-amber-300" : strengthIndex <= 4 ? "text-sky-700 dark:text-sky-300" : "text-emerald-700 dark:text-emerald-300" : "text-slate-500"}`} aria-live="polite">{strengthLevel}</span>
           </div>
-          <div className="mt-3 grid grid-cols-4 gap-2" aria-label="Password strength">
+          <div className="mt-3 grid grid-cols-4 gap-2" role="meter" aria-label="Password strength" aria-valuemin={0} aria-valuemax={5} aria-valuenow={strengthIndex} aria-valuetext={strengthLevel}>
             {strengthSegments.map((segment, index) => (
               <span
                 key={index}
-                className={`h-2.5 rounded-full transition-all duration-200 motion-reduce:transition-none ${
-                  segment ? "bg-gradient-to-r from-[#1d6a45] to-[#0d412e]" : "bg-slate-200"
+                className={`h-2 rounded-full transition-all duration-200 motion-reduce:transition-none ${
+                  segment ? strengthColor : "bg-slate-200 dark:bg-slate-700"
                 }`}
               />
             ))}
@@ -193,7 +200,7 @@ export function ChangePasswordForm({ forced = false }: Readonly<{ forced?: boole
                 className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px] transition-all duration-200 motion-reduce:transition-none ${
                   check.valid
                     ? "border-emerald-600 bg-emerald-600 text-white"
-                    : "border-slate-300 bg-white text-slate-400"
+                    : "border-slate-300 bg-white text-slate-400 dark:border-slate-600 dark:bg-slate-800"
                 }`}
                 aria-hidden="true"
               >

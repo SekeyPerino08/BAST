@@ -4,11 +4,14 @@ import {
   ImportStatus,
   ImportType,
   Prisma,
+  Role,
   type ImportJob,
 } from "@prisma/client";
+import bcrypt from "bcryptjs";
 import type { Request } from "express";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
+import { DEFAULT_PERSON_PASSWORD } from "../../services/account.service.js";
 import { logAudit } from "../../services/audit.service.js";
 import { AppError } from "../../utils/AppError.js";
 import { buildPaginationMeta, parsePagination } from "../../utils/pagination.js";
@@ -431,6 +434,8 @@ export async function commitImport(id: string, rawBody: unknown, request: Reques
     skippedErrors,
   };
   const ids = new Map(selected.map((row) => [row.rowNumber, randomUUID()]));
+  const userIds = new Map(selected.map((row) => [row.rowNumber, randomUUID()]));
+  const passwordHash = await bcrypt.hash(DEFAULT_PERSON_PASSWORD, 12);
 
   try {
     return await prisma.$transaction(async (transaction) => {
@@ -450,11 +455,25 @@ export async function commitImport(id: string, rawBody: unknown, request: Reques
       if (job.type === ImportType.STUDENTS) {
         const studentRows = selected.map((row) => ({
           id: ids.get(row.rowNumber)!,
+          userId: userIds.get(row.rowNumber)!,
           row,
         }));
-        await transaction.student.createMany({
+        await transaction.user.createMany({
           data: studentRows.map(({ id: studentId, row }) => ({
+            id: userIds.get(row.rowNumber)!,
+            email: `${normalizedString(row, "studentNo")!.toLowerCase()}.${studentId}@students.uni.edu`,
+            passwordHash,
+            role: Role.STUDENT,
+            isActive: true,
+            mustChangePassword: true,
+            firstName: normalizedString(row, "firstName")!,
+            lastName: normalizedString(row, "lastName")!,
+          })),
+        });
+        await transaction.student.createMany({
+          data: studentRows.map(({ id: studentId, userId, row }) => ({
             id: studentId,
+            userId,
             studentNo: normalizedString(row, "studentNo")!,
             firstName: normalizedString(row, "firstName")!,
             middleName: normalizedNullable(row, "middleName"),
@@ -491,9 +510,22 @@ export async function commitImport(id: string, rawBody: unknown, request: Reques
         });
         if (enrollmentData.length) await transaction.enrollment.createMany({ data: enrollmentData });
       } else {
+        await transaction.user.createMany({
+          data: selected.map((row) => ({
+            id: userIds.get(row.rowNumber)!,
+            email: `${normalizedString(row, "employeeNo")!.toLowerCase()}.${ids.get(row.rowNumber)!}@teachers.uni.edu`,
+            passwordHash,
+            role: Role.TEACHER,
+            isActive: true,
+            mustChangePassword: true,
+            firstName: normalizedString(row, "firstName")!,
+            lastName: normalizedString(row, "lastName")!,
+          })),
+        });
         await transaction.teacher.createMany({
           data: selected.map((row) => ({
             id: ids.get(row.rowNumber)!,
+            userId: userIds.get(row.rowNumber)!,
             employeeNo: normalizedString(row, "employeeNo")!,
             firstName: normalizedString(row, "firstName")!,
             middleName: normalizedNullable(row, "middleName"),

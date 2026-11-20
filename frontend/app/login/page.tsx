@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Image from "next/image";
@@ -18,9 +18,19 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+function subscribeToHistory(callback: () => void) {
+  window.addEventListener("popstate", callback);
+  return () => window.removeEventListener("popstate", callback);
+}
+
+function getPasswordResetSuccess() {
+  return new URLSearchParams(window.location.search).get("passwordReset") === "success";
+}
+
 export default function LoginPage() {
   const { user, loading, login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const resetSuccess = useSyncExternalStore(subscribeToHistory, getPasswordResetSuccess, () => false);
   const [serverError, setServerError] = useState("");
   const [redirecting, setRedirecting] = useState(false);
   const {
@@ -77,7 +87,7 @@ export default function LoginPage() {
             <div aria-hidden="true" className="absolute size-56 rounded-full bg-white/[0.04] sm:size-64" />
             <div aria-hidden="true" className="absolute size-64 rounded-full border border-[#f0c35d]/25 sm:size-72" />
             <div className="relative flex size-44 items-center justify-center rounded-[2rem] border border-white bg-[#fffdf5] shadow-[0_20px_45px_-24px_rgba(13,65,46,0.45)] sm:size-52">
-              <Image src="/BAST1.jpg" alt="BAST emblem" width={180} height={180} className="size-[82%] rounded-full object-cover" />
+              <Image src="/BAST1.jpg" alt="BAST emblem" width={180} height={180} loading="eager" className="size-[82%] rounded-full object-cover" />
             </div>
             <div className="absolute bottom-5 left-[8%] flex items-center gap-2 rounded-xl border border-white/10 bg-[#1d6a45] px-3 py-2 text-xs font-semibold text-slate-100 shadow-sm sm:bottom-8">
               <BookOpen size={16} className="text-[#f0c35d]" aria-hidden="true" />
@@ -101,6 +111,11 @@ export default function LoginPage() {
                 Welcome back
               </h1>
               <p className="mt-2 text-sm leading-6 text-slate-600">Sign in to your school account to continue.</p>
+              {resetSuccess && (
+                <p role="status" className="mt-3 rounded-xl bg-[#ecf9f0] p-3 text-sm text-[#0d412e]">
+                  Your password has been updated. Sign in with your new password.
+                </p>
+              )}
             </div>
 
             <form onSubmit={onSubmit} noValidate className="space-y-5">

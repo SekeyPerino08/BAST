@@ -1,6 +1,6 @@
 "use client";
 import { useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
 import { LoaderCircle } from "lucide-react";
@@ -27,20 +27,30 @@ export function SectionFormDialog({ section, onClose }: Readonly<{ section?: Sec
       schoolYearId: section?.schoolYearId ?? currentYear?.id ?? "",
       gradeLevel: section?.gradeLevel ?? 7,
       name: section?.name ?? "",
+      strand: section?.strand ?? null,
+      capacity: section?.capacity ?? null,
       adviserId: section?.adviserId ?? "",
     },
   });
+  const gradeLevel = useWatch({ control: form.control, name: "gradeLevel" });
   async function submit(input: z.output<typeof sectionSchema>) {
     try {
       if (section) {
         const changes = {
           name: input.name,
+          strand: input.strand,
+          capacity: input.capacity,
           adviserId: input.adviserId || null,
           ...(!locked ? { schoolYearId: input.schoolYearId, gradeLevel: input.gradeLevel } : {}),
         };
         await update.mutateAsync({ id: section.id, input: changes });
       } else {
-        await create.mutateAsync({ ...input, schoolYearId: input.schoolYearId || currentYear?.id, adviserId: input.adviserId || null });
+        await create.mutateAsync({
+          ...input,
+          schoolYearId: input.schoolYearId || currentYear?.id,
+          strand: input.gradeLevel >= 11 ? input.strand : null,
+          adviserId: input.adviserId || null,
+        });
       }
       toast.success(section ? "Section updated" : "Section created"); onClose();
     } catch (error) {
@@ -61,9 +71,28 @@ export function SectionFormDialog({ section, onClose }: Readonly<{ section?: Sec
           <option value="">Current school year</option>{yearsQuery.data?.data.map((year) => <option key={year.id} value={year.id}>{year.name}{year.isCurrent ? " (Current)" : ""}</option>)}
         </select>{locked && <p className="mt-1 text-xs text-slate-500">School year is locked because this section has enrolled students.</p>}</div>
       <div><label htmlFor="section-grade" className="mb-1 block text-sm font-medium text-slate-700">Grade level</label>
-        <select id="section-grade" disabled={locked} {...form.register("gradeLevel")} className={inputClass}>{[7,8,9,10,11,12].map((grade) => <option key={grade} value={grade}>Grade {grade}</option>)}</select>
+        <select id="section-grade" disabled={locked} {...form.register("gradeLevel", {
+          onChange: (event) => {
+            if (Number(event.target.value) < 11) form.setValue("strand", null);
+          },
+        })} className={inputClass}>{[7,8,9,10,11,12].map((grade) => <option key={grade} value={grade}>Grade {grade}</option>)}</select>
         {locked && <p className="mt-1 text-xs text-slate-500">Grade level is locked because this section has enrolled students.</p>}</div>
+      {Number(gradeLevel) >= 11 && <div>
+        <label htmlFor="section-strand" className="mb-1 block text-sm font-medium text-slate-700">Senior High strand</label>
+        <select id="section-strand" {...form.register("strand")} className={inputClass}>
+          <option value="">Select strand</option>
+          <option value="GAS">GAS</option><option value="ABM">ABM</option><option value="STEM">STEM</option>
+          <option value="HUMSS">HUMSS</option><option value="TVL_ICT">TVL-ICT</option>
+        </select>
+        {form.formState.errors.strand && <Error>{form.formState.errors.strand.message}</Error>}
+      </div>}
       <div><label htmlFor="section-name" className="mb-1 block text-sm font-medium text-slate-700">Section name</label><input id="section-name" {...form.register("name")} className={inputClass} />{form.formState.errors.name && <Error>{form.formState.errors.name.message}</Error>}</div>
+      <div>
+        <label htmlFor="section-capacity" className="mb-1 block text-sm font-medium text-slate-700">Maximum students</label>
+        <input id="section-capacity" type="number" min={1} max={200} {...form.register("capacity")} className={inputClass} placeholder="No limit" />
+        <p className="mt-1 text-xs text-slate-500">Leave blank for no configured limit. Capacity cannot be lower than current enrollment.</p>
+        {form.formState.errors.capacity && <Error>{form.formState.errors.capacity.message}</Error>}
+      </div>
       <div><label htmlFor="section-adviser" className="mb-1 block text-sm font-medium text-slate-700">Adviser</label>
         <select id="section-adviser" {...form.register("adviserId")} className={inputClass}><option value="">No adviser</option>{teachersQuery.data?.data.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.lastName}, {teacher.firstName} · {teacher.employeeNo}</option>)}</select>
         {form.formState.errors.adviserId && <Error>{form.formState.errors.adviserId.message}</Error>}

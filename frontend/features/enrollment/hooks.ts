@@ -1,7 +1,16 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { bulkEnroll, createEnrollment, fetchEnrollments, fetchUnassignedStudents, transferEnrollment, updateEnrollmentStatus } from "./api";
+import {
+  bulkEnroll,
+  createEnrollment,
+  fetchEnrollmentPlan,
+  fetchEnrollments,
+  fetchUnassignedStudents,
+  saveEnrollmentPlan,
+  transferEnrollment,
+  updateEnrollmentStatus,
+} from "./api";
 import type { EnrollmentListParams, UnassignedParams } from "./types";
 
 export const enrollmentKeys = {
@@ -9,6 +18,7 @@ export const enrollmentKeys = {
   lists: () => [...enrollmentKeys.all, "list"] as const,
   list: (params: EnrollmentListParams) => [...enrollmentKeys.lists(), params] as const,
   unassigned: (params: UnassignedParams) => [...enrollmentKeys.all, "unassigned", params] as const,
+  plan: (schoolYearId: string) => [...enrollmentKeys.all, "plan", schoolYearId] as const,
 };
 
 function useInvalidateEnrollmentSurfaces() {
@@ -30,7 +40,6 @@ export function useEnrollments(params: EnrollmentListParams, enabled = true) {
     queryKey: enrollmentKeys.list(params),
     queryFn: () => fetchEnrollments(params),
     enabled,
-    placeholderData: (previous) => previous,
   });
 }
 
@@ -39,7 +48,25 @@ export function useUnassignedStudents(params: UnassignedParams, enabled = true) 
     queryKey: enrollmentKeys.unassigned(params),
     queryFn: () => fetchUnassignedStudents(params),
     enabled,
-    placeholderData: (previous) => previous,
+  });
+}
+
+export function useEnrollmentPlan(schoolYearId: string) {
+  return useQuery({
+    queryKey: enrollmentKeys.plan(schoolYearId),
+    queryFn: () => fetchEnrollmentPlan(schoolYearId),
+    enabled: Boolean(schoolYearId),
+  });
+}
+
+export function useSaveEnrollmentPlan(schoolYearId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: Parameters<typeof saveEnrollmentPlan>[1]) => saveEnrollmentPlan(schoolYearId, input),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: enrollmentKeys.plan(schoolYearId) });
+      await client.invalidateQueries({ queryKey: ["sections"] });
+    },
   });
 }
 

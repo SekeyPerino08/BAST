@@ -5,6 +5,11 @@ import { authenticate } from "../../middleware/authenticate.js";
 import { authorize } from "../../middleware/authorize.js";
 import { validateBody } from "../../middleware/validate.js";
 import {
+  getEnrollmentPlanController,
+  saveEnrollmentPlanController,
+} from "./enrollment-plan.controller.js";
+import { enrollmentPlanSchema } from "./enrollment-plan.schema.js";
+import {
   bulkEnrollController,
   createEnrollmentController,
   listEnrollmentsController,
@@ -21,7 +26,10 @@ import {
 
 const router = Router();
 router.param("id", validateIdParams("id"));
+router.param("schoolYearId", validateIdParams("schoolYearId"));
 router.use(authenticate, authorize(Role.ADMIN));
+router.get("/settings/:schoolYearId", getEnrollmentPlanController);
+router.put("/settings/:schoolYearId", validateBody(enrollmentPlanSchema), saveEnrollmentPlanController);
 router.get("/", listEnrollmentsController);
 router.get("/unassigned", listUnassignedStudentsController);
 router.post("/", validateBody(createEnrollmentSchema), createEnrollmentController);

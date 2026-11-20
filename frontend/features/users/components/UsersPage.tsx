@@ -24,7 +24,6 @@ const adminSchema = emailSchema.extend({
     .max(32, "Admin ID must be at most 32 characters")
     .regex(/^[A-Za-z0-9_-]+$/, "Use letters, numbers, hyphens, or underscores")
     .transform((value) => value.toUpperCase()),
-  temporaryPassword: z.string().max(128, "Password is too long").optional(),
 });
 type EmailValues = z.infer<typeof emailSchema>;
 type AdminValues = z.infer<typeof adminSchema>;
@@ -119,7 +118,6 @@ export function UsersPage() {
       const created = await createAdminUser({
         email: values.email,
         adminId: values.adminId,
-        ...(values.temporaryPassword ? { temporaryPassword: values.temporaryPassword } : {}),
       });
       await queryClient.invalidateQueries({ queryKey: userKeys.all });
       setPasswordOnce(created.temporaryPassword);
@@ -298,7 +296,6 @@ export function UsersPage() {
         <form onSubmit={adminForm.handleSubmit((values) => void submitAdmin(values))} className="space-y-4" noValidate>
           <FormField label="Email address" name="admin-email" errorId="admin-email-error" error={emailError || adminForm.formState.errors.email?.message}><input id="admin-email" type="email" autoComplete="email" aria-invalid={Boolean(emailError || adminForm.formState.errors.email)} aria-describedby={emailError || adminForm.formState.errors.email ? "admin-email-error" : undefined} {...adminForm.register("email")} className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm" /></FormField>
           <FormField label="Custom Admin ID" name="admin-id" errorId="admin-id-error" error={adminForm.formState.errors.adminId?.message}><input id="admin-id" autoComplete="username" aria-invalid={Boolean(adminForm.formState.errors.adminId)} aria-describedby={adminForm.formState.errors.adminId ? "admin-id-error" : undefined} {...adminForm.register("adminId")} className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm uppercase" /></FormField>
-          <FormField label="Temporary password (optional; blank generates one)" name="admin-password" errorId="admin-password-error" error={adminForm.formState.errors.temporaryPassword?.message}><input id="admin-password" type="password" autoComplete="new-password" aria-describedby={adminForm.formState.errors.temporaryPassword ? "admin-password-error" : undefined} {...adminForm.register("temporaryPassword")} className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm" /></FormField>
           {adminForm.formState.errors.root?.server && <p role="alert" className="text-sm text-rose-700">{adminForm.formState.errors.root.server.message}</p>}
           <DialogActions busy={createPending} submitLabel="Create admin" onCancel={closeDialog} />
         </form>}

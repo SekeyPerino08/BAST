@@ -23,7 +23,7 @@ export function StatusControl({
         aria-label={`Mark ${studentName} as ${config.label}`}
         aria-pressed={active}
         onClick={() => onChange(status)}
-        className={`inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border px-3 text-sm font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${active ? config.classes : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"}`}
+        className={`inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border px-3 text-sm font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-[#1d6a45] focus-visible:ring-offset-2 ${active ? config.classes : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"}`}
       >
         <Icon size={16} aria-hidden="true" /><span>{config.short}</span><span className="sr-only">{config.label}</span>
       </button>;

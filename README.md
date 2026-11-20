@@ -20,7 +20,6 @@ Never point automated tests or local development at the production Neon branch.
    ```powershell
    cd backend
    npm ci
-   npm run prisma:generate
    npm run prisma:migrate
    npm run seed
    npm run dev
@@ -37,14 +36,14 @@ Never point automated tests or local development at the production Neon branch.
 
 Open `http://localhost:3000`. Browser API requests use the Next.js `/api` rewrite. The API permits only exact origins listed in `CORS_ORIGIN`; write requests must include an allowed `Origin` or `Referer`.
 
-The demo seed currently creates these accounts with `password123`; these are for isolated local/test data only. Log in using the listed ID (email also remains accepted for these seeded legacy accounts):
+The demo seed currently creates these accounts with `Password123!`; all seeded accounts must change this password after their first sign-in. These accounts are for isolated local/test data only. Log in using the listed ID (email also remains accepted for these seeded legacy accounts):
 
 - Admin: `ADMIN-0001` (`admin@uni.edu`)
 - Faculty: `TCH-0002` (Reyes), `TCH-0001` (Tan)
 - Student: `STU-2025-0002` (Ben)
 - Alumni: `iris.co@uni.edu`
 
-Newly provisioned student accounts use their student number/LRN and the one-time starter password `student1234`; faculty use their employee ID and `faculty1234`. Both must change the starter password before accessing the rest of the system. New admin accounts use the custom Admin ID set during creation and a generated or admin-supplied temporary password, which must also be changed on first sign-in. Share all temporary credentials securely. `studentNo` is the current database field used as the student LRN/login ID.
+New Student and Teacher records receive a linked User account in the same transaction. The admin receives the generated email and shared initial password `Password123!` on creation; Student and Teacher accounts must change it at first sign-in. Generated emails use `{studentNo}.{studentId}@students.uni.edu` and `{employeeNo}.{teacherId}@teachers.uni.edu`. New admin accounts also use `Password123!` and must change it at first sign-in. Existing accounts are reset to this password by the account-linking migration. Share credentials securely.
 
 ## Environment variables
 
@@ -61,12 +60,11 @@ Newly provisioned student accounts use their student number/LRN and the one-time
 | `COOKIE_SAMESITE` | No | Must remain `lax` |
 | `TRUST_PROXY` | No | Number of trusted reverse proxies; configure accurately for Render/Fly |
 | `RATE_LIMIT_PER_MINUTE` | No | Per-IP API request limit |
-| `PASSWORD_RESET_DELIVERY_URL` | Production | HTTPS webhook that sends the reset message |
-| `PASSWORD_RESET_DELIVERY_SECRET` | Production | At least 32 characters; sent as a bearer credential to the configured webhook |
+| `RESEND_API_KEY` | Production | API key used to send 6-digit password reset codes |
+| `MAIL_FROM` | Production | Verified sender email address |
 | `INTEGRATION_TEST_DATABASE_URL` | Tests only | Dedicated Neon test-branch URL; never production |
 
-The reset webhook receives `POST` JSON `{ "to": "...", "resetUrl": "..." }` with `Authorization: Bearer <secret>`. It must deliver the link without logging or retaining it longer than needed. Requests time out after five seconds. Production startup fails if delivery is not configured.
-The first entry in `CORS_ORIGIN` is used as the reset-link web origin. Keep it set to the canonical production frontend origin.
+Password reset codes are sent through Resend, expire after 10 minutes, and are stored only as an HMAC hash. Production requires `RESEND_API_KEY` and a verified `MAIL_FROM` address.
 
 ## Scripts
 
@@ -104,6 +102,12 @@ From `backend/`:
 
 The UI may hide unavailable actions for convenience, but the API performs authorization and record scoping in server middleware/services. Out-of-scope student integration records return 404. Changing a student ID in a URL must not expose another student's records.
 
+## Enrollment planning
+
+Administrators can configure enrollment dates, expected new/returning counts, planned sections, required-document checklists, and special-case policy notes for each school year from **Admin → Enrollment → Plan & capacity**. The plan includes Grade 11 and 12 offerings for GAS, ABM, STEM, HUMSS, and TVL-ICT; modality is hybrid and payment method is cash.
+
+Create Senior High sections from **Admin → Sections**, assign each a strand, and set its maximum student count. Enrollment creation, transfers, and reactivation enforce configured section capacity. Existing sections without a capacity remain uncapped until an administrator sets one. The new Prisma migration `20261119223000_enrollment_planning` must be applied before using these settings.
+
 ## Tests and GitHub Actions
 
 The CI workflow runs migrations, seeds, and backend tests against an isolated Neon test branch on pull requests and pushes to `main`. Configure these GitHub Actions secrets:
@@ -121,10 +125,10 @@ The database integration suite checks role restrictions, student ID substitution
 
 ### API (Render or Fly.io)
 
-1. Deploy the `backend/` directory using Node.js 22. Run `npm ci`, `npm run prisma:generate`, and `npm run build`; start with `npm run start`.
+1. Deploy the `backend/` directory using Node.js 22. Run `npm ci` (which generates Prisma Client), then `npm run build`; start with `npm run start`.
 2. Set `NODE_ENV=production`, `PORT` to the platform's assigned port, a strong `JWT_SECRET`, exact `CORS_ORIGIN` for the Vercel web origin, and the production Neon `DATABASE_URL` (pooled) plus `DIRECT_URL` (direct).
 3. Configure `TRUST_PROXY` to the actual trusted proxy hop count, `COOKIE_NAME`, and `JWT_EXPIRES_IN`. Keep `COOKIE_SAMESITE=lax`.
-4. Configure the HTTPS `PASSWORD_RESET_DELIVERY_URL` and `PASSWORD_RESET_DELIVERY_SECRET`.
+4. Configure `RESEND_API_KEY` and a verified `MAIL_FROM` address for password reset code delivery.
 5. Apply migrations as a release/pre-deploy command: `npm run prisma:migrate:deploy`. Do not run `prisma migrate dev` against production.
 6. Confirm `GET /api/health` returns HTTP 200 with `db: "connected"`.
 

@@ -29,18 +29,18 @@ export function TeacherGradesOverview() {
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {classes.map((offering) => (
-        <article key={offering.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <article key={offering.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_3px_14px_rgba(13,65,46,0.06)] transition hover:-translate-y-0.5 hover:border-[#b9d7bf] hover:shadow-md dark:border-slate-700 dark:bg-slate-900">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">{offering.subject.code}</p>
-              <h2 className="mt-1 text-lg font-bold text-slate-900">{offering.subject.name}</h2>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#1d6a45] dark:text-[#dfeee4]">{offering.subject.code}</p>
+              <h2 className="mt-1 text-lg font-bold text-slate-900 dark:text-white">{offering.subject.name}</h2>
             </div>
-            <span className="rounded-xl bg-indigo-50 p-2 text-indigo-700"><GraduationCap size={18} aria-hidden="true" /></span>
+            <span className="rounded-xl bg-[#edf7ef] p-2 text-[#0d412e] dark:bg-[#183d2d] dark:text-[#dfeee4]"><GraduationCap size={18} aria-hidden="true" /></span>
           </div>
           <p className="mt-4 text-sm text-slate-600">Grade {offering.section.gradeLevel} · {offering.section.name}</p>
           <p className="mt-2 text-sm text-slate-500">{offering.enrolledStudentCount} students</p>
           <div className="mt-5 flex flex-wrap gap-2">
-            <Link href={`/teacher/classes/${offering.id}/grades`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+            <Link href={`/teacher/classes/${offering.id}/grades`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#1d6a45] px-3 py-2 text-sm font-semibold text-white hover:bg-[#0d412e]">
               <BookOpen size={15} /> Grade sheet
             </Link>
             <Link href={`/teacher/classes/${offering.id}/attendance`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">

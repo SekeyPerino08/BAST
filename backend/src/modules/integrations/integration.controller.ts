@@ -8,6 +8,7 @@ import {
   getMyStudentAlumni,
   getMyStudentLibrary,
   getMyStudentLms,
+  exportLibraryLoans,
   listLibraryLoans,
   getSyncRejects,
   listSyncRuns,
@@ -40,6 +41,12 @@ export const getStudentLibraryController = asyncHandler<ParamsDictionary>(async 
 export const listLibraryLoansController = asyncHandler(async (req, res) => {
   if (!req.user) throw new AppError("Not authenticated", 401);
   res.status(200).json(await listLibraryLoans(req.query, req.user));
+});
+
+export const exportLibraryLoansController = asyncHandler(async (req, res) => {
+  if (!req.user) throw new AppError("Not authenticated", 401);
+  const csv = await exportLibraryLoans(req.query, req.user, req);
+  res.status(200).type("text/csv").attachment("library-overdue.csv").send(csv);
 });
 
 export const getStudentAlumniController = asyncHandler<ParamsDictionary>(async (req, res) => {

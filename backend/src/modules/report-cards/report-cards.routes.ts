@@ -1,6 +1,7 @@
 import { Role } from "@prisma/client";
 import { Router } from "express";
 import { validateIdParams } from "../../middleware/validateIdParams.js";
+import { validateStudentNumberParams } from "../../middleware/validateStudentNumberParams.js";
 import { authenticate } from "../../middleware/authenticate.js";
 import { authorize } from "../../middleware/authorize.js";
 import {
@@ -19,11 +20,12 @@ import {
  */
 const router = Router();
 router.param("id", validateIdParams("id"));
+router.param("studentNo", validateStudentNumberParams("studentNo"));
 
 router.use(authenticate);
 router.get("/me/report-card", authorize(Role.STUDENT), getMyReportCardController);
 router.get("/me/report-card/available-years", authorize(Role.STUDENT), getStudentAvailableYearsController);
-router.get("/students/:id/report-card", authorize(Role.ADMIN, Role.TEACHER, Role.STUDENT), getStudentReportCardController);
+router.get("/students/:studentNo/report-card", authorize(Role.ADMIN, Role.TEACHER, Role.STUDENT), getStudentReportCardController);
 router.get("/sections/:id/report-cards", authorize(Role.ADMIN, Role.TEACHER), getSectionReportCardsController);
 
 export default router;

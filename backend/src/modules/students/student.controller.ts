@@ -20,7 +20,7 @@ export const listStudentsController = asyncHandler(async (req, res) => {
 });
 
 export const getStudentController = asyncHandler<ParamsDictionary>(async (req, res) => {
-  res.status(200).json(await getStudentById(req.params.id, req));
+  res.status(200).json(await getStudentById(req.params.studentNo, req));
 });
 
 export const createStudentController = asyncHandler<

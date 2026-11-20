@@ -87,8 +87,10 @@ export function StudentFormDialog({
         const createInput = Object.fromEntries(
           Object.entries(input).filter(([, value]) => value !== null),
         ) as StudentInput;
-        await createMutation.mutateAsync(createInput);
-        toast.success("Student created");
+        const created = await createMutation.mutateAsync(createInput);
+        toast.success(
+          `Student created. Login: ${created.account.email} | Default password: ${created.account.temporaryPassword}`,
+        );
       }
       onClose();
     } catch (error) {

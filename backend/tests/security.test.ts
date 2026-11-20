@@ -1,9 +1,13 @@
-import { createServer, type Server } from "node:http";
-import { describe, expect, it, beforeAll, afterAll } from "vitest";
+import { describe, expect, it, beforeAll, afterAll, vi } from "vitest";
 import bcrypt from "bcryptjs";
 import { EnrollmentStatus, Role, Sex } from "@prisma/client";
 import request from "supertest";
-import { loginSchema, passwordResetCompleteSchema, passwordResetRequestSchema } from "../src/schemas/auth.schema.js";
+import {
+  loginSchema,
+  passwordResetCompleteSchema,
+  passwordResetRequestSchema,
+  verifyPasswordResetCodeSchema,
+} from "../src/schemas/auth.schema.js";
 import { createAdminUserSchema } from "../src/modules/users/user.schema.js";
 import { createStudentSchema, updateStatusSchema } from "../src/modules/students/student.schema.js";
 import { saveGradesSchema } from "../src/modules/grades/grades.schema.js";
@@ -13,6 +17,16 @@ import {
   lmsEventSchema,
 } from "../src/modules/integrations/integration.schema.js";
 import { passwordPolicyError } from "../src/utils/password-policy.js";
+import { seniorHighStrands } from "../src/constants/education.js";
+import { enrollmentPlanSchema } from "../src/modules/enrollments/enrollment-plan.schema.js";
+import { createSectionSchema } from "../src/modules/sections/section.schema.js";
+
+const { resendSendMock } = vi.hoisted(() => ({ resendSendMock: vi.fn() }));
+vi.mock("resend", () => ({
+  Resend: class {
+    emails = { send: resendSendMock };
+  },
+}));
 
 describe("security and data quality rules", () => {
   it("normalizes names and email and strips unknown input", () => {
@@ -68,7 +82,25 @@ describe("security and data quality rules", () => {
       amount: -1, occurredOn: "2026-01-01",
     }).success).toBe(false);
     expect(passwordResetRequestSchema.safeParse({ email: "not-an-email" }).success).toBe(false);
-    expect(passwordResetCompleteSchema.safeParse({ token: "short", newPassword: "GoodPass123" }).success).toBe(false);
+    expect(passwordResetRequestSchema.safeParse({ email: "" }).success).toBe(false);
+    expect(passwordResetRequestSchema.safeParse({ email: "x".repeat(255) }).success).toBe(false);
+    expect(passwordResetRequestSchema.safeParse({ email: "<script>alert(1)</script>" }).success).toBe(false);
+    expect(passwordResetRequestSchema.parse({ email: " User@Mail.com " }).email).toBe("user@mail.com");
+    expect(verifyPasswordResetCodeSchema.safeParse({ email: "user@mail.com", code: "012345" }).success).toBe(true);
+    expect(verifyPasswordResetCodeSchema.safeParse({ email: "user@mail.com", code: "12345" }).success).toBe(false);
+    expect(verifyPasswordResetCodeSchema.safeParse({ email: "user@mail.com", code: "12<345" }).success).toBe(false);
+    expect(passwordResetCompleteSchema.safeParse({
+      newPassword: "short",
+      confirmPassword: "short",
+    }).success).toBe(false);
+    expect(passwordResetCompleteSchema.safeParse({
+      newPassword: "GoodPass123",
+      confirmPassword: "DifferentPass123",
+    }).success).toBe(false);
+    expect(passwordResetCompleteSchema.safeParse({
+      newPassword: "GoodPass123",
+      confirmPassword: "GoodPass123",
+    }).success).toBe(true);
     expect(updateStatusSchema.safeParse({ status: "ACTIVE" }).success).toBe(true);
     expect(updateStatusSchema.safeParse({ status: "UNKNOWN" }).success).toBe(false);
   });
@@ -78,6 +110,79 @@ describe("security and data quality rules", () => {
     expect(passwordPolicyError("user12345", "", "user@example.test")).not.toBeNull();
     expect(passwordPolicyError("SaferValue123", "", "user@example.test")).toBeNull();
   });
+
+  it("validates the ten configurable Senior High offerings and section caps", () => {
+    const targets = [11, 12].flatMap((gradeLevel) => seniorHighStrands.map((strand) => ({
+      gradeLevel,
+      strand,
+      expectedNew: null,
+      expectedReturning: null,
+      plannedSections: null,
+    })));
+    const plan = {
+      registrationOpensAt: "2027-01-01",
+      registrationClosesAt: "2027-02-01",
+      firstDayOfClasses: "2027-06-01",
+      requirements: [{ category: "NEW", name: "Latest report card", required: true }],
+      specialPolicies: {
+        transfers: "",
+        scholarships: "",
+        support: "",
+        international: "",
+        lateApplicants: "",
+      },
+      targets,
+    };
+    expect(enrollmentPlanSchema.safeParse(plan).success).toBe(true);
+    expect(enrollmentPlanSchema.safeParse({
+      ...plan,
+      registrationClosesAt: "2026-12-31",
+    }).success).toBe(false);
+    expect(enrollmentPlanSchema.safeParse({
+      ...plan,
+      targets: [...targets.slice(1), targets[1]],
+    }).success).toBe(false);
+    expect(createSectionSchema.safeParse({
+      gradeLevel: 11,
+      name: "STEM A",
+      strand: "STEM",
+      capacity: 40,
+    }).success).toBe(true);
+    expect(createSectionSchema.safeParse({
+      gradeLevel: 11,
+      name: "Missing strand",
+      capacity: 40,
+    }).success).toBe(false);
+    expect(createSectionSchema.safeParse({
+      gradeLevel: 11,
+      name: "Invalid capacity",
+      strand: "STEM",
+      capacity: 0,
+    }).success).toBe(false);
+  });
+
+  it("sends reset codes through Resend and surfaces provider failures", async () => {
+    process.env.DATABASE_URL ||= "postgresql://test:test@localhost:5432/test";
+    process.env.DIRECT_URL ||= "postgresql://test:test@localhost:5432/test";
+    process.env.NODE_ENV = "test";
+    process.env.JWT_SECRET = "test-only-jwt-secret-with-at-least-sixty-four-characters";
+    process.env.RESEND_API_KEY = "re_test_key_for_mock";
+    process.env.MAIL_FROM = "password-reset@example.test";
+    const { sendPasswordResetCode } = await import("../src/services/email.service.js");
+    resendSendMock.mockReset();
+    resendSendMock.mockResolvedValue({ data: { id: "mock-resend-message" }, error: null });
+
+    await sendPasswordResetCode("user@example.test", "012345");
+    expect(resendSendMock).toHaveBeenCalledWith(expect.objectContaining({
+      from: "password-reset@example.test",
+      to: "user@example.test",
+      text: expect.stringContaining("012345"),
+      html: expect.stringContaining("012345"),
+    }));
+
+    resendSendMock.mockResolvedValueOnce({ data: null, error: { message: "provider unavailable" } });
+    await expect(sendPasswordResetCode("user@example.test", "123456")).rejects.toThrow("provider unavailable");
+  });
 });
 
 const integrationDatabaseUrl = process.env.INTEGRATION_TEST_DATABASE_URL;
@@ -86,10 +191,9 @@ const integrationDescribe = integrationDatabaseUrl ? describe : describe.skip;
 integrationDescribe("API authorization and integration coverage", () => {
   let app: import("express").Express;
   let prisma: (typeof import("../src/lib/prisma.js"))["prisma"];
-  let webhook: Server;
-  let webhookUrl = "";
-  let resetDeliveries: Array<{ to: string; resetUrl: string }> = [];
+  let resetDeliveries: Array<{ to: string; text: string; html: string }> = [];
   let testResetUserId: string | undefined;
+  let otherResetUserId: string | undefined;
   let sessionCookies = new Map<string, string>();
   let seededStudents: { benId: string; irisId: string; otherId: string };
 
@@ -99,25 +203,20 @@ integrationDescribe("API authorization and integration coverage", () => {
     process.env.NODE_ENV = "test";
     process.env.CORS_ORIGIN = "http://localhost:3000";
     process.env.JWT_SECRET = "test-only-jwt-secret-with-at-least-sixty-four-characters";
-    process.env.PASSWORD_RESET_DELIVERY_SECRET = "test-only-reset-delivery-secret-with-32-characters";
-
-    webhook = createServer((request, response) => {
-      const chunks: Buffer[] = [];
-      request.on("data", (chunk: Buffer) => chunks.push(chunk));
-      request.on("end", () => {
-        if (request.headers.authorization !== `Bearer ${process.env.PASSWORD_RESET_DELIVERY_SECRET}`) {
-          response.writeHead(403).end();
-          return;
-        }
-        resetDeliveries.push(JSON.parse(Buffer.concat(chunks).toString()) as { to: string; resetUrl: string });
-        response.writeHead(202).end();
-      });
+    process.env.RESEND_API_KEY = "re_test_key_for_mock";
+    process.env.MAIL_FROM = "password-reset@example.test";
+    process.env.TRUST_PROXY = "0";
+    resetDeliveries = [];
+    resendSendMock.mockReset();
+    resendSendMock.mockImplementation(async (input: unknown) => {
+      if (!input || typeof input !== "object") throw new Error("Unexpected Resend email payload");
+      const email = input as { to?: unknown; text?: unknown; html?: unknown };
+      if (typeof email.to !== "string" || typeof email.text !== "string" || typeof email.html !== "string") {
+        throw new Error("Unexpected Resend email payload");
+      }
+      resetDeliveries.push({ to: email.to, text: email.text, html: email.html });
+      return { data: { id: "mock-resend-message" }, error: null };
     });
-    await new Promise<void>((resolve) => webhook.listen(0, "127.0.0.1", resolve));
-    const address = webhook.address();
-    if (!address || typeof address === "string") throw new Error("Reset test webhook did not bind a TCP port");
-    webhookUrl = `http://127.0.0.1:${address.port}/deliver`;
-    process.env.PASSWORD_RESET_DELIVERY_URL = webhookUrl;
 
     const [{ default: loadedApp }, db] = await Promise.all([
       import("../src/app.js"),
@@ -135,7 +234,7 @@ integrationDescribe("API authorization and integration coverage", () => {
       const response = await request(app)
         .post("/api/auth/login")
         .set("Origin", "http://localhost:3000")
-        .send({ identifier, password: "password123" });
+        .send({ identifier, password: "Password123!" });
       expect(response.status, `login ${identifier}`).toBe(200);
       sessionCookies.set(key, response.headers["set-cookie"][0].split(";")[0]);
     }
@@ -148,6 +247,7 @@ integrationDescribe("API authorization and integration coverage", () => {
     seededStudents = { benId: ben.id, irisId: iris.id, otherId: other.id };
 
     testResetUserId = `security-reset-${Date.now()}`;
+    otherResetUserId = `${testResetUserId}-other`;
     await prisma.user.create({
       data: {
         id: testResetUserId,
@@ -158,17 +258,28 @@ integrationDescribe("API authorization and integration coverage", () => {
         lastName: "Test",
       },
     });
+    await prisma.user.create({
+      data: {
+        id: otherResetUserId,
+        email: `${otherResetUserId}@example.test`,
+        passwordHash: await bcrypt.hash("OtherBeforeReset123", 4),
+        role: Role.STUDENT,
+        firstName: "Other",
+        lastName: "SecurityTest",
+      },
+    });
   }, 30_000);
 
   afterAll(async () => {
     if (prisma) {
       if (testResetUserId) {
         await prisma.passwordResetToken.deleteMany({ where: { userId: testResetUserId } });
+        await prisma.passwordResetSession.deleteMany({ where: { userId: testResetUserId } });
         await prisma.user.deleteMany({ where: { id: testResetUserId } });
       }
+      if (otherResetUserId) await prisma.user.deleteMany({ where: { id: otherResetUserId } });
       await prisma.$disconnect();
     }
-    if (webhook) await new Promise<void>((resolve, reject) => webhook.close((error) => error ? reject(error) : resolve()));
   });
 
   it("enforces role access and prevents student ID substitution", async () => {
@@ -293,10 +404,10 @@ integrationDescribe("API authorization and integration coverage", () => {
   });
 
   it("requires a trusted origin for state-changing requests", async () => {
-    expect((await request(app).post("/api/auth/login").send({ identifier: "ADMIN-0001", password: "password123" })).status).toBe(403);
+    expect((await request(app).post("/api/auth/login").send({ identifier: "ADMIN-0001", password: "Password123!" })).status).toBe(403);
     expect((await request(app).post("/api/auth/login")
       .set("Origin", "https://attacker.example")
-      .send({ identifier: "ADMIN-0001", password: "password123" })).status).toBe(403);
+      .send({ identifier: "ADMIN-0001", password: "Password123!" })).status).toBe(403);
   });
 
   it("does not create grade audit entries for rejected writes", async () => {
@@ -316,25 +427,109 @@ integrationDescribe("API authorization and integration coverage", () => {
     expect(await prisma.auditEntry.count({ where: { action: "GRADE_CHANGE" } })).toBe(before);
   });
 
-  it("sends generic reset responses and consumes valid reset tokens once", async () => {
+  it("verifies reset codes, enforces reset sessions, and invalidates prior logins", async () => {
     const testEmail = `${testResetUserId}@example.test`;
+    const origin = "http://localhost:3000";
     const activeResponse = await request(app).post("/api/auth/password-reset/request")
-      .set("Origin", "http://localhost:3000").send({ email: testEmail });
+      .set("Origin", origin).send({ email: ` ${testEmail.toUpperCase()} ` });
     const unknownResponse = await request(app).post("/api/auth/password-reset/request")
-      .set("Origin", "http://localhost:3000").send({ email: "absent@example.test" });
+      .set("Origin", origin).send({ email: "absent@example.test" });
     expect(activeResponse.status).toBe(202);
     expect(unknownResponse.status).toBe(202);
     expect(activeResponse.body.message).toBe(unknownResponse.body.message);
-    const delivery = [...resetDeliveries].reverse().find(({ to }) => to === testEmail);
+    expect(resetDeliveries).toHaveLength(1);
+    const delivery = resetDeliveries[0];
     expect(delivery).toBeDefined();
-    const resetToken = new URLSearchParams(new URL(delivery!.resetUrl).hash.slice(1)).get("token");
-    expect(resetToken).toBeTruthy();
+    expect(delivery.to).toBe(testEmail);
+    const code = delivery.text.match(/\b(\d{6})\b/)?.[1];
+    expect(code).toMatch(/^\d{6}$/);
+    const challenge = await prisma.passwordResetToken.findFirstOrThrow({
+      where: { userId: testResetUserId, consumedAt: null },
+    });
+    expect(challenge.tokenHash).not.toContain(code);
+    expect(challenge.expiresAt.getTime()).toBeGreaterThan(Date.now());
+    expect(challenge.expiresAt.getTime()).toBeLessThanOrEqual(Date.now() + 10 * 60 * 1000);
 
-    const complete = () => request(app).post("/api/auth/password-reset/complete")
-      .set("Origin", "http://localhost:3000")
-      .send({ token: resetToken, newPassword: "NewSecureValue123" });
-    expect((await complete()).status).toBe(204);
-    expect((await complete()).status).toBe(400);
-    expect(await prisma.passwordResetToken.count({ where: { userId: testResetUserId, consumedAt: { not: null } } })).toBe(1);
+    const login = await request(app).post("/api/auth/login")
+      .set("Origin", origin).send({ identifier: testEmail, password: "BeforeReset123" });
+    expect(login.status).toBe(200);
+    const oldAuthCookie = login.headers["set-cookie"][0].split(";")[0];
+    expect((await request(app).get("/api/auth/password-reset/session")).status).toBe(401);
+
+    const verify = (email: string, value: string) => request(app).post("/api/auth/password-reset/verify")
+      .set("Origin", origin).send({ email, code: value });
+    expect((await verify(testEmail, "999999")).status).toBe(400);
+    await prisma.passwordResetToken.update({
+      where: { id: challenge.id },
+      data: { expiresAt: new Date(Date.now() - 1_000) },
+    });
+    expect((await verify(testEmail.toUpperCase(), code!)).status).toBe(400);
+
+    const renewed = await request(app).post("/api/auth/password-reset/request")
+      .set("Origin", origin).send({ email: testEmail });
+    expect(renewed.status).toBe(202);
+    const renewedCode = resetDeliveries[resetDeliveries.length - 1].text.match(/\b(\d{6})\b/)?.[1];
+    expect(renewedCode).toMatch(/^\d{6}$/);
+    const verified = await verify(testEmail.toUpperCase(), renewedCode!);
+    expect(verified.status).toBe(200);
+    const setCookies = Array.isArray(verified.headers["set-cookie"])
+      ? verified.headers["set-cookie"]
+      : [verified.headers["set-cookie"]];
+    const resetCookie = setCookies.find((value) => value.startsWith("password_reset_session="))?.split(";")[0];
+    expect(resetCookie).toBeDefined();
+    expect(setCookies.find((value) => value.startsWith("password_reset_session="))).toMatch(/HttpOnly/i);
+    expect(resetCookie).not.toContain(testResetUserId);
+    expect((await request(app).get("/api/auth/password-reset/session").set("Cookie", resetCookie)).status).toBe(200);
+
+    const resetSession = await prisma.passwordResetSession.findFirstOrThrow({ where: { userId: testResetUserId } });
+    await prisma.passwordResetSession.update({
+      where: { id: resetSession.id },
+      data: { expiresAt: new Date(Date.now() - 1_000) },
+    });
+    expect((await request(app).get("/api/auth/password-reset/session").set("Cookie", resetCookie)).status).toBe(401);
+    await prisma.passwordResetSession.update({
+      where: { id: resetSession.id },
+      data: { expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
+    });
+
+    const complete = (newPassword: string, confirmPassword: string) => request(app)
+      .post("/api/auth/password-reset/complete")
+      .set("Origin", origin)
+      .set("Cookie", resetCookie!)
+      .send({ newPassword, confirmPassword, userId: otherResetUserId });
+    expect((await complete("short", "short")).status).toBe(400);
+    expect((await complete("FreshSecureValue123!", "DifferentSecureValue123!")).status).toBe(400);
+
+    const candidates = ["FreshSecureValue123!", "AnotherSecureValue456!"];
+    const completions = await Promise.all(candidates.map((password) => complete(password, password)));
+    const successIndex = completions.findIndex((response) => response.status === 204);
+    expect(successIndex).toBeGreaterThanOrEqual(0);
+    expect(completions.filter((response) => response.status === 401)).toHaveLength(1);
+    expect(completions[successIndex].headers["set-cookie"]).toEqual(expect.arrayContaining([
+      expect.stringMatching(/school_token=;/),
+      expect.stringMatching(/password_reset_session=;/),
+    ]));
+    expect((await request(app).get("/api/auth/me").set("Cookie", oldAuthCookie)).status).toBe(401);
+    expect((await request(app).get("/api/auth/password-reset/session").set("Cookie", resetCookie)).status).toBe(401);
+
+    const oldPasswordLogin = await request(app).post("/api/auth/login")
+      .set("Origin", origin).send({ identifier: testEmail, password: "BeforeReset123" });
+    const newPasswordLogin = await request(app).post("/api/auth/login")
+      .set("Origin", origin).send({ identifier: testEmail, password: candidates[successIndex] });
+    expect(oldPasswordLogin.status).toBe(401);
+    expect(newPasswordLogin.status).toBe(200);
+    const otherUser = await prisma.user.findUniqueOrThrow({
+      where: { id: otherResetUserId },
+      select: { passwordHash: true },
+    });
+    expect(await bcrypt.compare("OtherBeforeReset123", otherUser.passwordHash)).toBe(true);
+
+    for (const email of ["rate-limit-one@example.test", "rate-limit-two@example.test"]) {
+      expect((await request(app).post("/api/auth/password-reset/request")
+        .set("Origin", origin).send({ email })).status).toBe(202);
+    }
+    const rateLimited = await request(app).post("/api/auth/password-reset/request")
+      .set("Origin", origin).send({ email: "rate-limit-three@example.test" });
+    expect(rateLimited.status).toBe(429);
   });
 });

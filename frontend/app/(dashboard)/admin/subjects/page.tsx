@@ -1,6 +1,8 @@
 "use client";
 import { RoleGuard } from "../../../../components/RoleGuard";
+import { DashboardLayout } from "../../../../components/DashboardLayout";
 import { SubjectsList } from "../../../../features/subjects/components/SubjectsList";
+
 export default function AdminSubjectsPage() {
-  return <RoleGuard allowedRoles={["ADMIN"]}><SubjectsList /></RoleGuard>;
+  return <RoleGuard allowedRoles={["ADMIN"]}><DashboardLayout><SubjectsList /></DashboardLayout></RoleGuard>;
 }

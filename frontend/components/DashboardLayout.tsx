@@ -8,11 +8,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import {
   BarChart3,
+  Bell,
   BookOpen,
   CalendarCheck,
   ChevronDown,
   ClipboardList,
   FileClock,
+  FileText,
   GraduationCap,
   LayoutDashboard,
   Menu,
@@ -27,6 +29,7 @@ import { useAuth } from "../providers/AuthProvider";
 import { userDisplayName } from "../lib/auth";
 import type { Role } from "../types/auth";
 import { GlobalSearch } from "./GlobalSearch";
+import { ProfileAvatar } from "../features/profile/components/ProfileAvatar";
 
 const navigation: Record<Role, { label: string; href: string; comingSoon?: boolean; group?: string }[]> = {
   ADMIN: [
@@ -38,7 +41,7 @@ const navigation: Record<Role, { label: string; href: string; comingSoon?: boole
     { label: "School Years", href: "/admin/school-years" },
     { label: "Enrollment", href: "/admin/enrollment" },
     { label: "Data sync", href: "/admin/sync" },
-    { label: "Library loans", href: "/admin/library-loans" },
+    { label: "Library Overdue", href: "/admin/library-loans" },
     { label: "Profile", href: "/profile" },
     { label: "User Management", href: "/admin/users", group: "Administration" },
     { label: "Audit log", href: "/admin/audit-logs", group: "Administration" },
@@ -51,15 +54,22 @@ const navigation: Record<Role, { label: string; href: string; comingSoon?: boole
     { label: "Attendance", href: "/teacher/attendance" },
     { label: "Gradebook", href: "/teacher/grades" },
     { label: "Advisees", href: "/teacher/advisees" },
-    { label: "Advisee loans", href: "/teacher/advisory/library" },
+    { label: "Adviser overdue", href: "/teacher/advisory/library" },
     { label: "Reports", href: "/teacher/reports" },
     { label: "Profile", href: "/profile" },
   ],
   STUDENT: [
     { label: "Dashboard", href: "/student" },
     { label: "My Classes", href: "/student/subjects" },
+    { label: "Assignments", href: "/student/assignments" },
+    { label: "Announcements", href: "/student/announcements" },
+    { label: "Class Schedule", href: "/student/schedule" },
+    { label: "Learning Materials", href: "/student/materials" },
     { label: "Grades", href: "/student/grades" },
     { label: "Attendance", href: "/student/attendance" },
+    { label: "Academic History", href: "/student/history" },
+    { label: "Document Requests", href: "/student/documents" },
+    { label: "Notifications", href: "/student/notifications" },
     { label: "Report Card", href: "/student/report-card" },
     { label: "Profile", href: "/profile" },
   ],
@@ -83,8 +93,8 @@ const navigationIcons: Record<string, LucideIcon> = {
   "School Years": CalendarCheck,
   Enrollment: ClipboardList,
   "Data sync": LayoutDashboard,
-  "Library loans": BookOpen,
-  "Advisee loans": BookOpen,
+  "Library Overdue": BookOpen,
+  "Adviser overdue": BookOpen,
   Profile: UserRound,
   Users,
   "User Management": Users,
@@ -96,6 +106,13 @@ const navigationIcons: Record<string, LucideIcon> = {
   Attendance: CalendarCheck,
   Grades: ClipboardList,
   Gradebook: ClipboardList,
+  Assignments: ClipboardList,
+  Announcements: BookOpen,
+  "Class Schedule": CalendarCheck,
+  "Learning Materials": BookOpen,
+  "Academic History": FileClock,
+  "Document Requests": FileText,
+  Notifications: Bell,
   "My Subjects": BookOpen,
   "My Grades": ClipboardList,
   "My Data": LayoutDashboard,
@@ -267,9 +284,12 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
       <div className="border-t border-white/10 p-3">
         <details ref={menuRef} className="relative">
           <summary aria-label="Open user menu" className={`flex min-h-12 cursor-pointer list-none items-center gap-3 rounded-xl bg-white/[0.07] p-2 text-left hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#f0c35d] [&::-webkit-details-marker]:hidden ${sidebarCollapsed ? "lg:justify-center" : ""}`}>
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#1d6a45] text-sm font-bold text-[#f0c35d]" aria-hidden="true">
-              {userDisplayName(user).split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}
-            </span>
+            <ProfileAvatar
+              initials={userDisplayName(user).split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}
+              photoUpdatedAt={user.profilePhotoUpdatedAt}
+              size={36}
+              className="text-sm text-[#f0c35d]"
+            />
             <span className={`min-w-0 flex-1 ${sidebarCollapsed ? "lg:hidden" : ""}`}>
               <span className="block truncate text-xs font-semibold text-white">{userDisplayName(user)}</span>
               <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-wide text-slate-400">{user.role.toLowerCase()}</span>

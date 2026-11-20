@@ -13,15 +13,15 @@ import { mapReportCardError } from "../../../../../../features/report-card/compo
 export default function AdminStudentReportCardPage({ params }: { params: Promise<{ id: string }> }) {
   const [schoolYearId, setSchoolYearId] = useState<string | undefined>(undefined);
   const [includeUnreleased, setIncludeUnreleased] = useState(false);
-  const [resolvedId, setResolvedId] = useState<string | null>(null);
+  const [studentNo, setStudentNo] = useState<string | null>(null);
 
   useEffect(() => {
-    void params.then(({ id }) => setResolvedId(id));
+    void params.then(({ id }) => setStudentNo(id));
   }, [params]);
 
-  const reportCard = useStudentReportCard(resolvedId ?? "", schoolYearId, includeUnreleased);
+  const reportCard = useStudentReportCard(studentNo ?? "", schoolYearId, includeUnreleased);
 
-  if (!resolvedId) {
+  if (!studentNo) {
     return <div className="h-32 animate-pulse rounded-xl bg-slate-200" />;
   }
 
@@ -34,7 +34,7 @@ export default function AdminStudentReportCardPage({ params }: { params: Promise
               <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">Student report card</p>
               <h1 className="mt-1 text-3xl font-bold text-slate-900">Student report card</h1>
             </div>
-            <Link href={`/admin/students/${resolvedId}`} className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-700">
+            <Link href={`/admin/students/${encodeURIComponent(studentNo)}`} className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-700">
               <ArrowLeft size={17} aria-hidden="true" /> Back to student
             </Link>
           </div>

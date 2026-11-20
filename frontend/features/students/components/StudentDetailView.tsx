@@ -58,31 +58,35 @@ export function StudentDetailView({ id }: Readonly<{ id: string }>) {
     const notFound = query.error instanceof ApiError && query.error.status === 404;
     return (
       <div className="mx-auto flex min-h-[65vh] max-w-5xl items-center justify-center">
-        <section className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm sm:p-10">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 text-[#b17d00]">
+        <section role="alert" className="w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-7 text-center shadow-xl shadow-slate-900/5 sm:p-10">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-50 text-amber-800 ring-1 ring-amber-200 dark:text-amber-300 dark:ring-amber-700">
             <ShieldAlert size={26} aria-hidden="true" />
           </div>
-          <h1 className="mt-5 text-xl font-bold tracking-tight text-[#0d412e]">Could not load student information</h1>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-600">
+          <p className="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Student profile</p>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
+            {notFound ? "Student record not found" : "We couldn’t load this student"}
+          </h1>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-600">
             {notFound
-              ? "We couldn't find a student record at this address. It may have been removed, or the link may be incorrect."
+              ? "We couldn’t find a record for this student number. Check the number or return to the student list."
               : "The student record could not be retrieved right now. Check your connection and try again."}
           </p>
-          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+          <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
             <button
               type="button"
               onClick={() => void query.refetch()}
               disabled={query.isFetching}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#0d412e] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#135b3b] disabled:cursor-wait disabled:opacity-70"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#0d412e] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#135b3b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d6a45] disabled:cursor-wait disabled:opacity-70"
             >
               {query.isFetching && <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />}
-              Retry
+              {query.isFetching ? "Trying again…" : "Try again"}
             </button>
             <Link
               href="/admin/students"
-              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d6a45]"
             >
-              Back to Students List
+              <ArrowLeft size={16} aria-hidden="true" />
+              Back to students
             </Link>
           </div>
         </section>
@@ -344,7 +348,7 @@ function AcademicPanel({
             <p className="mt-2 text-sm leading-6 text-slate-700">Review released subject grades and term attendance for this student.</p>
           </div>
           <Link
-            href={`/admin/students/${encodeURIComponent(student.id)}/report-card`}
+            href={`/admin/students/${encodeURIComponent(student.studentNo)}/report-card`}
             className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#0d412e] px-4 text-sm font-semibold text-white transition hover:bg-[#135b3b]"
           >
             <BookOpen size={16} aria-hidden="true" />
@@ -418,7 +422,7 @@ function GradesSummary({ data }: Readonly<{ data: ReportCard }>) {
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">School year {data.schoolYear.name}</p>
           <h2 className="mt-1 text-xl font-bold text-[#102747]">Subject grades</h2>
         </div>
-        <Link href={`/admin/students/${encodeURIComponent(data.student.id)}/report-card`} className="text-sm font-semibold text-[#1d6a45] hover:underline">View full report card</Link>
+        <Link href={`/admin/students/${encodeURIComponent(data.student.studentNo)}/report-card`} className="text-sm font-semibold text-[#1d6a45] hover:underline">View full report card</Link>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <Metric label="Subjects" value={String(data.summary.subjectCount)} />

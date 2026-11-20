@@ -28,10 +28,10 @@ export default function TeacherStudentReportCardPage({ params }: { params: Promi
         <div className="mx-auto max-w-6xl space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">Report card</p>
+              <p className="text-sm font-semibold uppercase tracking-wide text-[#1d6a45] dark:text-[#dfeee4]">Report card</p>
               <h1 className="mt-1 text-3xl font-bold text-slate-900">Student report card</h1>
             </div>
-            <Link href="/teacher/advisory/report-cards" className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-700">
+            <Link href="/teacher/advisory/report-cards" className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-[#1d6a45] dark:text-slate-300 dark:hover:text-[#dfeee4]">
               <ArrowLeft size={17} aria-hidden="true" /> Back to advisory report cards
             </Link>
           </div>

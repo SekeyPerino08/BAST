@@ -8,6 +8,10 @@ const cookieOptions = {
   sameSite: env.COOKIE_SAMESITE,
   path: "/",
 };
+const passwordResetCookieOptions = {
+  ...cookieOptions,
+  path: "/",
+};
 
 export function setAuthCookie(res: Response, token: string): void {
   res.cookie(env.COOKIE_NAME, token, {
@@ -18,4 +22,15 @@ export function setAuthCookie(res: Response, token: string): void {
 
 export function clearAuthCookie(res: Response): void {
   res.clearCookie(env.COOKIE_NAME, cookieOptions);
+}
+
+export function setPasswordResetCookie(res: Response, token: string): void {
+  res.cookie("password_reset_session", token, {
+    ...passwordResetCookieOptions,
+    maxAge: 10 * 60 * 1000,
+  });
+}
+
+export function clearPasswordResetCookie(res: Response): void {
+  res.clearCookie("password_reset_session", passwordResetCookieOptions);
 }

@@ -4,19 +4,28 @@ import type {
   LoginBody,
   PasswordResetCompleteBody,
   PasswordResetRequestBody,
+  VerifyPasswordResetCodeBody,
 } from "../schemas/auth.schema.js";
 import { audit } from "../audit.js";
 import { logAudit } from "../services/audit.service.js";
 import { prisma } from "../lib/prisma.js";
+import { AppError } from "../utils/AppError.js";
 import {
   changePassword,
   completePasswordReset,
+  getPasswordResetSession,
   getAuthUser,
   login,
   logoutAll,
   requestPasswordReset,
+  verifyPasswordResetCode,
 } from "../services/auth.service.js";
-import { clearAuthCookie, setAuthCookie } from "../utils/cookies.js";
+import {
+  clearAuthCookie,
+  clearPasswordResetCookie,
+  setAuthCookie,
+  setPasswordResetCookie,
+} from "../utils/cookies.js";
 
 export const loginController: RequestHandler<object, unknown, LoginBody> = async (req, res, next) => {
   try {
@@ -40,16 +49,52 @@ export const requestPasswordResetController: RequestHandler<object, unknown, Pas
   }
 };
 
+export const verifyPasswordResetCodeController: RequestHandler<
+  object,
+  unknown,
+  VerifyPasswordResetCodeBody
+> = async (req, res, next) => {
+  try {
+    const sessionToken = await verifyPasswordResetCode(req.body.email, req.body.code);
+    setPasswordResetCookie(res, sessionToken);
+    res.status(200).json({ message: "Verification succeeded." });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const passwordResetSessionController: RequestHandler = async (req, res, next) => {
+  try {
+    const sessionToken = req.cookies?.password_reset_session;
+    await getPasswordResetSession(typeof sessionToken === "string" ? sessionToken : "");
+    res.status(200).json({ verified: true });
+  } catch (error) {
+    if (error instanceof AppError && error.code === "INVALID_PASSWORD_RESET_SESSION") {
+      clearPasswordResetCookie(res);
+    }
+    next(error);
+  }
+};
+
 export const completePasswordResetController: RequestHandler<object, unknown, PasswordResetCompleteBody> = async (
   req,
   res,
   next,
 ) => {
   try {
-    await completePasswordReset(req.body.token, req.body.newPassword, req);
+    const sessionToken = req.cookies?.password_reset_session;
+    await completePasswordReset(
+      req.body.newPassword,
+      typeof sessionToken === "string" ? sessionToken : "",
+      req,
+    );
     clearAuthCookie(res);
+    clearPasswordResetCookie(res);
     res.status(204).end();
   } catch (error) {
+    if (error instanceof AppError && error.code === "INVALID_PASSWORD_RESET_SESSION") {
+      clearPasswordResetCookie(res);
+    }
     next(error);
   }
 };

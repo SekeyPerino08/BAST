@@ -3,6 +3,7 @@ import { env } from "../config/env.js";
 
 const allowedOrigins = new Set(env.CORS_ORIGIN);
 const multipartImportPath = "/imports/preview";
+const multipartProfilePath = "/me/profile";
 
 function originFromReferer(referer: string): string | undefined {
   try {
@@ -35,8 +36,13 @@ export const csrfGuard: RequestHandler = (req, res, next) => {
   }
 
   const hasBody = Number(req.get("Content-Length") ?? 0) > 0 || Boolean(req.get("Transfer-Encoding"));
-  const isMultipartImport = req.path.toLowerCase() === multipartImportPath && req.is("multipart/form-data");
-  if (hasBody && !isMultipartImport && !req.is("application/json")) {
+  const isMultipartImport = req.method === "POST"
+    && req.path.toLowerCase() === multipartImportPath
+    && req.is("multipart/form-data");
+  const isMultipartProfile = req.method === "PATCH"
+    && req.path.toLowerCase() === multipartProfilePath
+    && req.is("multipart/form-data");
+  if (hasBody && !isMultipartImport && !isMultipartProfile && !req.is("application/json")) {
     res.status(415).json({
       code: "UNSUPPORTED_MEDIA_TYPE",
       message: "Requests with a body must use application/json",

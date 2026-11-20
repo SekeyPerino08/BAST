@@ -50,16 +50,16 @@ export default function StudentReportCardPage() {
         <div className="mx-auto max-w-6xl space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">Student report card</p>
-              <h1 className="mt-1 text-3xl font-bold text-slate-900">My report card</h1>
+              <p className="text-sm font-semibold uppercase tracking-wide text-[#1d6a45] dark:text-[#dfeee4]">Student report card</p>
+              <h1 className="mt-1 text-3xl font-bold text-slate-900 dark:text-white">My report card</h1>
             </div>
-            <Link href="/student" className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-700">
+            <Link href="/student" className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-[#1d6a45] dark:text-slate-300 dark:hover:text-[#dfeee4]">
               <ArrowLeft size={17} aria-hidden="true" /> Back to dashboard
             </Link>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <label className="flex flex-col gap-2 text-sm text-slate-700">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <label className="flex flex-col gap-2 text-sm text-slate-700 dark:text-slate-200">
               <span className="font-semibold">School year</span>
               <select
                 value={selectedId ?? ""}
@@ -71,7 +71,7 @@ export default function StudentReportCardPage() {
                   else url.searchParams.delete("schoolYearId");
                   window.history.replaceState(null, "", url);
                 }}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none ring-0 focus:border-indigo-500"
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none ring-0 focus:border-[#1d6a45] dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
               >
                 {availableYears.length ? (
                   availableYears.map((year) => (
