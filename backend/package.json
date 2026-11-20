@@ -13,6 +13,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "seed": "prisma db seed",
+    "seed:shs-sections": "tsx scripts/seed-shs-sections.ts",
     "test:unit": "tsx scripts/attendance.unit.ts && tsx scripts/grading.unit.ts && tsx scripts/report-card.unit.ts && tsx scripts/dashboard.unit.ts && tsx scripts/security-governance.unit.ts && tsx scripts/import-csv.unit.ts && tsx scripts/reports.unit.ts && tsx scripts/integrations.unit.ts && tsx scripts/audit.unit.ts",
     "test:security": "vitest run tests/security.test.ts",
     "test:types": "tsc --noEmit -p tsconfig.test.json",

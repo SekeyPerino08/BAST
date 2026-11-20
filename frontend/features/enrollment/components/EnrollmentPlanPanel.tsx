@@ -80,7 +80,7 @@ export function EnrollmentPlanPanel({ schoolYearId, onSchoolYearChange }: Readon
 }>) {
   const schoolYearsQuery = useSchoolYears();
   const planQuery = useEnrollmentPlan(schoolYearId ?? "");
-  const sectionsQuery = useSections({ page: 1, pageSize: 100, schoolYearId });
+  const sectionsQuery = useSections({ page: 1, pageSize: 100, schoolYearId }, Boolean(schoolYearId), false);
   const savePlan = useSaveEnrollmentPlan(schoolYearId ?? "");
   const [savedDraft, setSavedDraft] = useState<{ schoolYearId: string; updatedAt: number; value: PlanDraft } | null>(null);
   const draft = planQuery.data?.data

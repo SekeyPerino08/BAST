@@ -40,7 +40,6 @@ export function useEnrollments(params: EnrollmentListParams, enabled = true) {
     queryKey: enrollmentKeys.list(params),
     queryFn: () => fetchEnrollments(params),
     enabled,
-    placeholderData: (previous) => previous,
   });
 }
 
@@ -49,7 +48,6 @@ export function useUnassignedStudents(params: UnassignedParams, enabled = true) 
     queryKey: enrollmentKeys.unassigned(params),
     queryFn: () => fetchUnassignedStudents(params),
     enabled,
-    placeholderData: (previous) => previous,
   });
 }
 

@@ -34,7 +34,7 @@ export async function audit(client: AuditClient, req: AuditRequest, input: Audit
   const actor = req.user;
   if (input.action.startsWith("VIEW_") && actor && input.studentId) {
     const lockKey = `${actor.id}:${input.studentId}`;
-    await client.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+    await client.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))::text`;
     const recentView = await client.auditEntry.findFirst({
       where: {
         actorUserId: actor.id,

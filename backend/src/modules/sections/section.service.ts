@@ -107,7 +107,7 @@ export async function listSections(rawQuery: unknown) {
       where,
       skip,
       take,
-      orderBy: [{ gradeLevel: "asc" }, { name: "asc" }],
+      orderBy: [{ gradeLevel: "asc" }, { strand: "asc" }, { name: "asc" }],
       include: {
         schoolYear: { select: { id: true, name: true, isCurrent: true } },
         adviser: { select: { id: true, employeeNo: true, firstName: true, middleName: true, lastName: true } },
@@ -227,7 +227,7 @@ export async function updateSection(id: string, input: UpdateSectionInput, reque
       adviserContext = { adviserId, schoolYearId };
       await assertAdviserAvailable(transaction, adviserId, schoolYearId, id);
       if (input.capacity !== undefined) {
-        await transaction.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${id})::bigint)`;
+        await transaction.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${id})::bigint)::text`;
         const latestEnrollmentCount = await transaction.enrollment.count({
           where: { sectionId: id, status: EnrollmentStatus.ENROLLED },
         });

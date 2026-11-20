@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Check, Search, Users } from "lucide-react";
 import { toast } from "sonner";
+import { ApiError } from "../../../lib/api";
 import { useUrlState } from "../../../hooks/useUrlState";
 import { DataTablePagination, EmptyState, ErrorState, Modal, StatusBadge, TableSkeleton } from "../../../components/shared";
 import { useCurrentSchoolYear, useSchoolYears } from "../../school-years/hooks";
 import { useSections } from "../../sections/hooks";
+import type { Section } from "../../sections/types";
 import { useBulkEnroll, useEnrollments, useUnassignedStudents } from "../hooks";
 import type { EnrollmentRecord, UnassignedStudent } from "../types";
 import { EnrollmentPlanPanel } from "./EnrollmentPlanPanel";
@@ -22,7 +24,7 @@ export function EnrollmentPage() {
   const currentYear = useCurrentSchoolYear();
   const schoolYears = useSchoolYears();
   const schoolYearId = values.schoolYearId || currentYear.data?.data.id;
-  const sectionsQuery = useSections({ page: 1, pageSize: 100, schoolYearId });
+  const sectionsQuery = useSections({ page: 1, pageSize: 100, schoolYearId }, Boolean(schoolYearId), false);
   const sections = useMemo(() => sectionsQuery.data?.data ?? [], [sectionsQuery.data?.data]);
   const selectedSection = sections.find((section) => section.id === values.sectionId);
   const [tab, setTab] = useState<"enrolled" | "add">("enrolled");
@@ -53,10 +55,11 @@ export function EnrollmentPage() {
     }
   }, [currentYear.data?.data.id, update, values.schoolYearId]);
   useEffect(() => {
-    if (values.sectionId && !sections.some((section) => section.id === values.sectionId)) {
+    if (schoolYearId && !sectionsQuery.isFetching && !sectionsQuery.isError
+      && values.sectionId && !sections.some((section) => section.id === values.sectionId)) {
       update({ sectionId: null }, false);
     }
-  }, [sections, update, values.sectionId]);
+  }, [schoolYearId, sections, sectionsQuery.isError, sectionsQuery.isFetching, update, values.sectionId]);
 
   function changeTab(next: "enrolled" | "add") {
     setTab(next);
@@ -107,12 +110,13 @@ export function EnrollmentPage() {
         reason: friendlySkippedReason(item.code, item.reason),
       }));
       setBulkResults({ enrolledCount: result.enrolled.length, skipped });
-      const retryableIds = result.skipped.filter(({ code }) => code === "STUDENT_NOT_ACTIVE").map(({ studentId }) => studentId);
-      setSelected(new Set(retryableIds));
-      setSelectedNames(Object.fromEntries(retryableIds.map((studentId) => [studentId, selectedNames[studentId] ?? studentId])));
-      toast.success(`${result.enrolled.length} student${result.enrolled.length === 1 ? "" : "s"} enrolled`);
-    } catch {
-      toast.error("Could not enroll selected students. Please try again.");
+      setSelected(new Set());
+      setSelectedNames({});
+      setTab("enrolled");
+      update({ page: 1 }, false);
+      toast.success(`${result.enrolled.length} student${result.enrolled.length === 1 ? "" : "s"} enrolled in ${selectedSection.name}`);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Could not enroll selected students. Please try again.");
     }
   }
 
@@ -126,7 +130,7 @@ export function EnrollmentPage() {
     </header>
     {pageView === "plan" ? <EnrollmentPlanPanel
       schoolYearId={schoolYearId}
-      onSchoolYearChange={(id) => update({ schoolYearId: id || null, sectionId: null })}
+      onSchoolYearChange={(id) => { setSelected(new Set()); setSelectedNames({}); update({ schoolYearId: id || null, sectionId: null }); }}
     /> : <>
     <section className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2">
       <label className="block text-sm font-medium text-slate-700">School year
@@ -135,14 +139,26 @@ export function EnrollmentPage() {
         </select>
       </label>
       <label className="block text-sm font-medium text-slate-700">Section
-        <select value={selectedSection?.id ?? ""} onChange={(event) => { setSelected(new Set()); setSelectedNames({}); update({ sectionId: event.target.value || null }); }} className={`${inputClass} mt-1`} disabled={!schoolYearId || sectionsQuery.isLoading}>
-          <option value="">Select section</option>
+        <select value={selectedSection?.id ?? ""} onChange={(event) => { setSelected(new Set()); setSelectedNames({}); update({ sectionId: event.target.value || null }); }} className={`${inputClass} mt-1`} disabled={!schoolYearId || sectionsQuery.isFetching || sectionsQuery.isError}>
+          <option value="">{!schoolYearId ? "Select school year" : sectionsQuery.isFetching ? "Loading sections..." : "Select section"}</option>
           {[7, 8, 9, 10, 11, 12].map((grade) => {
             const gradeSections = sections.filter((section) => section.gradeLevel === grade);
-            return gradeSections.length ? <optgroup key={grade} label={`Grade ${grade}`}>{gradeSections.map((section) => <option key={section.id} value={section.id}>{section.name}</option>)}</optgroup> : null;
+            return gradeSections.length ? <optgroup key={grade} label={`Grade ${grade}`}>{gradeSections.map((section) => <option key={section.id} value={section.id}>{sectionLabel(section)}</option>)}</optgroup> : null;
           })}
         </select>
       </label>
+      {sectionsQuery.isError && <div className="sm:col-span-2 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800" role="alert">
+        <p className="font-semibold">Could not load sections for this school year.</p>
+        <p className="mt-1">{sectionsQuery.error instanceof Error ? sectionsQuery.error.message : "Please try again."}</p>
+        <button type="button" onClick={() => void sectionsQuery.refetch()} className="mt-2 font-semibold underline">Retry</button>
+      </div>}
+      {schoolYearId && !sectionsQuery.isError && !sectionsQuery.isFetching && sections.length === 0 && <div className="sm:col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="status">
+        <p>No sections found for this school year. Create sections in Plan &amp; capacity or use the Sections page.</p>
+        <div className="mt-2 flex flex-wrap gap-4">
+          <button type="button" onClick={() => setPageView("plan")} className="font-semibold underline">Open Plan &amp; capacity</button>
+          <Link href={`/admin/sections?schoolYearId=${encodeURIComponent(schoolYearId)}`} className="font-semibold underline">Create sections</Link>
+        </div>
+      </div>}
     </section>
 
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -199,6 +215,17 @@ function friendlySkippedReason(code?: string, reason?: string) {
 }
 function studentName(student: { firstName: string; middleName: string | null; lastName: string }) {
   return `${student.lastName}, ${student.firstName}${student.middleName ? ` ${student.middleName.charAt(0)}.` : ""}`;
+}
+function sectionLabel(section: Section) {
+  const strand = section.strand === "TVL_ICT" ? "TVL-ICT" : section.strand;
+  const gradeLabel = `Grade ${section.gradeLevel}${strand ? ` - ${strand}` : ""}`;
+  const enrollmentCount = section._count?.enrollments;
+  const countLabel = enrollmentCount === undefined
+    ? ""
+    : section.capacity === null
+      ? ` · ${enrollmentCount} enrolled`
+      : ` · ${enrollmentCount}/${section.capacity}`;
+  return `${section.name} (${gradeLabel})${countLabel}`;
 }
 function humanSex(sex: "MALE" | "FEMALE") { return sex === "MALE" ? "Male" : "Female"; }
 function formatDate(value: string) {
