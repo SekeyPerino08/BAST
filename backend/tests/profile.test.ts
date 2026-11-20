@@ -1,6 +1,7 @@
 import express from "express";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
+import { csrfGuard } from "../src/middleware/csrfGuard.js";
 import { updateMyProfileSchema } from "../src/modules/me/me.schema.js";
 
 const { serviceMocks } = vi.hoisted(() => ({
@@ -47,6 +48,7 @@ const validProfile = {
 
 function createTestApp() {
   const app = express();
+  app.use("/api", csrfGuard);
   app.use("/api/me", meRouter);
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const status = error && typeof error === "object" && "statusCode" in error
@@ -97,6 +99,7 @@ describe("PATCH /api/me/profile", () => {
 
     const response = await request(createTestApp())
       .patch("/api/me/profile")
+      .set("Origin", "http://localhost:3000")
       .field(validProfile)
       .expect(200);
 
@@ -109,12 +112,58 @@ describe("PATCH /api/me/profile", () => {
     expect(response.body.firstName).toBe("Ana");
   });
 
+  it("accepts a profile photo with multipart text fields", async () => {
+    serviceMocks.updateMyProfile.mockResolvedValueOnce({
+      firstName: "Ana",
+      middleName: null,
+      lastName: "Dela Cruz",
+      phoneNumber: "+639171234567",
+      dateOfBirth: "2000-01-15",
+      sex: "FEMALE",
+      address: "Quezon City",
+      hasPhoto: true,
+      photoUpdatedAt: "2026-11-20T12:00:00.000Z",
+    });
+
+    await request(createTestApp())
+      .patch("/api/me/profile")
+      .set("Origin", "http://localhost:3000")
+      .field(validProfile)
+      .attach("photo", Buffer.from("test-image"), {
+        filename: "profile.png",
+        contentType: "image/png",
+      })
+      .expect(200);
+
+    expect(serviceMocks.updateMyProfile).toHaveBeenCalledWith(
+      "session-owner",
+      expect.objectContaining({ firstName: "Ana", removePhoto: false }),
+      expect.objectContaining({ originalname: "profile.png", mimetype: "image/png" }),
+      expect.objectContaining({ user: expect.objectContaining({ id: "session-owner" }) }),
+    );
+  });
+
   it("rejects attempts to choose another user account", async () => {
     await request(createTestApp())
       .patch("/api/me/profile")
+      .set("Origin", "http://localhost:3000")
       .field({ ...validProfile, userId: "someone-else" })
       .expect(400);
 
     expect(serviceMocks.updateMyProfile).not.toHaveBeenCalled();
+  });
+
+  it("rejects multipart requests outside the profile and import endpoints", async () => {
+    await request(createTestApp())
+      .post("/api/me/not-a-profile-endpoint")
+      .set("Origin", "http://localhost:3000")
+      .field("value", "unexpected")
+      .expect(415);
+
+    await request(createTestApp())
+      .put("/api/me/profile")
+      .set("Origin", "http://localhost:3000")
+      .field("value", "unexpected")
+      .expect(415);
   });
 });

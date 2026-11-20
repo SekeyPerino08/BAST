@@ -907,5 +907,5 @@ export async function updateMyProfile(
       ...after,
       photoUpdatedAt: savedProfile.photoMime ? savedProfile.updatedAt.toISOString() : null,
     };
-  });
+  }, { timeout: 30_000 });
 }

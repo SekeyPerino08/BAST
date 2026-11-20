@@ -24,6 +24,7 @@ import {
   getStudentAlumniController,
   getStudentLibraryController,
   getStudentLmsController,
+  exportLibraryLoansController,
   listLibraryLoansController,
 } from "../integrations/integration.controller.js";
 
@@ -32,6 +33,7 @@ studentRouter.param("id", validateIdParams("id"));
 studentRouter.param("studentNo", validateStudentNumberParams("studentNo"));
 
 studentRouter.use(authenticate);
+studentRouter.get("/library-loans/export.csv", authorize(Role.ADMIN, Role.TEACHER), exportLibraryLoansController);
 studentRouter.get("/library-loans", authorize(Role.ADMIN, Role.TEACHER), listLibraryLoansController);
 studentRouter.get("/:id/lms", authorize(Role.ADMIN, Role.TEACHER, Role.STUDENT, Role.ALUMNI), getStudentLmsController);
 studentRouter.get("/:id/library", authorize(Role.ADMIN, Role.TEACHER, Role.STUDENT, Role.ALUMNI), getStudentLibraryController);

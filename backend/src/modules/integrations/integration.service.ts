@@ -5,6 +5,7 @@ import {
   LmsEventType,
   Prisma,
   Role,
+  SeniorHighStrand,
   StudentStatus,
 } from "@prisma/client";
 import type { Request } from "express";
@@ -12,8 +13,9 @@ import { z } from "zod";
 import { audit } from "../../audit.js";
 import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../utils/AppError.js";
+import { writeCsv } from "../../utils/csv.js";
 import { buildPaginationMeta } from "../../utils/pagination.js";
-import { parseDateString, todayInManila } from "../../utils/dates.js";
+import { formatDateString, parseDateString, todayInManila } from "../../utils/dates.js";
 import {
   alumniRecordSchema,
   libraryLoanSchema,
@@ -268,6 +270,7 @@ async function findScopedStudent(id: string, user: IntegrationUser) {
     const teacher = await prisma.teacher.findUnique({ where: { userId: user.id }, select: { id: true } });
     scope = teacher
       ? {
+          status: StudentStatus.ACTIVE,
           enrollments: {
             some: {
               status: EnrollmentStatus.ENROLLED,
@@ -334,42 +337,98 @@ export async function getStudentLibrary(id: string, user: IntegrationUser) {
   }));
 }
 
+const daysOverdueRanges = ["ANY", "1_7", "8_30", "31_PLUS"] as const;
 const libraryLoanListQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(25),
   status: z.enum(["ALL", "BORROWED", "OVERDUE", "RETURNED"]).default("ALL"),
   search: z.string().trim().max(100).optional(),
+  strand: z.nativeEnum(SeniorHighStrand).optional(),
+  gradeLevel: z.coerce.number().int().min(11).max(12).optional(),
+  sectionId: z.string().trim().min(1).max(100).optional(),
+  daysOverdue: z.enum(daysOverdueRanges).default("ANY"),
+  sortBy: z.enum(["DAYS_OVERDUE_ASC", "DAYS_OVERDUE_DESC"]).default("DAYS_OVERDUE_DESC"),
 });
 
-export async function listLibraryLoans(rawQuery: unknown, user: IntegrationUser) {
+const millisecondsPerDay = 24 * 60 * 60 * 1000;
+
+function dateOffset(date: Date, days: number): Date {
+  return new Date(date.getTime() + days * millisecondsPerDay);
+}
+
+function daysOverdueWhere(range: z.infer<typeof libraryLoanListQuerySchema>["daysOverdue"], today: Date): Prisma.LibraryLoanWhereInput {
+  if (range === "1_7") {
+    return { returnedOn: null, dueOn: { gte: dateOffset(today, -7), lt: today } };
+  }
+  if (range === "8_30") {
+    return { returnedOn: null, dueOn: { gte: dateOffset(today, -30), lt: dateOffset(today, -7) } };
+  }
+  if (range === "31_PLUS") {
+    return { returnedOn: null, dueOn: { lt: dateOffset(today, -30) } };
+  }
+  return {};
+}
+
+function overdueDayCount(dueOn: Date, returnedOn: Date | null, today: Date): number {
+  if (returnedOn || dueOn >= today) return 0;
+  return Math.floor((today.getTime() - dueOn.getTime()) / millisecondsPerDay);
+}
+
+async function libraryLoanQuery(rawQuery: unknown, user: IntegrationUser) {
   const query = parse(libraryLoanListQuerySchema, rawQuery);
   const today = parseDateString(todayInManila());
-  const studentScope: Prisma.LibraryLoanWhereInput = {};
+  let teacherId: string | undefined;
   if (user.role === Role.TEACHER) {
     const teacher = await prisma.teacher.findUnique({ where: { userId: user.id }, select: { id: true } });
     if (!teacher) throw new AppError("Teacher profile not found", 404, "TEACHER_PROFILE_NOT_FOUND");
-    studentScope.student = {
-      is: {
-        enrollments: {
-          some: {
-            status: EnrollmentStatus.ENROLLED,
-            schoolYear: { is: { isCurrent: true } },
-            section: { is: { adviserId: teacher.id } },
-          },
-        },
-      },
-    };
+    teacherId = teacher.id;
   } else if (user.role !== Role.ADMIN) {
     throw new AppError("Not authorized to view the library loan list", 403, "FORBIDDEN");
   }
 
+  const sectionFilter: Prisma.SectionWhereInput = {
+    ...(teacherId ? { adviserId: teacherId } : {}),
+    ...(query.sectionId ? { id: query.sectionId } : {}),
+    ...(query.gradeLevel ? { gradeLevel: query.gradeLevel } : {}),
+    ...(query.strand ? { strand: query.strand } : {}),
+  };
+  const currentEnrollmentWhere: Prisma.EnrollmentWhereInput = {
+    status: EnrollmentStatus.ENROLLED,
+    schoolYear: { is: { isCurrent: true } },
+    section: { is: sectionFilter },
+  };
+  const hasSectionScope = Boolean(teacherId || query.sectionId || query.gradeLevel || query.strand);
+  const studentScope: Prisma.LibraryLoanWhereInput = hasSectionScope
+    ? {
+        student: {
+          is: {
+            ...(teacherId ? { status: StudentStatus.ACTIVE } : {}),
+            enrollments: { some: currentEnrollmentWhere },
+          },
+        },
+      }
+    : {};
+
   const search = query.search?.trim();
-  const searchWhere: Prisma.LibraryLoanWhereInput = search ? {
+  const searchTerms = search?.split(/\s+/).filter(Boolean) ?? [];
+  const searchWhere: Prisma.LibraryLoanWhereInput = searchTerms.length ? {
     OR: [
       { bookTitle: { contains: search, mode: "insensitive" } },
+      { student: { is: { id: search } } },
       { student: { is: { studentNo: { contains: search, mode: "insensitive" } } } },
-      { student: { is: { firstName: { contains: search, mode: "insensitive" } } } },
-      { student: { is: { lastName: { contains: search, mode: "insensitive" } } } },
+      {
+        student: {
+          is: {
+            AND: searchTerms.map((term) => ({
+              OR: [
+                { firstName: { contains: term, mode: "insensitive" } },
+                { middleName: { contains: term, mode: "insensitive" } },
+                { lastName: { contains: term, mode: "insensitive" } },
+              ],
+            })),
+          },
+        },
+      },
     ],
   } : {};
   const statusWhere: Prisma.LibraryLoanWhereInput = query.status === "OVERDUE"
@@ -377,35 +436,213 @@ export async function listLibraryLoans(rawQuery: unknown, user: IntegrationUser)
     : query.status === "BORROWED"
       ? { returnedOn: null, dueOn: { gte: today } }
       : query.status === "RETURNED" ? { returnedOn: { not: null } } : {};
-  const where: Prisma.LibraryLoanWhereInput = { AND: [studentScope, searchWhere, statusWhere] };
-  const [loans, total, borrowed, overdue, returned] = await Promise.all([
+  const rangeWhere = daysOverdueWhere(query.daysOverdue, today);
+  const baseWhere = { AND: [studentScope, searchWhere] } satisfies Prisma.LibraryLoanWhereInput;
+  const where: Prisma.LibraryLoanWhereInput = { AND: [baseWhere, statusWhere, rangeWhere] };
+  const overdueWhere: Prisma.LibraryLoanWhereInput = {
+    AND: [baseWhere, { returnedOn: null, dueOn: { lt: today } }, rangeWhere],
+  };
+  const sectionFacetsWhere: Prisma.SectionWhereInput = {
+    schoolYear: { is: { isCurrent: true } },
+    ...(teacherId ? { adviserId: teacherId } : {}),
+  };
+  return {
+    query,
+    today,
+    where,
+    overdueWhere,
+    baseWhere,
+    currentEnrollmentWhere,
+    sectionFacetsWhere,
+    sortOrder: query.sortBy === "DAYS_OVERDUE_ASC" ? "desc" as const : "asc" as const,
+  };
+}
+
+export async function listLibraryLoans(rawQuery: unknown, user: IntegrationUser) {
+  const context = await libraryLoanQuery(rawQuery, user);
+  const { query, today, where, overdueWhere, baseWhere, currentEnrollmentWhere, sectionFacetsWhere, sortOrder } = context;
+  const [loans, total, borrowed, overdue, returned, overdueStudents, sections] = await Promise.all([
     prisma.libraryLoan.findMany({
       where,
       skip: (query.page - 1) * query.pageSize,
       take: query.pageSize,
-      orderBy: [{ returnedOn: "asc" }, { dueOn: "asc" }, { id: "asc" }],
+      orderBy: [{ returnedOn: "asc" }, { dueOn: sortOrder }, { id: "asc" }],
       select: {
         id: true,
         bookTitle: true,
         loanedOn: true,
         dueOn: true,
         returnedOn: true,
-        student: { select: { id: true, studentNo: true, firstName: true, middleName: true, lastName: true } },
+        student: {
+          select: {
+            id: true,
+            studentNo: true,
+            firstName: true,
+            middleName: true,
+            lastName: true,
+            enrollments: {
+              where: currentEnrollmentWhere,
+              take: 1,
+              select: {
+                section: {
+                  select: {
+                    id: true,
+                    name: true,
+                    gradeLevel: true,
+                    strand: true,
+                    adviser: { select: { firstName: true, middleName: true, lastName: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     }),
     prisma.libraryLoan.count({ where }),
-    prisma.libraryLoan.count({ where: { AND: [studentScope, { returnedOn: null, dueOn: { gte: today } }] } }),
-    prisma.libraryLoan.count({ where: { AND: [studentScope, { returnedOn: null, dueOn: { lt: today } }] } }),
-    prisma.libraryLoan.count({ where: { AND: [studentScope, { returnedOn: { not: null } }] } }),
+    prisma.libraryLoan.count({ where: { AND: [baseWhere, { returnedOn: null, dueOn: { gte: today } }] } }),
+    prisma.libraryLoan.count({ where: overdueWhere }),
+    prisma.libraryLoan.count({ where: { AND: [baseWhere, { returnedOn: { not: null } }] } }),
+    prisma.libraryLoan.groupBy({ by: ["studentId"], where: overdueWhere }),
+    prisma.section.findMany({
+      where: sectionFacetsWhere,
+      orderBy: [{ gradeLevel: "asc" }, { name: "asc" }],
+      select: { id: true, name: true, gradeLevel: true, strand: true },
+    }),
   ]);
   return {
-    data: loans.map((loan) => ({
-      ...loan,
-      status: loan.returnedOn ? "Returned" : loan.dueOn < today ? "Overdue" : "Borrowed",
-    })),
+    data: loans.map((loan) => {
+      const section = loan.student.enrollments[0]?.section ?? null;
+      return {
+        id: loan.id,
+        bookTitle: loan.bookTitle,
+        loanedOn: loan.loanedOn,
+        dueOn: loan.dueOn,
+        returnedOn: loan.returnedOn,
+        status: loan.returnedOn ? "Returned" : loan.dueOn < today ? "Overdue" : "Borrowed",
+        daysOverdue: overdueDayCount(loan.dueOn, loan.returnedOn, today),
+        student: {
+          id: loan.student.id,
+          studentNo: loan.student.studentNo,
+          firstName: loan.student.firstName,
+          middleName: loan.student.middleName,
+          lastName: loan.student.lastName,
+          section: section ? {
+            id: section.id,
+            name: section.name,
+            gradeLevel: section.gradeLevel,
+            strand: section.strand,
+          } : null,
+          adviser: section?.adviser ?? null,
+        },
+      };
+    }),
     meta: buildPaginationMeta(query.page, query.pageSize, total),
-    summary: { borrowed, overdue, returned },
+    summary: {
+      borrowed,
+      overdue,
+      overdueStudents: overdueStudents.length,
+      overdueItems: overdue,
+      returned,
+    },
+    filters: {
+      strands: Object.values(SeniorHighStrand),
+      gradeLevels: [11, 12],
+      sections,
+    },
   };
+}
+
+export async function exportLibraryLoans(
+  rawQuery: unknown,
+  user: IntegrationUser,
+  request: Pick<Request, "user" | "ip">,
+): Promise<string> {
+  const { query, today, where, currentEnrollmentWhere, sortOrder } = await libraryLoanQuery(rawQuery, user);
+  const total = await prisma.libraryLoan.count({ where });
+  if (total > 10_000) {
+    throw new AppError("CSV export is limited to 10,000 items; narrow the filters.", 413, "EXPORT_TOO_LARGE");
+  }
+  const loans = await prisma.libraryLoan.findMany({
+    where,
+    take: total,
+    orderBy: [{ returnedOn: "asc" }, { dueOn: sortOrder }, { id: "asc" }],
+    select: {
+      bookTitle: true,
+      loanedOn: true,
+      dueOn: true,
+      returnedOn: true,
+      student: {
+        select: {
+          id: true,
+          studentNo: true,
+          firstName: true,
+          middleName: true,
+          lastName: true,
+          enrollments: {
+            where: currentEnrollmentWhere,
+            take: 1,
+            select: {
+              section: {
+                select: {
+                  name: true,
+                  gradeLevel: true,
+                  strand: true,
+                  adviser: { select: { firstName: true, middleName: true, lastName: true } },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+  if (user.role === Role.ADMIN) {
+    await audit(prisma, request, {
+      action: "EXPORT_LIBRARY_OVERDUE",
+      entityType: "LibraryLoan",
+      after: {
+        status: query.status,
+        strand: query.strand,
+        gradeLevel: query.gradeLevel,
+        sectionId: query.sectionId,
+        daysOverdue: query.daysOverdue,
+        sortBy: query.sortBy,
+        rows: loans.length,
+      },
+    });
+  }
+  const rows = loans.map((loan) => {
+    const section = loan.student.enrollments[0]?.section ?? null;
+    const studentName = [loan.student.firstName, loan.student.middleName, loan.student.lastName].filter(Boolean).join(" ");
+    const adviserName = section?.adviser
+      ? [section.adviser.firstName, section.adviser.middleName, section.adviser.lastName].filter(Boolean).join(" ")
+      : "";
+    return {
+      "Student Name": studentName,
+      "Student ID": loan.student.studentNo,
+      "Grade Level": section?.gradeLevel ?? "",
+      Strand: section?.strand ?? "",
+      Section: section?.name ?? "",
+      Adviser: adviserName,
+      "Book Title": loan.bookTitle,
+      "Borrow Date": formatDateString(loan.loanedOn),
+      "Due Date": formatDateString(loan.dueOn),
+      "Days Overdue": overdueDayCount(loan.dueOn, loan.returnedOn, today),
+    };
+  });
+  return writeCsv(rows, [
+    "Student Name",
+    "Student ID",
+    "Grade Level",
+    "Strand",
+    "Section",
+    "Adviser",
+    "Book Title",
+    "Borrow Date",
+    "Due Date",
+    "Days Overdue",
+  ]);
 }
 
 export async function getStudentAlumni(id: string, user: IntegrationUser) {
