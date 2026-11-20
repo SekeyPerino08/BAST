@@ -236,13 +236,16 @@ export function StudentsList() {
       columns.map(([, title]) => csvCell(title)).join(","),
       ...rows.map((item) => columns.map(([, , getValue]) => csvCell((getValue as (record: typeof item) => string)(item))).join(",")),
     ].join("\r\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const blob = new Blob([`\uFEFF${csv}\r\n`], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = "students-filtered-view.csv";
+    anchor.style.display = "none";
+    document.body.append(anchor);
     anchor.click();
-    URL.revokeObjectURL(url);
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     toast.success(`Exported ${rows.length} students`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not export the filtered student list");
@@ -252,7 +255,7 @@ export function StudentsList() {
 
 function csvCell(value: unknown): string {
   const text = value === null || value === undefined ? "" : String(value);
-  const safe = /^[=+\-@]/.test(text) ? `'${text}` : text;
+  const safe = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
   return `"${safe.replaceAll('"', '""')}"`;
 }
 
