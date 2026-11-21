@@ -15,6 +15,7 @@ interface GradeSheetResponse {
     descriptor: string | null;
     passing: boolean | null;
   }>;
+  defaultTermId: string | null;
   editableTermIds: string[];
 }
 
@@ -39,6 +40,7 @@ export function fetchClassGradeSheet(classOfferingId: string) {
       scores: Object.fromEntries(terms.map(({ termId, score }) => [termId, score])),
       remarks: Object.fromEntries(terms.map(({ termId, remarks }) => [termId, remarks])),
     })),
+    defaultTermId: response.defaultTermId,
     editableTermIds: response.editableTermIds,
   }));
 }

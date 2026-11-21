@@ -38,7 +38,10 @@ export function useStudent(id: string) {
 
 function useInvalidateStudents() {
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: studentQueryKeys.all });
+  return () => Promise.all([
+    queryClient.invalidateQueries({ queryKey: studentQueryKeys.all }),
+    queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+  ]);
 }
 
 export function useCreateStudent() {
@@ -74,6 +77,7 @@ export function useCreateStudentAccount() {
         { method: "POST", body: JSON.stringify(variables.input) },
       );
       await queryClient.invalidateQueries({ queryKey: studentQueryKeys.all });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       return result.data;
     } finally {
       setIsPending(false);

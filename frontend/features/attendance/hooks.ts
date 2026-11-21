@@ -31,6 +31,7 @@ export function useSaveAttendance(classOfferingId: string) {
         queryClient.invalidateQueries({ queryKey: attendanceKeys.sheet(classOfferingId, input.date) }),
         queryClient.invalidateQueries({ queryKey: attendanceKeys.dateLists(classOfferingId) }),
         queryClient.invalidateQueries({ queryKey: attendanceKeys.summaries(classOfferingId) }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
       ]);
     },
   });

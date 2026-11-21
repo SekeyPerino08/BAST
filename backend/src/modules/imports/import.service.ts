@@ -15,6 +15,7 @@ import { DEFAULT_PERSON_PASSWORD } from "../../services/account.service.js";
 import { logAudit } from "../../services/audit.service.js";
 import { AppError } from "../../utils/AppError.js";
 import { buildPaginationMeta, parsePagination } from "../../utils/pagination.js";
+import { invalidateAdminDashboardCache } from "../dashboard/dashboard.helpers.js";
 import { csvTemplate, rejectedRowsCsv } from "./etl/report.js";
 import { mapHeaders } from "./etl/mapHeaders.js";
 import { parseCsv } from "./etl/parse.js";
@@ -438,7 +439,7 @@ export async function commitImport(id: string, rawBody: unknown, request: Reques
   const passwordHash = await bcrypt.hash(DEFAULT_PERSON_PASSWORD, 12);
 
   try {
-    return await prisma.$transaction(async (transaction) => {
+    const committed = await prisma.$transaction(async (transaction) => {
       const claim = await transaction.importJob.updateMany({
         where: {
           id,
@@ -555,6 +556,8 @@ export async function commitImport(id: string, rawBody: unknown, request: Reques
       });
       return { ...summary(updated), result };
     }, { timeout: 30_000 });
+    invalidateAdminDashboardCache();
+    return committed;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === "P2002") {

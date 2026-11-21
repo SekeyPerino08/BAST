@@ -12,7 +12,13 @@ export function useSections(params: SectionParams, enabled = true, keepPreviousD
   });
 }
 export function useSection(id: string) { return useQuery({ queryKey: sectionKeys.detail(id), queryFn: async () => (await fetchSection(id)).data, enabled: Boolean(id) }); }
-function useInvalidateSections() { const client = useQueryClient(); return () => client.invalidateQueries({ queryKey: sectionKeys.all }); }
+function useInvalidateSections() {
+  const client = useQueryClient();
+  return () => Promise.all([
+    client.invalidateQueries({ queryKey: sectionKeys.all }),
+    client.invalidateQueries({ queryKey: ["dashboard"] }),
+  ]);
+}
 export function useCreateSection() { const invalidateQueries = useInvalidateSections(); return useMutation({ mutationFn: createSection, onSuccess: invalidateQueries }); }
 export function useUpdateSection() { const invalidateQueries = useInvalidateSections(); return useMutation({ mutationFn: ({ id, input }: { id: string; input: Partial<SectionInput> }) => updateSection(id, input), onSuccess: invalidateQueries }); }
 export function useDeleteSection() { const invalidateQueries = useInvalidateSections(); return useMutation({ mutationFn: deleteSection, onSuccess: invalidateQueries }); }

@@ -363,6 +363,10 @@ function parseDateString(value: string): Date {
   return date;
 }
 
+function attendanceDateCutoff(): Date {
+  return parseDateString(todayInManila());
+}
+
 export async function buildReportCard(
   studentId: string,
   schoolYearIdInput: string | undefined,
@@ -458,7 +462,7 @@ export async function getStudentReportCard(
       where: {
         studentId: student.id,
         classOffering: { sectionId: enrollment.section.id, schoolYearId },
-        date: { lte: new Date() },
+        date: { lte: attendanceDateCutoff() },
       },
       select: {
         studentId: true,
@@ -560,7 +564,7 @@ export async function getSectionReportCards(sectionId: string, rawQuery: unknown
       where: {
         studentId: { in: studentIds },
         classOffering: { sectionId, schoolYearId },
-        date: { lte: new Date() },
+        date: { lte: attendanceDateCutoff() },
       },
       select: {
         studentId: true,

@@ -61,9 +61,13 @@ export function GradeSheetView({ offeringId }: Readonly<{ offeringId: string }>)
   const classHref = user?.role === "ADMIN" ? `/admin/sections/${item.section.id}` : `/teacher/classes/${offeringId}`;
   const terms = sheet.data.terms;
   const roster = sheet.data.roster;
+  const preferredTermId = sheet.data.defaultTermId ?? "";
+  const defaultTermId = sheet.data.editableTermIds.includes(preferredTermId)
+    ? preferredTermId
+    : sheet.data.editableTermIds[0] ?? "";
   const activeTermId = sheet.data.editableTermIds.includes(selectedTermId)
     ? selectedTermId
-    : sheet.data.editableTermIds[0] ?? "";
+    : defaultTermId;
   const draftScores = draftScoresByTerm[activeTermId] ?? {};
   const activeTerm = terms.find(({ id }) => id === activeTermId);
   const editable = Boolean(activeTerm && sheet.data.editableTermIds.includes(activeTerm.id));

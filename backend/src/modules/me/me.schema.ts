@@ -1,6 +1,7 @@
 import { Sex } from "@prisma/client";
 import { z } from "zod";
 import { idSchema } from "../../utils/idSchema.js";
+import { isValidDateString, parseDateString, todayInManila } from "../../utils/dates.js";
 
 const normalizeOptionalString = (value: unknown) =>
   typeof value === "string" && value.trim() === "" ? null : value;
@@ -25,12 +26,11 @@ const profilePhone = z.preprocess(
 );
 
 function isValidBirthDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00.000Z`);
-  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) return false;
+  if (!isValidDateString(value)) return false;
+  const date = parseDateString(value);
 
-  const today = new Date();
-  const latestBirthDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+  const today = parseDateString(todayInManila());
+  const latestBirthDate = new Date(today);
   latestBirthDate.setUTCFullYear(latestBirthDate.getUTCFullYear() - 5);
   return date <= latestBirthDate;
 }

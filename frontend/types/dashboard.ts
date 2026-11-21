@@ -20,9 +20,13 @@ export interface AdminDashboardData {
   sectionSizes: {
     sectionId: string;
     label: string;
+    name: string;
     gradeLevel: number;
+    strand: string | null;
     students: number;
+    capacity: number | null;
     adviserName: string | null;
+    classOfferingCount: number;
   }[];
   attendanceTrend: {
     date: string;

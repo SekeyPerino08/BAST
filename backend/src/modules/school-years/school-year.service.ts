@@ -3,6 +3,7 @@ import type { Request } from "express";
 import { prisma } from "../../lib/prisma.js";
 import { logAudit } from "../../services/audit.service.js";
 import { AppError } from "../../utils/AppError.js";
+import { invalidateAdminDashboardCache } from "../dashboard/dashboard.helpers.js";
 import {
   type CreateSchoolYearInput,
   type UpdateSchoolYearInput,
@@ -72,6 +73,7 @@ export async function createSchoolYear(input: CreateSchoolYearInput, request?: R
         include: schoolYearWithTerms,
       }),
     );
+    invalidateAdminDashboardCache();
     await logAudit({
       userId: request?.user?.id,
       action: "CREATE",
@@ -122,6 +124,7 @@ export async function updateSchoolYear(id: string, input: UpdateSchoolYearInput,
       ) as Prisma.InputJsonObject;
       return { updated, changes };
     });
+    invalidateAdminDashboardCache();
     await logAudit({
       userId: request?.user?.id,
       action: "UPDATE",
@@ -144,6 +147,7 @@ export async function setCurrentSchoolYear(id: string, request?: Request) {
       await transaction.schoolYear.updateMany({ where: { id: { not: id } }, data: { isCurrent: false } });
       return transaction.schoolYear.update({ where: { id }, data: { isCurrent: true }, include: schoolYearWithTerms });
     });
+    invalidateAdminDashboardCache();
     await logAudit({
       userId: request?.user?.id,
       action: "SET_CURRENT",
@@ -191,6 +195,7 @@ export async function updateSchoolYearTerm(
       if (overlap) throw new AppError(`Term dates overlap ${overlap.name}`, 409, "TERM_OVERLAP");
       return transaction.term.update({ where: { id: termId }, data: input });
     });
+    invalidateAdminDashboardCache();
     await logAudit({
       userId: request?.user?.id,
       action: "UPDATE",

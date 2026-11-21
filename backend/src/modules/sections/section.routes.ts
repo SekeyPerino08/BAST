@@ -17,7 +17,7 @@ const router = Router();
 router.param("id", validateIdParams("id"));
 router.use(authenticate);
 router.get("/", authorize(Role.ADMIN), listSectionsController);
-router.get("/:id", authorize(Role.ADMIN, Role.TEACHER), getSectionController);
+router.get("/:id", authorize(Role.ADMIN), getSectionController);
 router.post("/", authorize(Role.ADMIN), validateBody(createSectionSchema), createSectionController);
 router.patch("/:id", authorize(Role.ADMIN), validateBody(updateSectionSchema), updateSectionController);
 router.delete("/:id", authorize(Role.ADMIN), deleteSectionController);

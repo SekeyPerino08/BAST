@@ -11,6 +11,7 @@ import {
 import { logAudit } from "../../services/audit.service.js";
 import { AppError } from "../../utils/AppError.js";
 import { buildPaginationMeta, parsePagination } from "../../utils/pagination.js";
+import { invalidateAdminDashboardCache } from "../dashboard/dashboard.helpers.js";
 import {
   listStudentsQuerySchema,
   type CreateAccountInput,
@@ -274,6 +275,7 @@ export async function createStudent(
         account: { email: user.email, temporaryPassword: DEFAULT_PERSON_PASSWORD },
       };
     });
+    invalidateAdminDashboardCache();
     return student;
   } catch (error) {
     rethrowStudentError(error);
@@ -304,6 +306,7 @@ export async function updateStudent(id: string, input: UpdateStudentInput, reque
       }
       return updated;
     });
+    invalidateAdminDashboardCache();
     return after;
   } catch (error) {
     rethrowStudentError(error);
@@ -348,6 +351,7 @@ export async function updateStudentStatus(id: string, input: UpdateStatusInput, 
       return { student: result, previousStatus: student.status };
     });
 
+    invalidateAdminDashboardCache();
     return updated.student;
   } catch (error) {
     rethrowStudentError(error);
@@ -360,6 +364,7 @@ export async function createStudentAccount(id: string, input: CreateAccountInput
     personId: id,
     email: input.email,
   });
+  invalidateAdminDashboardCache();
   await logAudit({
     userId: request?.user?.id,
     action: "ACCOUNT_CREATED",

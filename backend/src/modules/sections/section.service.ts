@@ -4,6 +4,7 @@ import { prisma } from "../../lib/prisma.js";
 import { logAudit } from "../../services/audit.service.js";
 import { AppError } from "../../utils/AppError.js";
 import { buildPaginationMeta, parsePagination } from "../../utils/pagination.js";
+import { invalidateAdminDashboardCache } from "../dashboard/dashboard.helpers.js";
 import { listSectionsQuerySchema, type CreateSectionInput, type UpdateSectionInput } from "./section.schema.js";
 
 function isKnownError(error: unknown, code: string): error is Prisma.PrismaClientKnownRequestError {
@@ -169,6 +170,7 @@ export async function createSection(input: CreateSectionInput, request?: Request
         include: { adviser: { select: { id: true, firstName: true, lastName: true } } },
       });
     });
+    invalidateAdminDashboardCache();
     await logAudit({
       userId: request?.user?.id,
       action: "CREATE",
@@ -243,6 +245,7 @@ export async function updateSection(id: string, input: UpdateSectionInput, reque
       const section = await transaction.section.update({ where: { id }, data: input });
       return { section, before };
     });
+    invalidateAdminDashboardCache();
     await logAudit({
       userId: request?.user?.id,
       action: "UPDATE",
@@ -262,21 +265,23 @@ export async function deleteSection(id: string, request?: Request) {
     const removed = await prisma.$transaction(async (transaction) => {
       const section = await transaction.section.findUnique({ where: { id }, select: { id: true, name: true, gradeLevel: true } });
       if (!section) throw new AppError("Section not found", 404);
-      const [enrollmentCount, classOfferingCount] = await Promise.all([
+      const [enrollmentCount, classOfferingCount, scheduleCount] = await Promise.all([
         transaction.enrollment.count({ where: { sectionId: id } }),
         transaction.classOffering.count({ where: { sectionId: id } }),
+        transaction.classSchedule.count({ where: { sectionId: id } }),
       ]);
-      if (enrollmentCount || classOfferingCount) {
+      if (enrollmentCount || classOfferingCount || scheduleCount) {
         throw new AppError(
-          `Section is in use: ${enrollmentCount} enrollments and ${classOfferingCount} class offerings`,
+          `Section is in use: ${enrollmentCount} enrollments, ${classOfferingCount} class offerings, and ${scheduleCount} schedules`,
           409,
           "SECTION_IN_USE",
-          { enrollmentCount, classOfferingCount },
+          { enrollmentCount, classOfferingCount, scheduleCount },
         );
       }
       await transaction.section.delete({ where: { id } });
       return section;
     });
+    invalidateAdminDashboardCache();
     await logAudit({
       userId: request?.user?.id,
       action: "DELETE",
@@ -287,15 +292,16 @@ export async function deleteSection(id: string, request?: Request) {
     });
   } catch (error) {
     if (isKnownError(error, "P2003")) {
-      const [enrollmentCount, classOfferingCount] = await Promise.all([
+      const [enrollmentCount, classOfferingCount, scheduleCount] = await Promise.all([
         prisma.enrollment.count({ where: { sectionId: id } }),
         prisma.classOffering.count({ where: { sectionId: id } }),
+        prisma.classSchedule.count({ where: { sectionId: id } }),
       ]);
       throw new AppError(
-        `Section is in use: ${enrollmentCount} enrollments and ${classOfferingCount} class offerings`,
+        `Section is in use: ${enrollmentCount} enrollments, ${classOfferingCount} class offerings, and ${scheduleCount} schedules`,
         409,
         "SECTION_IN_USE",
-        { enrollmentCount, classOfferingCount },
+        { enrollmentCount, classOfferingCount, scheduleCount },
       );
     }
     await handleSectionError(error);

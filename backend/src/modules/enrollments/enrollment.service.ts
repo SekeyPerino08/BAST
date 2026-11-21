@@ -4,6 +4,7 @@ import { prisma } from "../../lib/prisma.js";
 import { audit } from "../../audit.js";
 import { AppError } from "../../utils/AppError.js";
 import { buildPaginationMeta, parsePagination } from "../../utils/pagination.js";
+import { invalidateAdminDashboardCache } from "../dashboard/dashboard.helpers.js";
 import {
   listEnrollmentsQuerySchema,
   unassignedStudentsQuerySchema,
@@ -149,6 +150,7 @@ export async function createEnrollment(input: CreateEnrollmentInput, request?: R
       }
       return result;
     });
+    invalidateAdminDashboardCache();
     return enrollment;
   } catch (error) {
     if (isKnownError(error, "P2002")) {
@@ -173,7 +175,7 @@ export async function bulkEnroll(
   request?: Request,
 ) {
   try {
-    return await prisma.$transaction(async (transaction) => {
+    const result = await prisma.$transaction(async (transaction) => {
       await lockSectionEnrollment(transaction, input.sectionId);
       const section = await transaction.section.findUnique({
         where: { id: input.sectionId },
@@ -262,6 +264,8 @@ export async function bulkEnroll(
       }
       return { enrolled, skipped: [] };
     }, { timeout: 30000 });
+    invalidateAdminDashboardCache();
+    return result;
   } catch (error) {
     throwEnrollmentError(error);
   }
@@ -320,6 +324,7 @@ export async function transferEnrollment(id: string, input: TransferEnrollmentIn
       }
       return { updated, oldSection: enrollment.section, nextSection };
     });
+    invalidateAdminDashboardCache();
     return result.updated;
   } catch (error) {
     throwEnrollmentError(error);
@@ -357,6 +362,7 @@ export async function updateEnrollmentStatus(
       }
       return { updated, previousStatus: existing.status };
     });
+    invalidateAdminDashboardCache();
     return result.updated;
   } catch (error) {
     throwEnrollmentError(error);

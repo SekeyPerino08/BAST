@@ -16,6 +16,7 @@ import { AppError } from "../../utils/AppError.js";
 import { writeCsv } from "../../utils/csv.js";
 import { buildPaginationMeta } from "../../utils/pagination.js";
 import { formatDateString, parseDateString, todayInManila } from "../../utils/dates.js";
+import { invalidateAdminDashboardCache } from "../dashboard/dashboard.helpers.js";
 import {
   alumniRecordSchema,
   libraryLoanSchema,
@@ -235,6 +236,9 @@ export async function syncFeed(
     }
     return { run: completed, rejects: savedRejects };
   });
+  if (mode === FeedImportMode.COMMIT && source === "library") {
+    invalidateAdminDashboardCache();
+  }
   return { data: result.run, rejects: result.rejects };
 }
 

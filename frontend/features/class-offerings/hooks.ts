@@ -41,6 +41,7 @@ function useInvalidateClassSurfaces() {
       client.invalidateQueries({ queryKey: ["subjects"] }),
       client.invalidateQueries({ queryKey: ["me", "classes"] }),
       client.invalidateQueries({ queryKey: ["me", "enrollment"] }),
+      client.invalidateQueries({ queryKey: ["dashboard"] }),
     ]);
   };
 }

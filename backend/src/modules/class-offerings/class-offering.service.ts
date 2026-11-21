@@ -5,6 +5,7 @@ import { assertCanAccessClassOffering } from "../../services/access.service.js";
 import { logAudit } from "../../services/audit.service.js";
 import { AppError } from "../../utils/AppError.js";
 import { buildPaginationMeta, parsePagination } from "../../utils/pagination.js";
+import { invalidateAdminDashboardCache } from "../dashboard/dashboard.helpers.js";
 import {
   listClassOfferingsQuerySchema,
   type CreateClassOfferingInput,
@@ -98,6 +99,7 @@ export async function createClassOffering(input: CreateClassOfferingInput, reque
   const section = await getSection(input.sectionId);
   try {
     const offering = await prisma.$transaction((transaction) => createOffering(transaction, section, input));
+    invalidateAdminDashboardCache();
     await logAudit({
       userId: request?.user?.id,
       action: "CREATE",
@@ -148,6 +150,7 @@ export async function bulkCreateClassOfferings(
   );
   const created = results.flatMap((result) => ("offering" in result ? [result.offering] : []));
   const skipped = results.flatMap((result) => ("skipped" in result ? [result.skipped] : []));
+  if (created.length) invalidateAdminDashboardCache();
   await logAudit({
     userId: request?.user?.id,
     action: "BULK_CREATE",
@@ -191,6 +194,7 @@ export async function updateClassOffering(
       });
       return { updated, oldTeacher: existing.teacher, newTeacher: teacher };
     });
+    invalidateAdminDashboardCache();
     // Existing attendance and grades retain their recordedBy history; changing the assigned teacher does not rewrite them.
     await logAudit({
       userId: request?.user?.id,
@@ -230,6 +234,7 @@ export async function deleteClassOffering(id: string, request?: Request) {
       await transaction.classOffering.delete({ where: { id } });
       return offering;
     });
+    invalidateAdminDashboardCache();
     await logAudit({
       userId: request?.user?.id,
       action: "DELETE",

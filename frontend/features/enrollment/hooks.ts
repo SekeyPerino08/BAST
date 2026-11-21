@@ -31,6 +31,7 @@ function useInvalidateEnrollmentSurfaces() {
       client.invalidateQueries({ queryKey: ["students"] }),
       client.invalidateQueries({ queryKey: ["me", "classes"] }),
       client.invalidateQueries({ queryKey: ["me", "enrollment"] }),
+      client.invalidateQueries({ queryKey: ["dashboard"] }),
     ]);
   };
 }

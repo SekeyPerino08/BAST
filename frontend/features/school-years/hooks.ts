@@ -11,6 +11,7 @@ function useInvalidateSchoolYears() {
     await Promise.all([
       client.invalidateQueries({ queryKey: schoolYearKeys.all }),
       client.invalidateQueries({ queryKey: ["sections"] }),
+      client.invalidateQueries({ queryKey: ["dashboard"] }),
     ]);
   };
 }
