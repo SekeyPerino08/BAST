@@ -16,6 +16,40 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+let sessionRequest: Promise<{ user: AuthUser }> | null = null;
+
+function fetchSession(): Promise<{ user: AuthUser }> {
+  if (!sessionRequest) {
+    sessionRequest = apiFetch<{ user: AuthUser }>("/api/auth/me").finally(() => {
+      sessionRequest = null;
+    });
+  }
+  return sessionRequest;
+}
+
+function isUnauthenticated(error: unknown): boolean {
+  return error instanceof ApiError && (error.status === 401 || error.status === 403);
+}
+
+function logSessionRestoreError(error: unknown): void {
+  if (process.env.NODE_ENV === "development") {
+    if (error instanceof ApiError) {
+      const payload = error.details === undefined ? error.message : JSON.stringify(error.details);
+      const code = error.code ? ` ${error.code}` : "";
+      console.error(`Could not restore the authenticated session (HTTP ${error.status}${code}): ${payload}`);
+      return;
+    }
+    if (error instanceof Error) {
+      const stack = error.stack ? `\n${error.stack}` : "";
+      console.error(`Could not restore the authenticated session (${error.name}): ${error.message}${stack}`);
+      return;
+    }
+    console.error(`Could not restore the authenticated session: ${String(error)}`);
+    return;
+  }
+  console.error("Could not restore the authenticated session:", error);
+}
+
 export function AuthProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,15 +63,13 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
 
   const refresh = useCallback(async (): Promise<AuthUser | null> => {
     try {
-      const result = await apiFetch<{ user: AuthUser }>("/api/auth/me");
+      const result = await fetchSession();
       setUser(result.user);
       redirectIfPasswordChangeRequired(result.user);
       return result.user;
     } catch (error) {
       setUser(null);
-      if (!(error instanceof ApiError && error.status === 401)) {
-        console.error("Could not restore the authenticated session:", error);
-      }
+      if (!isUnauthenticated(error)) logSessionRestoreError(error);
       return null;
     } finally {
       setLoading(false);
@@ -46,17 +78,16 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
 
   useEffect(() => {
     let active = true;
-    apiFetch<{ user: AuthUser }>("/api/auth/me")
+    fetchSession()
       .then((result) => {
-        if (active) {
-          setUser(result.user);
-          redirectIfPasswordChangeRequired(result.user);
-        }
+        if (!active || !result) return;
+        setUser(result.user);
+        redirectIfPasswordChangeRequired(result.user);
       })
       .catch((error: unknown) => {
-        if (active && !(error instanceof ApiError && error.status === 401)) {
-          console.error("Could not restore the authenticated session:", error);
-        }
+        if (!active) return;
+        setUser(null);
+        if (!isUnauthenticated(error)) logSessionRestoreError(error);
       })
       .finally(() => {
         if (active) setLoading(false);

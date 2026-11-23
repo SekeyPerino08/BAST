@@ -1,6 +1,7 @@
 import type { RequestHandler } from "express";
 import { env } from "../config/env.js";
 import { prisma } from "../lib/prisma.js";
+import { clearAuthCookie } from "../utils/cookies.js";
 import { verifyToken } from "../utils/jwt.js";
 
 const authenticateWithPendingPassword: (allowPending: boolean) => RequestHandler =
@@ -15,6 +16,7 @@ const authenticateWithPendingPassword: (allowPending: boolean) => RequestHandler
     try {
       payload = verifyToken(token);
     } catch {
+      clearAuthCookie(res);
       res.status(401).json({ message: "Not authenticated" });
       return;
     }
@@ -32,6 +34,7 @@ const authenticateWithPendingPassword: (allowPending: boolean) => RequestHandler
         },
       });
       if (!user || !user.isActive || payload.ver !== user.tokenVersion) {
+        clearAuthCookie(res);
         res.status(401).json({ message: "Not authenticated" });
         return;
       }

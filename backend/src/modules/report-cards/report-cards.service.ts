@@ -498,6 +498,25 @@ export async function getStudentReportCard(
   return result;
 }
 
+async function getStudentIdForUser(userId: string): Promise<string> {
+  const student = await prisma.student.findUnique({
+    where: { userId },
+    select: { id: true },
+  });
+  if (!student) throw new AppError("Student profile not found", 404, "STUDENT_PROFILE_NOT_FOUND");
+  return student.id;
+}
+
+export async function getMyStudentReportCard(
+  userId: string,
+  schoolYearIdInput: string | undefined,
+  rawQuery: unknown,
+  user: ReportCardUser,
+): Promise<ReportCard> {
+  const studentId = await getStudentIdForUser(userId);
+  return getStudentReportCard(studentId, schoolYearIdInput, rawQuery, user);
+}
+
 export async function getSectionReportCards(sectionId: string, rawQuery: unknown, user: ReportCardUser): Promise<ReportCard[]> {
   const parsed = parseQuery(sectionReportCardsQuerySchema, rawQuery);
   const includeUnreleased = user.role === Role.ADMIN ? Boolean(parsed.includeUnreleased) : false;
@@ -616,4 +635,9 @@ export async function getAvailableSchoolYearsForStudent(studentId: string): Prom
     },
   });
   return rows.map((row) => row.schoolYear);
+}
+
+export async function getAvailableSchoolYearsForUser(userId: string): Promise<Array<{ id: string; name: string }>> {
+  const studentId = await getStudentIdForUser(userId);
+  return getAvailableSchoolYearsForStudent(studentId);
 }

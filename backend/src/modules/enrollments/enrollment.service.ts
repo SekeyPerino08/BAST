@@ -1,7 +1,7 @@
 import { EnrollmentStatus, Prisma, StudentStatus } from "@prisma/client";
 import type { Request } from "express";
 import { prisma } from "../../lib/prisma.js";
-import { audit } from "../../audit.js";
+import { audit, auditStudentViews } from "../../audit.js";
 import { AppError } from "../../utils/AppError.js";
 import { buildPaginationMeta, parsePagination } from "../../utils/pagination.js";
 import { invalidateAdminDashboardCache } from "../dashboard/dashboard.helpers.js";
@@ -399,9 +399,8 @@ export async function listEnrollments(rawQuery: unknown, request?: Request) {
         : { [query.sortBy]: query.order },
     { id: "asc" },
   ];
-  const result = await prisma.$transaction(async (transaction) => {
-    const [data, total] = await Promise.all([
-      transaction.enrollment.findMany({
+  const [data, total] = await prisma.$transaction([
+    prisma.enrollment.findMany({
       where,
       skip,
       take,
@@ -421,23 +420,23 @@ export async function listEnrollments(rawQuery: unknown, request?: Request) {
         schoolYear: { select: { id: true, name: true, isCurrent: true } },
       },
       }),
-      transaction.enrollment.count({ where }),
-    ]);
-    if (request) {
-      for (const enrollment of data) {
-        await audit(transaction, request, {
-          action: "VIEW_ENROLLMENTS",
-          entityType: "Enrollment",
-          entityId: enrollment.id,
-          studentId: enrollment.student.id,
-        });
-      }
-    }
-    return { data, total };
-  });
+    prisma.enrollment.count({ where }),
+  ]);
+  if (request) {
+    await prisma.$transaction((transaction) => auditStudentViews(
+      transaction,
+      request,
+      data.map((enrollment) => ({
+        action: "VIEW_ENROLLMENTS",
+        entityType: "Enrollment",
+        entityId: enrollment.id,
+        studentId: enrollment.student.id,
+      })),
+    ));
+  }
   return {
-    data: result.data,
-    meta: buildPaginationMeta(query.page, query.pageSize, result.total),
+    data,
+    meta: buildPaginationMeta(query.page, query.pageSize, total),
   };
 }
 

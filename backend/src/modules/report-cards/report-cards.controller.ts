@@ -6,14 +6,15 @@ import { asyncHandler } from "../../utils/asyncHandler.js";
 import { AppError } from "../../utils/AppError.js";
 import { logAudit } from "../../services/audit.service.js";
 import {
-  getAvailableSchoolYearsForStudent,
+  getAvailableSchoolYearsForUser,
+  getMyStudentReportCard,
   getSectionReportCards,
   getStudentReportCard,
 } from "./report-cards.service.js";
 
 export const getMyReportCardController = asyncHandler(async (req, res) => {
   if (!req.user) throw new AppError("Not authenticated", 401);
-  res.status(200).json(await getStudentReportCard(req.user.id, undefined, req.query, req.user));
+  res.status(200).json(await getMyStudentReportCard(req.user.id, undefined, req.query, req.user));
 });
 
 export const getStudentReportCardController = asyncHandler<ParamsDictionary>(async (req, res) => {
@@ -58,5 +59,5 @@ export const getSectionReportCardsController = asyncHandler<ParamsDictionary>(as
 
 export const getStudentAvailableYearsController = asyncHandler(async (req, res) => {
   if (!req.user) throw new AppError("Not authenticated", 401);
-  res.status(200).json(await getAvailableSchoolYearsForStudent(req.user.id));
+  res.status(200).json(await getAvailableSchoolYearsForUser(req.user.id));
 });
