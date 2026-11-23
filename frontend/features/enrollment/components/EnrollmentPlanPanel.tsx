@@ -16,7 +16,7 @@ import {
   type EnrollmentRequirementCategory,
   type EnrollmentStrandTarget,
 } from "../types";
-import { useEnrollmentPlan, useSaveEnrollmentPlan } from "../hooks";
+import { useEnrollmentCapacity, useEnrollmentPlan, useSaveEnrollmentPlan } from "../hooks";
 
 type PlanDraft = Pick<EnrollmentPlan, "registrationOpensAt" | "registrationClosesAt" | "firstDayOfClasses">
   & Pick<EnrollmentPlan, "requirements" | "specialPolicies" | "targets" | "gradeTargets">;
@@ -81,6 +81,7 @@ export function EnrollmentPlanPanel({ schoolYearId, onSchoolYearChange }: Readon
 }>) {
   const schoolYearsQuery = useSchoolYears();
   const planQuery = useEnrollmentPlan(schoolYearId ?? "");
+  const capacityQuery = useEnrollmentCapacity(schoolYearId ?? "");
   const sectionsQuery = useSections({ page: 1, pageSize: 100, schoolYearId }, Boolean(schoolYearId), false);
   const savePlan = useSaveEnrollmentPlan(schoolYearId ?? "");
   const [savedDraft, setSavedDraft] = useState<{ schoolYearId: string; updatedAt: number; value: PlanDraft } | null>(null);
@@ -214,6 +215,13 @@ export function EnrollmentPlanPanel({ schoolYearId, onSchoolYearChange }: Readon
       </div>
     </section>
 
+    <EnrollmentCapacityDashboard
+      rows={capacityQuery.data?.data ?? []}
+      isLoading={capacityQuery.isLoading}
+      isError={capacityQuery.isError}
+      retry={() => void capacityQuery.refetch()}
+    />
+
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
         <div><h3 className="font-semibold text-slate-900">Grade 7–10 targets</h3><p className="mt-1 text-xs text-slate-500">Plan enrollment and sections by grade. Capacity reflects all sections in each grade.</p></div>
@@ -322,6 +330,61 @@ function DateField({ label, value, onChange }: Readonly<{ label: string; value: 
   return <label className="block text-sm font-medium text-slate-700">{label}
     <span className="relative mt-1 block"><input type="date" value={value ?? ""} onChange={(event) => onChange(event.target.value || null)} className={`${inputClass} pr-9`} /><CalendarDays size={16} aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" /></span>
   </label>;
+}
+
+function EnrollmentCapacityDashboard({ rows, isLoading, isError, retry }: Readonly<{
+  rows: Array<{
+    gradeLevel: number;
+    strand: string | null;
+    expectedEnrollment: number | null;
+    enrolled: number;
+    sectionCount: number;
+    capacity: number | null;
+    seatsLeft: number | null;
+    overCapacity: boolean;
+    belowTarget: boolean;
+  }>;
+  isLoading: boolean;
+  isError: boolean;
+  retry: () => void;
+}>) {
+  return <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="enrollment-capacity-heading">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div><h2 id="enrollment-capacity-heading" className="text-lg font-semibold text-slate-900">Enrollment vs capacity</h2><p className="mt-1 text-sm text-slate-500">Actual enrollments compared with planned targets for Grades 7–12.</p></div>
+      <div className="flex flex-wrap gap-2 text-xs font-semibold">
+        <span className="rounded-full bg-rose-50 px-3 py-1 text-rose-800">Over capacity</span>
+        <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-800">Below target</span>
+      </div>
+    </div>
+    {isError ? <p role="alert" className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">Capacity summary could not be loaded. <button type="button" onClick={retry} className="font-semibold underline">Retry</button></p>
+      : isLoading ? <p className="mt-4 text-sm text-slate-500" role="status">Loading enrollment summary…</p>
+        : <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {rows.map((row) => {
+            const label = row.strand
+              ? `Grade ${row.gradeLevel} · ${row.strand === "TVL_ICT" ? "TVL-ICT" : row.strand}`
+              : `Grade ${row.gradeLevel}`;
+            const progress = row.expectedEnrollment && row.expectedEnrollment > 0
+              ? Math.min(100, Math.round((row.enrolled / row.expectedEnrollment) * 100))
+              : 0;
+            const status = row.overCapacity
+              ? { label: "Over capacity", className: "bg-rose-50 text-rose-800" }
+              : row.belowTarget
+                ? { label: "Below target", className: "bg-amber-50 text-amber-800" }
+                : row.expectedEnrollment === null
+                  ? { label: "Target not set", className: "bg-slate-100 text-slate-700" }
+                  : { label: "On track", className: "bg-emerald-50 text-emerald-800" };
+            const barClass = row.overCapacity ? "bg-rose-500" : row.belowTarget ? "bg-amber-500" : "bg-emerald-500";
+            return <article key={`${row.gradeLevel}:${row.strand ?? "JHS"}`} className={`rounded-xl border p-4 ${row.overCapacity ? "border-rose-200" : row.belowTarget ? "border-amber-200" : "border-slate-200"}`}>
+              <div className="flex items-start justify-between gap-2"><h3 className="font-semibold text-slate-900">{label}</h3><span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${status.className}`}>{status.label}</span></div>
+              <p className="mt-3 text-sm text-slate-700"><strong>{row.enrolled}</strong>{row.expectedEnrollment === null ? " enrolled" : ` / ${row.expectedEnrollment} planned`}{row.capacity === null ? "" : ` · ${row.capacity} capacity`}</p>
+              {row.expectedEnrollment !== null && <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label={`${label} enrollment progress`} aria-valuemin={0} aria-valuemax={row.expectedEnrollment} aria-valuenow={Math.min(row.enrolled, row.expectedEnrollment)}>
+                <div className={`h-full rounded-full ${barClass}`} style={{ width: `${progress}%` }} />
+              </div>}
+              <p className="mt-2 text-xs text-slate-500">{row.sectionCount} configured section{row.sectionCount === 1 ? "" : "s"} · {row.seatsLeft === null ? "Capacity incomplete" : `${row.seatsLeft} seat${row.seatsLeft === 1 ? "" : "s"} left`}</p>
+            </article>;
+          })}
+        </div>}
+  </section>;
 }
 
 function NumberCell({ label, value, onChange }: Readonly<{ label: string; value: number | null; onChange: (value: string) => void }>) {

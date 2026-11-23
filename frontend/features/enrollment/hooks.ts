@@ -5,6 +5,7 @@ import {
   bulkEnroll,
   createEnrollment,
   fetchEnrollmentPlan,
+  fetchEnrollmentCapacity,
   fetchEnrollments,
   fetchUnassignedStudents,
   saveEnrollmentPlan,
@@ -19,6 +20,7 @@ export const enrollmentKeys = {
   list: (params: EnrollmentListParams) => [...enrollmentKeys.lists(), params] as const,
   unassigned: (params: UnassignedParams) => [...enrollmentKeys.all, "unassigned", params] as const,
   plan: (schoolYearId: string) => [...enrollmentKeys.all, "plan", schoolYearId] as const,
+  capacity: (schoolYearId: string) => [...enrollmentKeys.all, "capacity", schoolYearId] as const,
 };
 
 function useInvalidateEnrollmentSurfaces() {
@@ -60,12 +62,21 @@ export function useEnrollmentPlan(schoolYearId: string) {
   });
 }
 
+export function useEnrollmentCapacity(schoolYearId: string) {
+  return useQuery({
+    queryKey: enrollmentKeys.capacity(schoolYearId),
+    queryFn: () => fetchEnrollmentCapacity(schoolYearId),
+    enabled: Boolean(schoolYearId),
+  });
+}
+
 export function useSaveEnrollmentPlan(schoolYearId: string) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (input: Parameters<typeof saveEnrollmentPlan>[1]) => saveEnrollmentPlan(schoolYearId, input),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: enrollmentKeys.plan(schoolYearId) });
+      await client.invalidateQueries({ queryKey: enrollmentKeys.capacity(schoolYearId) });
       await client.invalidateQueries({ queryKey: ["sections"] });
     },
   });

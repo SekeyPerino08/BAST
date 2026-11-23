@@ -104,9 +104,17 @@ The UI may hide unavailable actions for convenience, but the API performs author
 
 ## Enrollment planning
 
-Administrators can configure enrollment dates, expected new/returning counts, planned sections, required-document checklists, and special-case policy notes for each school year from **Admin → Enrollment → Plan & capacity**. The plan includes Grade 11 and 12 offerings for GAS, ABM, STEM, HUMSS, and TVL-ICT; modality is hybrid and payment method is cash.
+Administrators can configure enrollment dates, expected new/returning counts, planned sections, required-document checklists, and special-case policy notes for each school year from **Admin → Enrollment → Plan & capacity**. Enrollment targets cover Grades 7–10 by grade and Grades 11–12 by strand (GAS, ABM, STEM, HUMSS, and TVL-ICT). The capacity dashboard compares those targets with active enrollments and configured section caps.
 
-Create Senior High sections from **Admin → Sections**, assign each a strand, and set its maximum student count. Enrollment creation, transfers, and reactivation enforce configured section capacity. Existing sections without a capacity remain uncapped until an administrator sets one. The new Prisma migration `20261119223000_enrollment_planning` must be applied before using these settings.
+Create sections from **Admin → Sections**, assign Senior High sections a strand, and set each section's maximum student count. Enrollment creation, transfers, and reactivation enforce configured section capacity. Existing sections without a capacity remain uncapped until an administrator sets one. Apply the enrollment-planning migrations, including `20261123200500_enrollment_jhs_targets` and `20261123203000_admissions_support_alerts`, before using these settings.
+
+Administrators can manage applicants from **Admin → Admissions**. The workflow enforces document collection, review, acceptance, and enrollment in order; required new-student documents come from the enrollment plan. The final step creates the student and section enrollment atomically, enforces capacity, and uses the existing first-login password-change policy.
+
+**Admin → Student support** and teacher **Support alerts** show rule-based signals only for administrators and assigned section advisers. Rules flag released-term averages below 75, a term-average decline of at least five points, attendance below 80%, or at least three absent class records in the last 30 days. Alerts are prompts for human review and include follow-up status and notes.
+
+**Admin → Data sync** shows the last run for each feed, historical rejects, and a CSV export for correction. Re-preview the current source batch after correcting source data; CSV imports expose rejected rows from import history so staff can correct and upload the file again before committing.
+
+**Admin → Data protection** exposes application retention behavior, links to access reviews in the audit log, and records backup-verification or restore-test exercises. The record is an administrator attestation; backups and restores remain managed through Neon and must be tested against a separate, disposable database.
 
 ## Tests and GitHub Actions
 

@@ -34,6 +34,18 @@ export interface EnrollmentGradeTarget {
   plannedSections: number | null;
 }
 
+export interface EnrollmentCapacityRow {
+  gradeLevel: number;
+  strand: SeniorHighStrand | null;
+  expectedEnrollment: number | null;
+  enrolled: number;
+  sectionCount: number;
+  capacity: number | null;
+  seatsLeft: number | null;
+  overCapacity: boolean;
+  belowTarget: boolean;
+}
+
 export interface EnrollmentPlan {
   id: string | null;
   schoolYear: { id: string; name: string; startDate: string; endDate: string };

@@ -5,6 +5,7 @@ import { authenticate } from "../../middleware/authenticate.js";
 import { authorize } from "../../middleware/authorize.js";
 import { validateBody } from "../../middleware/validate.js";
 import {
+  getEnrollmentPlanCapacityController,
   getEnrollmentPlanController,
   saveEnrollmentPlanController,
 } from "./enrollment-plan.controller.js";
@@ -28,6 +29,7 @@ const router = Router();
 router.param("id", validateIdParams("id"));
 router.param("schoolYearId", validateIdParams("schoolYearId"));
 router.use(authenticate, authorize(Role.ADMIN));
+router.get("/capacity/:schoolYearId", getEnrollmentPlanCapacityController);
 router.get("/settings/:schoolYearId", getEnrollmentPlanController);
 router.put("/settings/:schoolYearId", validateBody(enrollmentPlanSchema), saveEnrollmentPlanController);
 router.get("/", listEnrollmentsController);

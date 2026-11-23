@@ -73,7 +73,7 @@ async function resolveSchoolYearId(schoolYearId?: string, transaction = prisma):
   return current.id;
 }
 
-async function enrollOne(
+export async function enrollOne(
   transaction: EnrollmentTransaction,
   studentId: string,
   section: { id: string; name: string; schoolYearId: string },

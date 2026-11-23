@@ -35,6 +35,36 @@ enum EnrollmentStatus {
   COMPLETED
 }
 
+enum AdmissionStage {
+  DOCUMENT_COLLECTION
+  REVIEW
+  ACCEPTED
+  ENROLLMENT
+  ENROLLED
+}
+
+enum StudentSupportAlertStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum StudentSupportAlertRule {
+  LOW_GRADE
+  DECLINING_GRADE
+  ATTENDANCE
+}
+
+enum RecoveryExerciseKind {
+  BACKUP_VERIFICATION
+  RESTORE_TEST
+}
+
+enum RecoveryExerciseResult {
+  PASSED
+  FAILED
+}
+
 enum SeniorHighStrand {
   GAS
   ABM
@@ -161,6 +191,8 @@ model User {
   passwordResetSessions PasswordResetSession[]
   announcementsCreated  Announcement[]         @relation("AnnouncementCreator")
   notifications         Notification[]
+  supportAlertUpdates  StudentSupportAlert[]   @relation("SupportAlertUpdater")
+  recoveryExercises  RecoveryExercise[]
 }
 
 model UserProfile {
@@ -200,6 +232,8 @@ model Student {
   lmsEvents         LmsEvent[]
   libraryLoans      LibraryLoan[]
   alumniRecords     AlumniRecord[]
+  admission         Applicant?
+  supportAlerts     StudentSupportAlert[]
   submissions       AssignmentSubmission[]
   documentRequests  DocumentRequest[]
   notifications     Notification[]
@@ -243,6 +277,8 @@ model SchoolYear {
   classOfferings ClassOffering[]
   sections       Section[]
   enrollmentPlan EnrollmentPlan?
+  applicants     Applicant[]
+  supportAlerts  StudentSupportAlert[]
 }
 
 model Term {
@@ -373,6 +409,63 @@ model EnrollmentGradeTarget {
 
   @@unique([planId, gradeLevel])
   @@index([planId])
+}
+
+model Applicant {
+  id              String         @id @default(cuid())
+  schoolYearId    String
+  firstName       String
+  middleName      String?
+  lastName        String
+  gradeLevel      Int
+  strand          SeniorHighStrand?
+  guardianName    String?
+  guardianContact String?
+  documents       Json
+  stage           AdmissionStage @default(DOCUMENT_COLLECTION)
+  studentId       String?        @unique
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  schoolYear      SchoolYear     @relation(fields: [schoolYearId], references: [id], onDelete: Restrict)
+  student         Student?       @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
+  @@index([schoolYearId, stage])
+  @@index([lastName, firstName])
+}
+
+model StudentSupportAlert {
+  id             String                     @id @default(cuid())
+  studentId      String
+  schoolYearId   String
+  rule           StudentSupportAlertRule
+  status         StudentSupportAlertStatus  @default(NOT_STARTED)
+  summary        String
+  evidence       Json
+  followUpNote   String?
+  updatedById    String?
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+  student        Student                    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  schoolYear     SchoolYear                 @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  updatedBy      User?                      @relation("SupportAlertUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, schoolYearId, rule])
+  @@index([schoolYearId, status])
+  @@index([studentId])
+}
+
+model RecoveryExercise {
+  id             String                @id @default(cuid())
+  kind           RecoveryExerciseKind
+  result         RecoveryExerciseResult
+  testedAt       DateTime              @db.Timestamptz(6)
+  notes          String
+  recordedById   String
+  createdAt      DateTime              @default(now()) @db.Timestamptz(6)
+  recordedBy     User                  @relation(fields: [recordedById], references: [id], onDelete: Restrict)
+
+  @@index([kind, testedAt])
+  @@index([recordedById])
 }
 
 model ClassOffering {

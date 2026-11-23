@@ -107,6 +107,7 @@ export function ImportHistory() {
                             )}
                             {expired && <span className="inline-flex items-center gap-1 text-xs text-slate-500"><Clock3 size={14} /> No longer resumable</span>}
                             {item.status === "COMMITTED" && <span className="inline-flex items-center gap-1 text-xs text-slate-500"><FileSpreadsheet size={14} /> Complete</span>}
+                            {rejected > 0 && <a href={`/api/imports/${encodeURIComponent(item.id)}/rejected.csv`} className="text-xs font-semibold text-indigo-700 hover:underline">Download rejected rows</a>}
                           </div>
                         </td>
                       </tr>

@@ -9,8 +9,10 @@ import {
   getMyStudentLibrary,
   getMyStudentLms,
   exportLibraryLoans,
+  exportSyncRejectsCsv,
   listLibraryLoans,
   getSyncRejects,
+  listLatestSyncRuns,
   listSyncRuns,
   syncFeed,
 } from "./integration.service.js";
@@ -24,8 +26,17 @@ export const listSyncRunsController = asyncHandler(async (req, res) => {
   res.status(200).json(await listSyncRuns(req.query));
 });
 
+export const listLatestSyncRunsController = asyncHandler(async (_req, res) => {
+  res.status(200).json(await listLatestSyncRuns());
+});
+
 export const getSyncRejectsController = asyncHandler<ParamsDictionary>(async (req, res) => {
   res.status(200).json({ data: await getSyncRejects(req.params.id) });
+});
+
+export const exportSyncRejectsController = asyncHandler<ParamsDictionary>(async (req, res) => {
+  const csv = await exportSyncRejectsCsv(req.params.id);
+  res.status(200).type("text/csv").attachment(`sync-rejects-${req.params.id}.csv`).send(csv);
 });
 
 export const getStudentLmsController = asyncHandler<ParamsDictionary>(async (req, res) => {

@@ -3,6 +3,7 @@ import type {
   EnrollmentListParams,
   EnrollmentPlan,
   EnrollmentGradeTarget,
+  EnrollmentCapacityRow,
   EnrollmentRequirement,
   EnrollmentStrandTarget,
   EnrollmentsPage,
@@ -53,6 +54,10 @@ export function updateEnrollmentStatus(id: string, input: { status: "ENROLLED" |
 
 export function fetchEnrollmentPlan(schoolYearId: string) {
   return apiFetch<{ data: EnrollmentPlan }>(`/api/enrollments/settings/${encodeURIComponent(schoolYearId)}`);
+}
+
+export function fetchEnrollmentCapacity(schoolYearId: string) {
+  return apiFetch<{ data: EnrollmentCapacityRow[] }>(`/api/enrollments/capacity/${encodeURIComponent(schoolYearId)}`);
 }
 
 export function saveEnrollmentPlan(

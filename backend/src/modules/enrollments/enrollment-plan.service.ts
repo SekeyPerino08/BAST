@@ -84,6 +84,83 @@ export async function getEnrollmentPlan(schoolYearId: string) {
   };
 }
 
+export async function getEnrollmentPlanCapacity(schoolYearId: string) {
+  const schoolYear = await prisma.schoolYear.findUnique({
+    where: { id: schoolYearId },
+    select: { id: true },
+  });
+  if (!schoolYear) throw new AppError("School year not found", 404);
+
+  const [plan, sections, enrollmentCounts] = await Promise.all([
+    prisma.enrollmentPlan.findUnique({
+      where: { schoolYearId },
+      include: {
+        strandTargets: { orderBy: [{ gradeLevel: "asc" }, { strand: "asc" }] },
+        gradeTargets: { orderBy: { gradeLevel: "asc" } },
+      },
+    }),
+    prisma.section.findMany({
+      where: { schoolYearId },
+      select: { id: true, gradeLevel: true, strand: true, capacity: true },
+    }),
+    prisma.enrollment.groupBy({
+      by: ["sectionId"],
+      where: { schoolYearId, status: "ENROLLED", sectionId: { not: null } },
+      _count: { _all: true },
+    }),
+  ]);
+  const sectionCounts = new Map(
+    enrollmentCounts.flatMap((item) => item.sectionId ? [[item.sectionId, item._count._all] as const] : []),
+  );
+  const targets = [
+    ...(plan?.gradeTargets.length ? plan.gradeTargets : defaultGradeTargets()).map((target) => ({
+      gradeLevel: target.gradeLevel,
+      strand: null,
+      expectedNew: target.expectedNew,
+      expectedReturning: target.expectedReturning,
+      plannedSections: target.plannedSections,
+    })),
+    ...(plan?.strandTargets.length ? plan.strandTargets : defaultTargets()).map((target) => ({
+      gradeLevel: target.gradeLevel,
+      strand: target.strand,
+      expectedNew: target.expectedNew,
+      expectedReturning: target.expectedReturning,
+      plannedSections: target.plannedSections,
+    })),
+  ];
+
+  return {
+    data: targets.map((target) => {
+      const matchingSections = sections.filter((section) =>
+        section.gradeLevel === target.gradeLevel &&
+        (target.strand === null ? section.gradeLevel <= 10 : section.strand === target.strand));
+      const enrolled = matchingSections.reduce((sum, section) => sum + (sectionCounts.get(section.id) ?? 0), 0);
+      const capacityIsConfigured = matchingSections.length > 0 &&
+        matchingSections.every((section) => section.capacity !== null);
+      const capacity = capacityIsConfigured
+        ? matchingSections.reduce((sum, section) => sum + (section.capacity ?? 0), 0)
+        : null;
+      const expectedEnrollment = target.expectedNew !== null || target.expectedReturning !== null
+        ? (target.expectedNew ?? 0) + (target.expectedReturning ?? 0)
+        : null;
+      const overCapacity = matchingSections.some((section) =>
+        section.capacity !== null && (sectionCounts.get(section.id) ?? 0) > section.capacity);
+      const belowTarget = expectedEnrollment !== null && enrolled < expectedEnrollment;
+      return {
+        gradeLevel: target.gradeLevel,
+        strand: target.strand,
+        expectedEnrollment,
+        enrolled,
+        sectionCount: matchingSections.length,
+        capacity,
+        seatsLeft: capacity === null ? null : Math.max(0, capacity - enrolled),
+        overCapacity,
+        belowTarget,
+      };
+    }),
+  };
+}
+
 export async function saveEnrollmentPlan(
   schoolYearId: string,
   input: EnrollmentPlanInput,

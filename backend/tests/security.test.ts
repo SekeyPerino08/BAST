@@ -20,6 +20,9 @@ import { passwordPolicyError } from "../src/utils/password-policy.js";
 import { seniorHighStrands } from "../src/constants/education.js";
 import { enrollmentPlanSchema } from "../src/modules/enrollments/enrollment-plan.schema.js";
 import { createSectionSchema } from "../src/modules/sections/section.schema.js";
+import { advanceApplicantSchema, createApplicantSchema } from "../src/modules/admissions/admission.schema.js";
+import { updateSupportAlertSchema } from "../src/modules/student-support/support-alert.schema.js";
+import { listStudentSupportAlerts } from "../src/modules/student-support/support-alert.service.js";
 
 const { resendSendMock } = vi.hoisted(() => ({ resendSendMock: vi.fn() }));
 vi.mock("resend", () => ({
@@ -169,6 +172,37 @@ describe("security and data quality rules", () => {
       strand: "STEM",
       capacity: 0,
     }).success).toBe(false);
+  });
+
+  it("validates grade-aware applicants and follow-up transitions", () => {
+    expect(createApplicantSchema.safeParse({
+      firstName: "Alex",
+      lastName: "Rivera",
+      gradeLevel: 8,
+      strand: null,
+    }).success).toBe(true);
+    expect(createApplicantSchema.safeParse({
+      firstName: "Alex",
+      lastName: "Rivera",
+      gradeLevel: 8,
+      strand: "GAS",
+    }).success).toBe(false);
+    expect(createApplicantSchema.safeParse({
+      firstName: "Alex",
+      lastName: "Rivera",
+      gradeLevel: 11,
+      strand: "GAS",
+    }).success).toBe(true);
+    expect(advanceApplicantSchema.safeParse({ stage: "ENROLLED" }).success).toBe(false);
+    expect(updateSupportAlertSchema.safeParse({
+      status: "IN_PROGRESS",
+      followUpNote: "Met with the student and agreed on a check-in.",
+    }).success).toBe(true);
+  });
+
+  it("denies student accounts access to staff support alerts", async () => {
+    await expect(listStudentSupportAlerts({ id: "student-user", role: Role.STUDENT }))
+      .rejects.toMatchObject({ statusCode: 403, code: "FORBIDDEN" });
   });
 
   it("sends reset codes through Resend and surfaces provider failures", async () => {
