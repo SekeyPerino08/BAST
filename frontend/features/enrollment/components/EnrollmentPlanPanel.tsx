@@ -19,7 +19,7 @@ import {
 import { useEnrollmentPlan, useSaveEnrollmentPlan } from "../hooks";
 
 type PlanDraft = Pick<EnrollmentPlan, "registrationOpensAt" | "registrationClosesAt" | "firstDayOfClasses">
-  & Pick<EnrollmentPlan, "requirements" | "specialPolicies" | "targets">;
+  & Pick<EnrollmentPlan, "requirements" | "specialPolicies" | "targets" | "gradeTargets">;
 
 const categoryLabels: Record<EnrollmentRequirementCategory, string> = {
   NEW: "New student",
@@ -53,6 +53,7 @@ function draftFromPlan(plan: EnrollmentPlan): PlanDraft {
     requirements: plan.requirements,
     specialPolicies: plan.specialPolicies,
     targets: plan.targets.map((target) => ({ ...target })),
+    gradeTargets: plan.gradeTargets.map((target) => ({ ...target })),
   };
 }
 
@@ -108,6 +109,15 @@ export function EnrollmentPlanPanel({ schoolYearId, onSchoolYearChange }: Readon
     return grouped;
   }, [sectionsQuery.data?.data]);
 
+  const sectionsByGrade = useMemo(() => {
+    const grouped = new Map<number, Section[]>();
+    for (const section of sectionsQuery.data?.data ?? []) {
+      if (section.gradeLevel < 7 || section.gradeLevel > 10) continue;
+      grouped.set(section.gradeLevel, [...(grouped.get(section.gradeLevel) ?? []), section]);
+    }
+    return grouped;
+  }, [sectionsQuery.data?.data]);
+
   if (!schoolYearId) {
     return <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">Create or select a school year before configuring enrollment.</div>;
   }
@@ -123,6 +133,15 @@ export function EnrollmentPlanPanel({ schoolYearId, onSchoolYearChange }: Readon
     setDraft((current) => ({
       ...current,
       targets: current.targets.map((target, targetIndex) => targetIndex === index
+        ? { ...target, [field]: rawValue === "" ? null : Number(rawValue) }
+        : target),
+    }));
+  }
+
+  function setGradeTarget(index: number, field: "expectedNew" | "expectedReturning" | "plannedSections", rawValue: string) {
+    setDraft((current) => ({
+      ...current,
+      gradeTargets: current.gradeTargets.map((target, targetIndex) => targetIndex === index
         ? { ...target, [field]: rawValue === "" ? null : Number(rawValue) }
         : target),
     }));
@@ -193,6 +212,36 @@ export function EnrollmentPlanPanel({ schoolYearId, onSchoolYearChange }: Readon
         <DateField label="Enrollment closes" value={currentDraft.registrationClosesAt} onChange={(value) => setDraft({ ...currentDraft, registrationClosesAt: value })} />
         <DateField label="First day of classes" value={currentDraft.firstDayOfClasses} onChange={(value) => setDraft({ ...currentDraft, firstDayOfClasses: value })} />
       </div>
+    </section>
+
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+        <div><h3 className="font-semibold text-slate-900">Grade 7–10 targets</h3><p className="mt-1 text-xs text-slate-500">Plan enrollment and sections by grade. Capacity reflects all sections in each grade.</p></div>
+        <Link href="/admin/sections" className="text-sm font-semibold text-indigo-700 hover:underline">Manage sections and caps</Link>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[900px] text-left text-sm">
+          <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr>
+            <th className="px-4 py-3">Grade</th><th className="px-4 py-3">Expected new</th><th className="px-4 py-3">Expected returning</th><th className="px-4 py-3">Planned sections</th><th className="px-4 py-3">Configured sections</th><th className="px-4 py-3">Enrolled / capacity</th><th className="px-4 py-3">Seats left</th>
+          </tr></thead>
+          <tbody className="divide-y divide-slate-100">
+            {currentDraft.gradeTargets.map((target, index) => {
+              const summary = sectionCapacitySummary(sectionsByGrade.get(target.gradeLevel) ?? []);
+              return <tr key={target.gradeLevel}>
+                <td className="px-4 py-3 font-medium text-slate-900">Grade {target.gradeLevel}</td>
+                <NumberCell label={`Grade ${target.gradeLevel} expected new`} value={target.expectedNew} onChange={(value) => setGradeTarget(index, "expectedNew", value)} />
+                <NumberCell label={`Grade ${target.gradeLevel} expected returning`} value={target.expectedReturning} onChange={(value) => setGradeTarget(index, "expectedReturning", value)} />
+                <NumberCell label={`Grade ${target.gradeLevel} planned sections`} value={target.plannedSections} onChange={(value) => setGradeTarget(index, "plannedSections", value)} />
+                <td className="px-4 py-3">{summary.sectionCount}</td>
+                <td className="px-4 py-3">{summary.enrolled} / {summary.capacity ?? "Not fully configured"}</td>
+                <td className="px-4 py-3">{summary.remaining ?? "—"}</td>
+              </tr>;
+            })}
+          </tbody>
+        </table>
+      </div>
+      {!sectionsQuery.isError && <p className="px-5 py-3 text-xs text-slate-500">A seat count is shown only when every section in that grade has a configured maximum.</p>}
+      {sectionsQuery.isError && <p role="alert" className="px-5 py-3 text-sm text-rose-700">Section capacity data could not be loaded.</p>}
     </section>
 
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">

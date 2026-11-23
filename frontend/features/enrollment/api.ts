@@ -2,6 +2,7 @@ import { apiFetch } from "../../lib/api";
 import type {
   EnrollmentListParams,
   EnrollmentPlan,
+  EnrollmentGradeTarget,
   EnrollmentRequirement,
   EnrollmentStrandTarget,
   EnrollmentsPage,
@@ -61,6 +62,7 @@ export function saveEnrollmentPlan(
       requirements: EnrollmentRequirement[];
       specialPolicies: EnrollmentPlan["specialPolicies"];
       targets: EnrollmentStrandTarget[];
+      gradeTargets: EnrollmentGradeTarget[];
     },
 ) {
   return apiFetch<{ data: EnrollmentPlan }>(`/api/enrollments/settings/${encodeURIComponent(schoolYearId)}`, {

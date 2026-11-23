@@ -27,6 +27,13 @@ export interface EnrollmentStrandTarget {
   plannedSections: number | null;
 }
 
+export interface EnrollmentGradeTarget {
+  gradeLevel: 7 | 8 | 9 | 10;
+  expectedNew: number | null;
+  expectedReturning: number | null;
+  plannedSections: number | null;
+}
+
 export interface EnrollmentPlan {
   id: string | null;
   schoolYear: { id: string; name: string; startDate: string; endDate: string };
@@ -44,6 +51,7 @@ export interface EnrollmentPlan {
     lateApplicants: string;
   };
   targets: EnrollmentStrandTarget[];
+  gradeTargets: EnrollmentGradeTarget[];
   updatedAt: string | null;
 }
 

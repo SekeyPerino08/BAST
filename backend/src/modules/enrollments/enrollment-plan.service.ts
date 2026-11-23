@@ -28,6 +28,15 @@ function defaultTargets() {
   })));
 }
 
+function defaultGradeTargets() {
+  return [7, 8, 9, 10].map((gradeLevel) => ({
+    gradeLevel,
+    expectedNew: null,
+    expectedReturning: null,
+    plannedSections: null,
+  }));
+}
+
 export async function getEnrollmentPlan(schoolYearId: string) {
   const schoolYear = await prisma.schoolYear.findUnique({
     where: { id: schoolYearId },
@@ -37,7 +46,10 @@ export async function getEnrollmentPlan(schoolYearId: string) {
 
   const plan = await prisma.enrollmentPlan.findUnique({
     where: { schoolYearId },
-    include: { strandTargets: { orderBy: [{ gradeLevel: "asc" }, { strand: "asc" }] } },
+    include: {
+      strandTargets: { orderBy: [{ gradeLevel: "asc" }, { strand: "asc" }] },
+      gradeTargets: { orderBy: { gradeLevel: "asc" } },
+    },
   });
   if (!plan) {
     return {
@@ -51,6 +63,7 @@ export async function getEnrollmentPlan(schoolYearId: string) {
       requirements: [],
       specialPolicies: emptyPolicies,
       targets: defaultTargets(),
+      gradeTargets: defaultGradeTargets(),
       updatedAt: null,
     };
   }
@@ -66,6 +79,7 @@ export async function getEnrollmentPlan(schoolYearId: string) {
     requirements: plan.requirements,
     specialPolicies: plan.specialPolicies,
     targets: plan.strandTargets,
+    gradeTargets: plan.gradeTargets.length > 0 ? plan.gradeTargets : defaultGradeTargets(),
     updatedAt: plan.updatedAt,
   };
 }
@@ -84,6 +98,12 @@ export async function saveEnrollmentPlan(
   const targetData = input.targets.map((target) => ({
     gradeLevel: target.gradeLevel,
     strand: target.strand,
+    expectedNew: target.expectedNew,
+    expectedReturning: target.expectedReturning,
+    plannedSections: target.plannedSections,
+  }));
+  const gradeTargetData = input.gradeTargets.map((target) => ({
+    gradeLevel: target.gradeLevel,
     expectedNew: target.expectedNew,
     expectedReturning: target.expectedReturning,
     plannedSections: target.plannedSections,
@@ -107,6 +127,7 @@ export async function saveEnrollmentPlan(
         requirements,
         specialPolicies,
         strandTargets: { create: targetData },
+        gradeTargets: { create: gradeTargetData },
       },
       update: {
         ...dates,
@@ -116,8 +137,15 @@ export async function saveEnrollmentPlan(
           deleteMany: {},
           create: targetData,
         },
+        gradeTargets: {
+          deleteMany: {},
+          create: gradeTargetData,
+        },
       },
-      include: { strandTargets: { orderBy: [{ gradeLevel: "asc" }, { strand: "asc" }] } },
+      include: {
+        strandTargets: { orderBy: [{ gradeLevel: "asc" }, { strand: "asc" }] },
+        gradeTargets: { orderBy: { gradeLevel: "asc" } },
+      },
     });
 
     await logAudit({
@@ -132,6 +160,7 @@ export async function saveEnrollmentPlan(
         firstDayOfClasses: input.firstDayOfClasses,
         requirementCount: input.requirements.length,
         targetCount: input.targets.length,
+        gradeTargetCount: input.gradeTargets.length,
       },
       ipAddress: request?.ip,
     }, transaction);

@@ -21,6 +21,13 @@ const strandTargetSchema = z.object({
   plannedSections: nullableCount,
 });
 
+const gradeTargetSchema = z.object({
+  gradeLevel: z.union([z.literal(7), z.literal(8), z.literal(9), z.literal(10)]),
+  expectedNew: nullableCount,
+  expectedReturning: nullableCount,
+  plannedSections: nullableCount,
+});
+
 const requirementSchema = z.object({
   category: z.enum(enrollmentRequirementCategories),
   name: z.string().trim().min(1).max(160),
@@ -42,6 +49,7 @@ export const enrollmentPlanSchema = z.object({
   requirements: z.array(requirementSchema).max(100),
   specialPolicies: specialPoliciesSchema,
   targets: z.array(strandTargetSchema).length(10),
+  gradeTargets: z.array(gradeTargetSchema).length(4),
 }).superRefine((value, context) => {
   if (value.registrationOpensAt && value.registrationClosesAt &&
     value.registrationClosesAt < value.registrationOpensAt) {
@@ -68,6 +76,24 @@ export const enrollmentPlanSchema = z.object({
       code: z.ZodIssueCode.custom,
       path: ["targets"],
       message: "Provide targets for every Grade 11 and 12 strand",
+    });
+  }
+  const gradeKeys = new Set<number>();
+  for (const [index, target] of value.gradeTargets.entries()) {
+    if (gradeKeys.has(target.gradeLevel)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["gradeTargets", index],
+        message: "Each Grade 7–10 target must appear exactly once",
+      });
+    }
+    gradeKeys.add(target.gradeLevel);
+  }
+  if (gradeKeys.size !== 4) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["gradeTargets"],
+      message: "Provide targets for every Grade 7 through 10",
     });
   }
 });

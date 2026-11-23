@@ -132,6 +132,12 @@ describe("security and data quality rules", () => {
         lateApplicants: "",
       },
       targets,
+      gradeTargets: [7, 8, 9, 10].map((gradeLevel) => ({
+        gradeLevel,
+        expectedNew: null,
+        expectedReturning: null,
+        plannedSections: null,
+      })),
     };
     expect(enrollmentPlanSchema.safeParse(plan).success).toBe(true);
     expect(enrollmentPlanSchema.safeParse({
@@ -141,6 +147,10 @@ describe("security and data quality rules", () => {
     expect(enrollmentPlanSchema.safeParse({
       ...plan,
       targets: [...targets.slice(1), targets[1]],
+    }).success).toBe(false);
+    expect(enrollmentPlanSchema.safeParse({
+      ...plan,
+      gradeTargets: [...plan.gradeTargets.slice(1), plan.gradeTargets[1]],
     }).success).toBe(false);
     expect(createSectionSchema.safeParse({
       gradeLevel: 11,

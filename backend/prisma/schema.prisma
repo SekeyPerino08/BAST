@@ -341,6 +341,7 @@ model EnrollmentPlan {
   updatedAt            DateTime                 @updatedAt
   schoolYear           SchoolYear               @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
   strandTargets        EnrollmentStrandTarget[]
+  gradeTargets         EnrollmentGradeTarget[]
 }
 
 model EnrollmentStrandTarget {
@@ -356,6 +357,21 @@ model EnrollmentStrandTarget {
   plan              EnrollmentPlan   @relation(fields: [planId], references: [id], onDelete: Cascade)
 
   @@unique([planId, gradeLevel, strand])
+  @@index([planId])
+}
+
+model EnrollmentGradeTarget {
+  id                String         @id @default(cuid())
+  planId            String
+  gradeLevel        Int
+  expectedNew       Int?
+  expectedReturning Int?
+  plannedSections   Int?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  plan              EnrollmentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, gradeLevel])
   @@index([planId])
 }
 
