@@ -231,6 +231,14 @@ export async function enrollApplicant(id: string, rawInput: unknown, request: Au
       throw new AppError("A possible matching student was found", 409, "POSSIBLE_DUPLICATE", { matches: possibleDuplicates });
     }
 
+    const claim = await transaction.applicant.updateMany({
+      where: { id, stage: AdmissionStage.ENROLLMENT, studentId: null },
+      data: { stage: AdmissionStage.ENROLLED },
+    });
+    if (claim.count !== 1) {
+      throw new AppError("Applicant is already being enrolled or has already been enrolled", 409, "INVALID_ADMISSION_STAGE");
+    }
+
     const studentId = randomUUID();
     const user = await createLinkedPersonUser(transaction, {
       kind: "student",
@@ -244,7 +252,7 @@ export async function enrollApplicant(id: string, rawInput: unknown, request: Au
     const enrollment = await enrollOne(transaction, student.id, section);
     const updatedApplicant = await transaction.applicant.update({
       where: { id },
-      data: { stage: AdmissionStage.ENROLLED, studentId: student.id },
+      data: { studentId: student.id },
     });
     await audit(transaction, request, {
       action: "ADMISSION_ENROLLED",
