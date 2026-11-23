@@ -17,6 +17,7 @@ import { AppError } from "../../utils/AppError.js";
 import { buildPaginationMeta, parsePagination } from "../../utils/pagination.js";
 import { invalidateAdminDashboardCache } from "../dashboard/dashboard.helpers.js";
 import { csvTemplate, rejectedRowsCsv } from "./etl/report.js";
+import { normalizeImportTotals, summarizeImportJob } from "./import.summary.js";
 import { mapHeaders } from "./etl/mapHeaders.js";
 import { parseCsv } from "./etl/parse.js";
 import { transformRows } from "./etl/transform.js";
@@ -88,19 +89,7 @@ function json(value: object): Prisma.InputJsonObject {
 }
 
 function summary(job: ImportJob) {
-  return {
-    id: job.id,
-    type: job.type,
-    status: job.status,
-    fileName: job.fileName,
-    options: job.options,
-    totals: job.totals,
-    expiresAt: job.expiresAt,
-    createdById: job.createdById,
-    committedAt: job.committedAt,
-    result: job.result,
-    createdAt: job.createdAt,
-  };
+  return summarizeImportJob(job);
 }
 
 async function loadJob(id: string): Promise<ImportJob> {
@@ -330,6 +319,7 @@ export async function previewImport(
     ignoredColumns: mapping.ignored,
     originalHeaders: parsed.headers,
     delimiter: parsed.delimiter,
+    willEnroll: rows.some((row) => row.enrollment !== undefined),
   };
   const created = await prisma.$transaction(async (transaction) => {
     const job = await transaction.importJob.create({
@@ -644,7 +634,8 @@ export async function listImportJobs(rawQuery: unknown) {
   return {
     data: jobs.map(({ createdBy, ...job }) => ({
       ...job,
-      createdByEmail: createdBy?.email ?? null,
+      totals: normalizeImportTotals(job.totals),
+      createdBy: createdBy?.email ?? null,
     })),
     meta: buildPaginationMeta(query.page, query.pageSize, total),
   };
