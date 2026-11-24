@@ -17,6 +17,7 @@ import {
   updateMyProfile,
 } from "./me.service.js";
 import type { UpdateMyProfileInput } from "./me.schema.js";
+import type { CreateStudentDocumentRequestInput } from "../document-requests/document-request.schema.js";
 
 export const getMyProfileController = asyncHandler(async (req, res) => {
   if (!req.user) throw new AppError("Not authenticated", 401);
@@ -65,9 +66,9 @@ export const getMyDocumentRequestsController = asyncHandler(async (req, res) => 
   res.status(200).json(await getMyDocumentRequests(req.user.id));
 });
 
-export const createMyDocumentRequestController = asyncHandler(async (req, res) => {
+export const createMyDocumentRequestController = asyncHandler<ParamsDictionary, unknown, CreateStudentDocumentRequestInput>(async (req, res) => {
   if (!req.user) throw new AppError("Not authenticated", 401);
-  res.status(201).json(await createMyDocumentRequest(req.user.id, req.body));
+  res.status(201).json(await createMyDocumentRequest(req.user.id, req.body, req.ip));
 });
 
 export const getMyNotificationsController = asyncHandler(async (req, res) => {

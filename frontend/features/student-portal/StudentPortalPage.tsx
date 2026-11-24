@@ -1,14 +1,13 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, CalendarDays, FileText, Inbox, School } from "lucide-react";
+import { AlertCircle, CalendarDays, FileText, School } from "lucide-react";
 import { apiFetch } from "../../lib/api";
 
 type PortalType =
   | "announcements"
   | "schedule"
   | "documents"
-  | "notifications"
   | "history";
 
 interface StudentPortalPageProps {
@@ -113,20 +112,6 @@ export function StudentPortalPage({ title, description, endpoint, type, emptyTex
                   <h2 className="mt-4 text-xl font-semibold text-slate-900 dark:text-white">{String(item.documentType ?? "Document request")}</h2>
                   <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{String(item.reason ?? "No reason given")}</p>
                   <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">Requested {formatDate(String(item.requestedAt ?? ""))}</p>
-                </article>
-              );
-            }
-
-            if (type === "notifications") {
-              return (
-                <article key={id} className={`rounded-2xl border p-5 shadow-sm ${item.isRead ? "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900" : "border-[#b9d7bf] bg-[#edf7ef] dark:border-[#315b43] dark:bg-[#183d2d]"}`}>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-100">{item.isRead ? "Read" : "New"}</span>
-                    <Inbox size={18} className="text-[#1d6a45] dark:text-[#dfeee4]" />
-                  </div>
-                  <h2 className="mt-4 text-xl font-semibold text-slate-900 dark:text-white">{String(item.title ?? "Notification")}</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{String(item.message ?? "No message.")}</p>
-                  <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">{formatDate(String(item.createdAt ?? ""))}</p>
                 </article>
               );
             }

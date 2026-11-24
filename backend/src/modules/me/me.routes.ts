@@ -58,8 +58,8 @@ router.get("/announcements", authorize(Role.STUDENT), getMyAnnouncementsControll
 router.get("/schedule", authorize(Role.STUDENT), getMyScheduleController);
 router.get("/documents", authorize(Role.STUDENT), getMyDocumentRequestsController);
 router.post("/documents", authorize(Role.STUDENT), validateBody(createStudentDocumentRequestSchema), createMyDocumentRequestController);
-router.get("/notifications", authorize(Role.STUDENT), getMyNotificationsController);
-router.patch("/notifications/:id/read", authorize(Role.STUDENT), markMyNotificationReadController);
+router.get("/notifications", authorize(Role.ADMIN, Role.STUDENT), getMyNotificationsController);
+router.patch("/notifications/:id/read", authorize(Role.ADMIN, Role.STUDENT), markMyNotificationReadController);
 router.get("/history", authorize(Role.STUDENT), getMyAcademicHistoryController);
 router.get("/attendance", authorize(Role.STUDENT), getMyAttendanceController);
 router.get("/lms", authorize(Role.STUDENT, Role.ALUMNI), getMyStudentLmsController);

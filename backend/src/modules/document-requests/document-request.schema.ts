@@ -8,10 +8,15 @@ export const createStudentDocumentRequestSchema = z.object({
 });
 
 export const updateDocumentRequestSchema = z.object({
-  status: z.nativeEnum(DocumentRequestStatus).optional(),
+  status: z.enum([
+    DocumentRequestStatus.APPROVED,
+    DocumentRequestStatus.REJECTED,
+    DocumentRequestStatus.READY_FOR_PICKUP,
+  ]),
   adminRemarks: z.string().trim().max(2000).nullable().optional(),
-}).refine((value) => value.status !== undefined || value.adminRemarks !== undefined, {
-  message: "Provide a status or staff note to update",
+}).refine((value) => value.status !== DocumentRequestStatus.REJECTED || Boolean(value.adminRemarks), {
+  message: "A reason is required when rejecting a document request",
+  path: ["adminRemarks"],
 });
 
 export type CreateStudentDocumentRequestInput = z.infer<typeof createStudentDocumentRequestSchema>;

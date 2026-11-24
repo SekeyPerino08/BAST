@@ -4,6 +4,7 @@ import {
   DocumentRequestStatus,
   EnrollmentStatus,
   NotificationType,
+  Role,
 } from "@prisma/client";
 import type { Request } from "express";
 import { audit } from "../../audit.js";
@@ -434,6 +435,21 @@ export async function createMyDocumentRequest(
       details: { documentType: created.documentType },
       ipAddress,
     }, transaction);
+    const admins = await transaction.user.findMany({
+      where: { role: Role.ADMIN, isActive: true },
+      select: { id: true },
+    });
+    if (admins.length) {
+      await transaction.notification.createMany({
+        data: admins.map((admin) => ({
+          userId: admin.id,
+          type: NotificationType.DOCUMENT,
+          title: "New document request",
+          message: "A student submitted a document request that needs review.",
+          actionUrl: "/admin/document-requests",
+        })),
+      });
+    }
     return created;
   });
 
@@ -441,14 +457,8 @@ export async function createMyDocumentRequest(
 }
 
 export async function getMyNotifications(userId: string) {
-  const student = await getStudentProfileByUserId(userId);
   const notifications = await prisma.notification.findMany({
-    where: {
-      OR: [
-        { userId },
-        { studentId: student.id },
-      ],
-    },
+    where: { userId },
     orderBy: { createdAt: "desc" },
   });
 
@@ -456,12 +466,8 @@ export async function getMyNotifications(userId: string) {
 }
 
 export async function markMyNotificationRead(userId: string, notificationId: string) {
-  const student = await getStudentProfileByUserId(userId);
   const notification = await prisma.notification.findFirst({
-    where: {
-      id: notificationId,
-      OR: [{ userId }, { studentId: student.id }],
-    },
+    where: { id: notificationId, userId },
   });
 
   if (!notification) {

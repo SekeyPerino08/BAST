@@ -8,7 +8,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import {
   BarChart3,
-  Bell,
   BookOpen,
   CalendarCheck,
   ChevronDown,
@@ -30,6 +29,7 @@ import { userDisplayName } from "../lib/auth";
 import type { Role } from "../types/auth";
 import { GlobalSearch } from "./GlobalSearch";
 import { ProfileAvatar } from "../features/profile/components/ProfileAvatar";
+import { NotificationBell } from "./NotificationBell";
 
 const navigation: Record<Role, { label: string; href: string; comingSoon?: boolean; group?: string }[]> = {
   ADMIN: [
@@ -41,6 +41,7 @@ const navigation: Record<Role, { label: string; href: string; comingSoon?: boole
     { label: "School Years", href: "/admin/school-years" },
     { label: "Enrollment", href: "/admin/enrollment" },
     { label: "Admissions", href: "/admin/admissions" },
+    { label: "Document requests", href: "/admin/document-requests" },
     { label: "Student support", href: "/admin/support-alerts" },
     { label: "Data protection", href: "/admin/data-protection", group: "Administration" },
     { label: "Data sync", href: "/admin/sync" },
@@ -71,7 +72,6 @@ const navigation: Record<Role, { label: string; href: string; comingSoon?: boole
     { label: "Attendance", href: "/student/attendance" },
     { label: "Academic History", href: "/student/history" },
     { label: "Document Requests", href: "/student/documents" },
-    { label: "Notifications", href: "/student/notifications" },
     { label: "Report Card", href: "/student/report-card" },
     { label: "Profile", href: "/profile" },
   ],
@@ -102,6 +102,7 @@ const navigationIcons: Record<string, LucideIcon> = {
   "User Management": Users,
   "Audit log": FileClock,
   Import: ClipboardList,
+  "Document requests": FileText,
   Reports: BarChart3,
   "My Classes": School,
   Advisees: Users,
@@ -112,7 +113,6 @@ const navigationIcons: Record<string, LucideIcon> = {
   "Class Schedule": CalendarCheck,
   "Academic History": FileClock,
   "Document Requests": FileText,
-  Notifications: Bell,
   "My Subjects": BookOpen,
   "My Grades": ClipboardList,
   "My Data": LayoutDashboard,
@@ -347,7 +347,10 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
         <Menu size={22} />
       </button>}
       <div className="flex min-w-0 flex-1 flex-col">
-        <main id="main-content" tabIndex={-1} className="w-full flex-1 p-4 pt-16 focus:outline-none sm:p-8 sm:pt-8">{children}</main>
+        {(user.role === "ADMIN" || user.role === "STUDENT") && <div className="flex h-14 shrink-0 items-center justify-end px-4 sm:px-8">
+          <NotificationBell userId={user.id} role={user.role} />
+        </div>}
+        <main id="main-content" tabIndex={-1} className={`w-full flex-1 p-4 focus:outline-none ${user.role === "ADMIN" || user.role === "STUDENT" ? "pt-2 sm:p-8 sm:pt-4" : "pt-16 sm:p-8 sm:pt-8"}`}>{children}</main>
       </div>
     </div>
   );

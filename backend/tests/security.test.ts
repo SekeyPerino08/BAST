@@ -22,6 +22,10 @@ import { enrollmentPlanSchema } from "../src/modules/enrollments/enrollment-plan
 import { createSectionSchema } from "../src/modules/sections/section.schema.js";
 import { advanceApplicantSchema, createApplicantSchema } from "../src/modules/admissions/admission.schema.js";
 import { updateSupportAlertSchema } from "../src/modules/student-support/support-alert.schema.js";
+import {
+  createStudentDocumentRequestSchema,
+  updateDocumentRequestSchema,
+} from "../src/modules/document-requests/document-request.schema.js";
 import { listStudentSupportAlerts } from "../src/modules/student-support/support-alert.service.js";
 
 const { resendSendMock } = vi.hoisted(() => ({ resendSendMock: vi.fn() }));
@@ -198,6 +202,24 @@ describe("security and data quality rules", () => {
       status: "IN_PROGRESS",
       followUpNote: "Met with the student and agreed on a check-in.",
     }).success).toBe(true);
+  });
+
+  it("validates student document requests and admin updates", () => {
+    expect(createStudentDocumentRequestSchema.safeParse({
+      documentType: "CERTIFICATE_OF_ENROLLMENT",
+      reason: "For scholarship application",
+      details: "Please include the current school year.",
+    }).success).toBe(true);
+    expect(createStudentDocumentRequestSchema.safeParse({
+      documentType: "INVALID",
+      reason: " ",
+    }).success).toBe(false);
+    expect(updateDocumentRequestSchema.safeParse({ status: "APPROVED", adminRemarks: "Under review" }).success).toBe(true);
+    expect(updateDocumentRequestSchema.safeParse({ status: "REJECTED" }).success).toBe(false);
+    expect(updateDocumentRequestSchema.safeParse({ status: "REJECTED", adminRemarks: " " }).success).toBe(false);
+    expect(updateDocumentRequestSchema.safeParse({ status: "REJECTED", adminRemarks: "Incomplete application" }).success).toBe(true);
+    expect(updateDocumentRequestSchema.safeParse({ status: "PROCESSING", adminRemarks: "Under review" }).success).toBe(false);
+    expect(updateDocumentRequestSchema.safeParse({}).success).toBe(false);
   });
 
   it("denies student accounts access to staff support alerts", async () => {
