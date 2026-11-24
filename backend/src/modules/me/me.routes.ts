@@ -9,8 +9,6 @@ import {
   createMyDocumentRequestController,
   getMyAcademicHistoryController,
   getMyAdvisoryStudentsController,
-  getMyAnnouncementsController,
-  getMyAssignmentsController,
   getMyClassesController,
   getMyDocumentRequestsController,
   getMyEnrollmentController,
@@ -55,8 +53,6 @@ router.use(authenticate);
 router.get("/classes", authorize(Role.TEACHER), getMyClassesController);
 router.get("/advisory/students", authorize(Role.TEACHER), getMyAdvisoryStudentsController);
 router.get("/enrollment", authorize(Role.STUDENT), getMyEnrollmentController);
-router.get("/assignments", authorize(Role.STUDENT), getMyAssignmentsController);
-router.get("/announcements", authorize(Role.STUDENT), getMyAnnouncementsController);
 router.get("/schedule", authorize(Role.STUDENT), getMyScheduleController);
 router.get("/materials", authorize(Role.STUDENT), getMyLearningMaterialsController);
 router.get("/documents", authorize(Role.STUDENT), getMyDocumentRequestsController);

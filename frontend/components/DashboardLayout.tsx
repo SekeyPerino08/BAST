@@ -65,8 +65,6 @@ const navigation: Record<Role, { label: string; href: string; comingSoon?: boole
   STUDENT: [
     { label: "Dashboard", href: "/student" },
     { label: "My Classes", href: "/student/subjects" },
-    { label: "Assignments", href: "/student/assignments" },
-    { label: "Announcements", href: "/student/announcements" },
     { label: "Class Schedule", href: "/student/schedule" },
     { label: "Learning Materials", href: "/student/materials" },
     { label: "Grades", href: "/student/grades" },
@@ -110,8 +108,6 @@ const navigationIcons: Record<string, LucideIcon> = {
   Attendance: CalendarCheck,
   Grades: ClipboardList,
   Gradebook: ClipboardList,
-  Assignments: ClipboardList,
-  Announcements: BookOpen,
   "Class Schedule": CalendarCheck,
   "Learning Materials": BookOpen,
   "Academic History": FileClock,

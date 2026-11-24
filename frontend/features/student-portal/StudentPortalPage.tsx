@@ -1,12 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, CalendarDays, FileText, Inbox, NotebookPen, School } from "lucide-react";
+import { AlertCircle, CalendarDays, FileText, Inbox, School } from "lucide-react";
 import { apiFetch } from "../../lib/api";
 
 type PortalType =
-  | "assignments"
-  | "announcements"
   | "schedule"
   | "materials"
   | "documents"
@@ -30,12 +28,6 @@ function formatDate(value: string | null | undefined) {
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-}
-
-function fullname(person: Record<string, unknown> | null | undefined) {
-  if (!person) return "Unknown";
-  const parts = [person.firstName, person.middleName, person.lastName].filter(Boolean) as string[];
-  return parts.length ? parts.join(" ") : "Unknown";
 }
 
 export function StudentPortalPage({ title, description, endpoint, type, emptyText }: StudentPortalPageProps) {
@@ -80,40 +72,8 @@ export function StudentPortalPage({ title, description, endpoint, type, emptyTex
           {items.map((item, index) => {
             const id = String(item.id ?? index);
             const subject = asRecord(item.subject);
-            const teacher = asRecord(item.teacher);
             const section = asRecord(item.section);
             const term = asRecord(item.term);
-            if (type === "assignments") {
-              return (
-                <article key={id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="rounded-full bg-[#edf7ef] px-2.5 py-1 text-xs font-semibold text-[#0d412e] dark:bg-[#183d2d] dark:text-[#dfeee4]">{String(item.status ?? "OPEN")}</span>
-                    <NotebookPen size={18} className="text-[#1d6a45] dark:text-[#dfeee4]" />
-                  </div>
-                  <h2 className="mt-4 text-xl font-semibold text-slate-900 dark:text-white">{String(item.title ?? "Untitled assignment")}</h2>
-                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{String(subject.code ?? "SUBJECT")} · {String(subject.name ?? "Subject")}</p>
-                  <div className="mt-4 space-y-2 text-sm text-slate-600 dark:text-slate-300">
-                    <p className="flex items-center gap-2"><CalendarDays size={15} /> Due: {formatDate(String(item.dueAt ?? ""))}</p>
-                    <p className="flex items-center gap-2"><FileText size={15} /> Teacher: {fullname(teacher)}</p>
-                  </div>
-                </article>
-              );
-            }
-
-            if (type === "announcements") {
-              return (
-                <article key={id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-200">{String(item.category ?? "ANNOUNCEMENT")}</span>
-                    <School size={18} className="text-amber-600" />
-                  </div>
-                  <h2 className="mt-4 text-xl font-semibold text-slate-900 dark:text-white">{String(item.title ?? "Announcement")}</h2>
-                  <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{String(item.body ?? "No details provided.")}</p>
-                  <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">Published {formatDate(String(item.publishedAt ?? ""))}</p>
-                </article>
-              );
-            }
-
             if (type === "schedule") {
               return (
                 <article key={id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">

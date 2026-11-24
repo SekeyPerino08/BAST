@@ -1,6 +1,4 @@
 import {
-  AnnouncementCategory,
-  AssignmentStatus,
   AttendanceStatus,
   DocumentRequestStatus,
   DocumentRequestType,
@@ -325,106 +323,6 @@ async function getCurrentStudentSchoolYear(userId: string) {
     schoolYear,
     classOfferingIds: offeringIds.map(({ id }) => id),
     subjectIds: [...new Set(offeringIds.map(({ subjectId }) => subjectId))],
-  };
-}
-
-export async function getMyAssignments(userId: string) {
-  const { student, schoolYear, classOfferingIds } = await getCurrentStudentSchoolYear(userId);
-  if (!schoolYear) return { data: [] };
-
-  const assignments = await prisma.assignment.findMany({
-    where: {
-      classOfferingId: { in: classOfferingIds },
-    },
-    orderBy: { dueAt: "asc" },
-    include: {
-      subject: { select: { id: true, code: true, name: true } },
-      teacher: { select: { id: true, firstName: true, middleName: true, lastName: true } },
-      classOffering: {
-        select: {
-          id: true,
-          section: { select: { id: true, name: true, gradeLevel: true } },
-        },
-      },
-      submissions: {
-        where: { studentId: student.id },
-        orderBy: { submittedAt: "desc" },
-        take: 1,
-      },
-    },
-  });
-
-  const now = new Date();
-  return {
-    data: assignments.map((assignment) => {
-      const submission = assignment.submissions[0] ?? null;
-      let status: string = AssignmentStatus.UPCOMING;
-      if (submission) {
-        status = submission.status;
-      } else if (new Date(assignment.dueAt) < now) {
-        status = AssignmentStatus.PENDING;
-      }
-
-      return {
-        id: assignment.id,
-        title: assignment.title,
-        description: assignment.description,
-        instructions: assignment.instructions,
-        dueAt: assignment.dueAt,
-        publishedAt: assignment.publishedAt,
-        maxScore: assignment.maxScore ? Number(assignment.maxScore) : null,
-        status,
-        isSubmitted: Boolean(submission),
-        submittedAt: submission?.submittedAt ?? null,
-        subject: assignment.subject,
-        teacher: assignment.teacher,
-        section: assignment.classOffering.section,
-        classOfferingId: assignment.classOfferingId,
-      };
-    }),
-  };
-}
-
-export async function getMyAnnouncements(userId: string) {
-  const { schoolYear, classOfferingIds, subjectIds } = await getCurrentStudentSchoolYear(userId);
-  if (!schoolYear) return { data: [] };
-
-  const announcements = await prisma.announcement.findMany({
-    where: {
-      OR: [
-        { category: AnnouncementCategory.SCHOOL },
-        { classOfferingId: { in: classOfferingIds } },
-        { subjectId: { in: subjectIds } },
-      ],
-    },
-    orderBy: { publishedAt: "desc" },
-    include: {
-      subject: { select: { id: true, code: true, name: true } },
-      classOffering: {
-        select: {
-          id: true,
-          section: { select: { id: true, name: true, gradeLevel: true } },
-          subject: { select: { id: true, code: true, name: true } },
-        },
-      },
-      createdBy: { select: { email: true, firstName: true, lastName: true } },
-    },
-  });
-
-  return {
-    data: announcements.map((announcement) => ({
-      id: announcement.id,
-      title: announcement.title,
-      body: announcement.body,
-      category: announcement.category,
-      isPinned: announcement.isPinned,
-      publishedAt: announcement.publishedAt,
-      expiresAt: announcement.expiresAt,
-      attachments: announcement.attachments,
-      subject: announcement.subject,
-      classOffering: announcement.classOffering,
-      createdBy: announcement.createdBy,
-    })),
   };
 }
 
