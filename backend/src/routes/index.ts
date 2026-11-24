@@ -21,6 +21,7 @@ import syncRouter from "../modules/integrations/sync.routes.js";
 import admissionsRouter from "../modules/admissions/admission.routes.js";
 import supportAlertsRouter from "../modules/student-support/support-alert.routes.js";
 import dataProtectionRouter from "../modules/data-protection/data-protection.routes.js";
+import documentRequestsRouter from "../modules/document-requests/document-request.routes.js";
 
 const apiRouter = Router();
 
@@ -37,6 +38,7 @@ apiRouter.use("/sync", syncRouter);
 apiRouter.use("/admissions", admissionsRouter);
 apiRouter.use("/support-alerts", supportAlertsRouter);
 apiRouter.use("/data-protection", dataProtectionRouter);
+apiRouter.use("/document-requests", documentRequestsRouter);
 apiRouter.use("/reports", reportsRouter);
 apiRouter.use("/students", studentRouter);
 apiRouter.use("/teachers", teacherRouter);

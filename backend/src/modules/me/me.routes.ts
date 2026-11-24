@@ -13,7 +13,6 @@ import {
   getMyClassesController,
   getMyDocumentRequestsController,
   getMyEnrollmentController,
-  getMyLearningMaterialsController,
   getMyNotificationsController,
   getMyProfileController,
   getMyProfilePhotoController,
@@ -23,6 +22,7 @@ import {
 } from "./me.controller.js";
 import { updateMyProfileSchema } from "./me.schema.js";
 import { getMyAttendanceController } from "../attendance/attendance.controller.js";
+import { createStudentDocumentRequestSchema } from "../document-requests/document-request.schema.js";
 import {
   getMyStudentAlumniController,
   getMyStudentLibraryController,
@@ -56,9 +56,8 @@ router.get("/advisory/students", authorize(Role.TEACHER), getMyAdvisoryStudentsC
 router.get("/enrollment", authorize(Role.STUDENT), getMyEnrollmentController);
 router.get("/announcements", authorize(Role.STUDENT), getMyAnnouncementsController);
 router.get("/schedule", authorize(Role.STUDENT), getMyScheduleController);
-router.get("/materials", authorize(Role.STUDENT), getMyLearningMaterialsController);
 router.get("/documents", authorize(Role.STUDENT), getMyDocumentRequestsController);
-router.post("/documents", authorize(Role.STUDENT), createMyDocumentRequestController);
+router.post("/documents", authorize(Role.STUDENT), validateBody(createStudentDocumentRequestSchema), createMyDocumentRequestController);
 router.get("/notifications", authorize(Role.STUDENT), getMyNotificationsController);
 router.patch("/notifications/:id/read", authorize(Role.STUDENT), markMyNotificationReadController);
 router.get("/history", authorize(Role.STUDENT), getMyAcademicHistoryController);

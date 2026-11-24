@@ -9,7 +9,6 @@ import {
   getMyAdvisoryStudents,
   getMyClasses,
   getMyEnrollment,
-  getMyLearningMaterials,
   getMyNotifications,
   getMyProfile,
   getMyProfilePhoto,
@@ -59,11 +58,6 @@ export const getMyAnnouncementsController = asyncHandler(async (req, res) => {
 export const getMyScheduleController = asyncHandler(async (req, res) => {
   if (!req.user) throw new AppError("Not authenticated", 401);
   res.status(200).json(await getMySchedule(req.user.id));
-});
-
-export const getMyLearningMaterialsController = asyncHandler(async (req, res) => {
-  if (!req.user) throw new AppError("Not authenticated", 401);
-  res.status(200).json(await getMyLearningMaterials(req.user.id));
 });
 
 export const getMyDocumentRequestsController = asyncHandler(async (req, res) => {

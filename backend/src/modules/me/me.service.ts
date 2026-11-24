@@ -2,13 +2,13 @@ import {
   AnnouncementCategory,
   AttendanceStatus,
   DocumentRequestStatus,
-  DocumentRequestType,
   EnrollmentStatus,
   NotificationType,
 } from "@prisma/client";
 import type { Request } from "express";
 import { audit } from "../../audit.js";
 import { prisma } from "../../lib/prisma.js";
+import { logAudit } from "../../services/audit.service.js";
 import { getTeacherIdForUser } from "../../services/access.service.js";
 import { AppError } from "../../utils/AppError.js";
 import { formatDateString, parseDateString } from "../../utils/dates.js";
@@ -16,6 +16,7 @@ import { calculateAttendanceRate } from "../attendance/attendance.rules.js";
 import { getCurrentContext } from "../dashboard/dashboard.helpers.js";
 import { myClassesQuerySchema } from "./me.schema.js";
 import type { UpdateMyProfileInput } from "./me.schema.js";
+import type { CreateStudentDocumentRequestInput } from "../document-requests/document-request.schema.js";
 
 async function resolveSchoolYearId(schoolYearId?: string): Promise<string> {
   if (schoolYearId) {
@@ -399,49 +400,6 @@ export async function getMySchedule(userId: string) {
   };
 }
 
-export async function getMyLearningMaterials(userId: string) {
-  const { schoolYear, classOfferingIds, subjectIds } = await getCurrentStudentSchoolYear(userId);
-  if (!schoolYear) return { data: [] };
-
-  const learningMaterials = await prisma.learningMaterial.findMany({
-    where: {
-      OR: [
-        { isRestricted: false },
-        { classOfferingId: { in: classOfferingIds } },
-        { subjectId: { in: subjectIds } },
-      ],
-    },
-    orderBy: { uploadedAt: "desc" },
-    include: {
-      teacher: { select: { id: true, firstName: true, middleName: true, lastName: true } },
-      subject: { select: { id: true, code: true, name: true } },
-      classOffering: {
-        select: {
-          id: true,
-          section: { select: { id: true, name: true, gradeLevel: true } },
-          subject: { select: { id: true, code: true, name: true } },
-        },
-      },
-    },
-  });
-
-  return {
-    data: learningMaterials.map((material) => ({
-      id: material.id,
-      title: material.title,
-      description: material.description,
-      fileName: material.fileName,
-      fileUrl: material.fileUrl,
-      fileType: material.fileType,
-      uploadedAt: material.uploadedAt,
-      isRestricted: material.isRestricted,
-      teacher: material.teacher,
-      subject: material.subject,
-      classOffering: material.classOffering,
-    })),
-  };
-}
-
 export async function getMyDocumentRequests(userId: string) {
   const student = await getStudentProfileByUserId(userId);
   const documents = await prisma.documentRequest.findMany({
@@ -452,32 +410,31 @@ export async function getMyDocumentRequests(userId: string) {
   return { data: documents };
 }
 
-export async function createMyDocumentRequest(userId: string, rawInput: unknown) {
+export async function createMyDocumentRequest(
+  userId: string,
+  input: CreateStudentDocumentRequestInput,
+  ipAddress?: string,
+) {
   const student = await getStudentProfileByUserId(userId);
-  if (!rawInput || typeof rawInput !== "object") {
-    throw new AppError("Document request payload is required", 400, "INVALID_DOCUMENT_REQUEST");
-  }
-
-  const input = rawInput as Record<string, unknown>;
-  const documentType = typeof input.documentType === "string" ? input.documentType : "";
-  const reason = typeof input.reason === "string" ? input.reason : "";
-  const details = typeof input.details === "string" ? input.details : null;
-
-  if (!Object.values(DocumentRequestType).includes(documentType as DocumentRequestType)) {
-    throw new AppError("Invalid document type", 400, "INVALID_DOCUMENT_TYPE");
-  }
-  if (!reason.trim()) {
-    throw new AppError("A reason is required", 400, "MISSING_REASON");
-  }
-
-  const document = await prisma.documentRequest.create({
-    data: {
-      studentId: student.id,
-      documentType: documentType as DocumentRequestType,
-      reason: reason.trim(),
-      details: details?.trim() || null,
-      status: DocumentRequestStatus.PENDING,
-    },
+  const document = await prisma.$transaction(async (transaction) => {
+    const created = await transaction.documentRequest.create({
+      data: {
+        studentId: student.id,
+        documentType: input.documentType,
+        reason: input.reason,
+        details: input.details || null,
+        status: DocumentRequestStatus.PENDING,
+      },
+    });
+    await logAudit({
+      userId,
+      action: "DOCUMENT_REQUEST_CREATED",
+      entity: "DocumentRequest",
+      entityId: created.id,
+      details: { documentType: created.documentType },
+      ipAddress,
+    }, transaction);
+    return created;
   });
 
   return { data: document };

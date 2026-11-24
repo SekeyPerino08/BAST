@@ -7,7 +7,6 @@ import { apiFetch } from "../../lib/api";
 type PortalType =
   | "announcements"
   | "schedule"
-  | "materials"
   | "documents"
   | "notifications"
   | "history";
@@ -100,20 +99,6 @@ export function StudentPortalPage({ title, description, endpoint, type, emptyTex
                   <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{String(subject.code ?? "SUBJ")} · {String(section.name ?? "Section")}</p>
                   <p className="mt-4 text-sm text-slate-600 dark:text-slate-300">{String(item.startTime ?? "--:--")} - {String(item.endTime ?? "--:--")}</p>
                   <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Room: {String(item.room ?? "To be assigned")}</p>
-                </article>
-              );
-            }
-
-            if (type === "materials") {
-              return (
-                <article key={id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 dark:bg-sky-950 dark:text-sky-200">{String(item.fileType ?? "FILE")}</span>
-                    <FileText size={18} className="text-sky-600" />
-                  </div>
-                  <h2 className="mt-4 text-xl font-semibold text-slate-900 dark:text-white">{String(item.title ?? "Learning material")}</h2>
-                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{String(item.fileName ?? "Attachment")}</p>
-                  <a href={String(item.fileUrl ?? "#")} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center text-sm font-semibold text-[#1d6a45] hover:underline dark:text-[#dfeee4]">Open file</a>
                 </article>
               );
             }
