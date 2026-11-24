@@ -2,6 +2,7 @@ import { StudentStatus, Sex } from "@prisma/client";
 import { z } from "zod";
 import { idSchema } from "../../utils/idSchema.js";
 import { normalizeSpaces, titleCaseName } from "../../utils/name-normalization.js";
+import { formatDateString, isValidDateString, parseDateString, todayInManila } from "../../utils/dates.js";
 
 const nameSchema = (maximum = 60) =>
   z
@@ -20,18 +21,17 @@ const optionalTextSchema = (maximum: number) =>
 const birthDateSchema = z
   .string()
   .trim()
-  .refine((value) => !Number.isNaN(new Date(value).getTime()), "Enter a valid birth date")
+  .refine(isValidDateString, "Enter a valid birth date")
   .transform((value) => new Date(value))
   .refine((birthDate) => {
-    const now = new Date();
-    const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-    const birthUtc = Date.UTC(birthDate.getUTCFullYear(), birthDate.getUTCMonth(), birthDate.getUTCDate());
-    if (birthUtc > todayUtc) return false;
+    const today = parseDateString(todayInManila());
+    const birthDateOnly = parseDateString(formatDateString(birthDate));
+    if (birthDateOnly > today) return false;
 
-    let age = now.getUTCFullYear() - birthDate.getUTCFullYear();
+    let age = today.getUTCFullYear() - birthDateOnly.getUTCFullYear();
     if (
-      now.getUTCMonth() < birthDate.getUTCMonth() ||
-      (now.getUTCMonth() === birthDate.getUTCMonth() && now.getUTCDate() < birthDate.getUTCDate())
+      today.getUTCMonth() < birthDateOnly.getUTCMonth() ||
+      (today.getUTCMonth() === birthDateOnly.getUTCMonth() && today.getUTCDate() < birthDateOnly.getUTCDate())
     ) {
       age -= 1;
     }

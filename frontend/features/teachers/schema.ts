@@ -4,13 +4,18 @@ const normalize = (value: string) => value.trim().replace(/\s+/g, " ");
 const title = z.string().transform((value) => normalize(value).toLocaleLowerCase()
   .replace(/(^|[\s'-])(\p{L})/gu, (_match, separator: string, letter: string) => `${separator}${letter.toLocaleUpperCase()}`))
   .pipe(z.string().min(1, "Required").max(60));
+const optionalName = z.string().nullish().transform((value) => {
+  if (!value) return null;
+  return normalize(value).toLocaleLowerCase()
+    .replace(/(^|[\s'-])(\p{L})/gu, (_match, separator: string, letter: string) => `${separator}${letter.toLocaleUpperCase()}`);
+}).pipe(z.string().max(60).nullable()).optional();
 const optional = (max: number) => z.string().transform(normalize).transform((value) => value || null).pipe(z.string().max(max).nullable()).optional();
 const contact = optional(30).refine((value) => value == null || /^[+]?[\d\s().-]{7,30}$/.test(value), "Enter a valid contact number");
 
 export const teacherFormSchema = z.object({
   employeeNo: z.string().trim().min(3).max(20).regex(/^[A-Za-z0-9-]+$/, "Use 3-20 letters, numbers, or dashes"),
   firstName: title,
-  middleName: title.nullable().optional(),
+  middleName: optionalName,
   lastName: title,
   department: optional(100),
   contactNo: contact,

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { ImportType } from "@prisma/client";
+import { ImportStatus, ImportType } from "@prisma/client";
+import { summarizeImportJob } from "../src/modules/imports/import.summary.js";
 import { mapHeaders } from "../src/modules/imports/etl/mapHeaders.js";
 import { parseCsv } from "../src/modules/imports/etl/parse.js";
 import { transformRows } from "../src/modules/imports/etl/transform.js";
@@ -17,6 +18,45 @@ import { csvTemplate, rejectedRowsCsv } from "../src/modules/imports/etl/report.
 import type { ImportOptions, TransformedRow } from "../src/modules/imports/import.types.js";
 
 const studentHeaders = ["Student Number", "First Name", "Middle Name", "Last Name", "Gender", "DOB"];
+
+const importSummary = summarizeImportJob({
+  id: "job-1",
+  type: ImportType.STUDENTS,
+  status: ImportStatus.PREVIEWED,
+  fileName: "students.csv",
+  options: {
+    recognizedColumns: [{ column: "Student Number", field: "studentNo" }],
+    ignoredColumns: ["Notes"],
+    willEnroll: true,
+  },
+  totals: { totalRows: 4, validRows: 2, warningRows: 1, errorRows: 1 },
+  rows: [{ enrollment: { sectionId: "section-1", label: "Grade 7 Bonifacio" } }],
+  expiresAt: new Date("2026-11-24T00:00:00.000Z"),
+  createdById: "admin-1",
+  committedAt: null,
+  result: null,
+  createdAt: new Date("2026-11-23T00:00:00.000Z"),
+});
+assert.deepEqual(importSummary.columns, { recognized: ["Student Number"], ignored: ["Notes"] });
+assert.deepEqual(importSummary.totals, { rows: 4, valid: 2, warnings: 1, errors: 1 });
+assert.equal(importSummary.willEnroll, true);
+
+const legacyImportSummary = summarizeImportJob({
+  id: "job-2",
+  type: ImportType.TEACHERS,
+  status: ImportStatus.EXPIRED,
+  fileName: "teachers.csv",
+  options: { recognizedColumns: ["Employee Number"], ignoredColumns: [] },
+  totals: { rows: 1, valid: 1, warnings: 0, errors: 0 },
+  rows: null,
+  expiresAt: new Date("2026-11-22T00:00:00.000Z"),
+  createdById: "admin-1",
+  committedAt: null,
+  result: null,
+  createdAt: new Date("2026-11-21T00:00:00.000Z"),
+});
+assert.deepEqual(legacyImportSummary.columns, { recognized: ["Employee Number"], ignored: [] });
+assert.equal(legacyImportSummary.willEnroll, false);
 
 function transformStudent(values: string[], dateFormat: ImportOptions["dateFormat"]) {
   const csv = parseCsv(Buffer.from(`${studentHeaders.join(",")}\n${values.join(",")}\n`));

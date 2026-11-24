@@ -20,6 +20,13 @@ import { passwordPolicyError } from "../src/utils/password-policy.js";
 import { seniorHighStrands } from "../src/constants/education.js";
 import { enrollmentPlanSchema } from "../src/modules/enrollments/enrollment-plan.schema.js";
 import { createSectionSchema } from "../src/modules/sections/section.schema.js";
+import { advanceApplicantSchema, createApplicantSchema } from "../src/modules/admissions/admission.schema.js";
+import { updateSupportAlertSchema } from "../src/modules/student-support/support-alert.schema.js";
+import {
+  createStudentDocumentRequestSchema,
+  updateDocumentRequestSchema,
+} from "../src/modules/document-requests/document-request.schema.js";
+import { listStudentSupportAlerts } from "../src/modules/student-support/support-alert.service.js";
 
 const { resendSendMock } = vi.hoisted(() => ({ resendSendMock: vi.fn() }));
 vi.mock("resend", () => ({
@@ -132,6 +139,12 @@ describe("security and data quality rules", () => {
         lateApplicants: "",
       },
       targets,
+      gradeTargets: [7, 8, 9, 10].map((gradeLevel) => ({
+        gradeLevel,
+        expectedNew: null,
+        expectedReturning: null,
+        plannedSections: null,
+      })),
     };
     expect(enrollmentPlanSchema.safeParse(plan).success).toBe(true);
     expect(enrollmentPlanSchema.safeParse({
@@ -141,6 +154,10 @@ describe("security and data quality rules", () => {
     expect(enrollmentPlanSchema.safeParse({
       ...plan,
       targets: [...targets.slice(1), targets[1]],
+    }).success).toBe(false);
+    expect(enrollmentPlanSchema.safeParse({
+      ...plan,
+      gradeTargets: [...plan.gradeTargets.slice(1), plan.gradeTargets[1]],
     }).success).toBe(false);
     expect(createSectionSchema.safeParse({
       gradeLevel: 11,
@@ -159,6 +176,55 @@ describe("security and data quality rules", () => {
       strand: "STEM",
       capacity: 0,
     }).success).toBe(false);
+  });
+
+  it("validates grade-aware applicants and follow-up transitions", () => {
+    expect(createApplicantSchema.safeParse({
+      firstName: "Alex",
+      lastName: "Rivera",
+      gradeLevel: 8,
+      strand: null,
+    }).success).toBe(true);
+    expect(createApplicantSchema.safeParse({
+      firstName: "Alex",
+      lastName: "Rivera",
+      gradeLevel: 8,
+      strand: "GAS",
+    }).success).toBe(false);
+    expect(createApplicantSchema.safeParse({
+      firstName: "Alex",
+      lastName: "Rivera",
+      gradeLevel: 11,
+      strand: "GAS",
+    }).success).toBe(true);
+    expect(advanceApplicantSchema.safeParse({ stage: "ENROLLED" }).success).toBe(false);
+    expect(updateSupportAlertSchema.safeParse({
+      status: "IN_PROGRESS",
+      followUpNote: "Met with the student and agreed on a check-in.",
+    }).success).toBe(true);
+  });
+
+  it("validates student document requests and admin updates", () => {
+    expect(createStudentDocumentRequestSchema.safeParse({
+      documentType: "CERTIFICATE_OF_ENROLLMENT",
+      reason: "For scholarship application",
+      details: "Please include the current school year.",
+    }).success).toBe(true);
+    expect(createStudentDocumentRequestSchema.safeParse({
+      documentType: "INVALID",
+      reason: " ",
+    }).success).toBe(false);
+    expect(updateDocumentRequestSchema.safeParse({ status: "APPROVED", adminRemarks: "Under review" }).success).toBe(true);
+    expect(updateDocumentRequestSchema.safeParse({ status: "REJECTED" }).success).toBe(false);
+    expect(updateDocumentRequestSchema.safeParse({ status: "REJECTED", adminRemarks: " " }).success).toBe(false);
+    expect(updateDocumentRequestSchema.safeParse({ status: "REJECTED", adminRemarks: "Incomplete application" }).success).toBe(true);
+    expect(updateDocumentRequestSchema.safeParse({ status: "PROCESSING", adminRemarks: "Under review" }).success).toBe(false);
+    expect(updateDocumentRequestSchema.safeParse({}).success).toBe(false);
+  });
+
+  it("denies student accounts access to staff support alerts", async () => {
+    await expect(listStudentSupportAlerts({ id: "student-user", role: Role.STUDENT }))
+      .rejects.toMatchObject({ statusCode: 403, code: "FORBIDDEN" });
   });
 
   it("sends reset codes through Resend and surfaces provider failures", async () => {

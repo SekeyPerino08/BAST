@@ -10,7 +10,13 @@ import { AppError } from "../../utils/AppError.js";
 import { formatDateString, parseDateString } from "../../utils/dates.js";
 import { calculateAttendanceRate } from "../attendance/attendance.rules.js";
 import { calculateFinalGrade, calculateGeneralAverage, PASSING_GRADE } from "../../utils/grading.js";
-import { cacheFor, getCurrentContext, lastSchoolDays, type CurrentContext } from "./dashboard.helpers.js";
+import {
+  cacheFor,
+  getCurrentContext,
+  lastSchoolDays,
+  summarizeActiveLibraryLoans,
+  type CurrentContext,
+} from "./dashboard.helpers.js";
 
 type Counts = { present: number; absent: number; late: number; excused: number };
 
@@ -94,8 +100,7 @@ async function getAdminAggregates(context: CurrentContext) {
     unassignedStudents,
     sections,
     offerings,
-    borrowedLibraryLoans,
-    overdueLibraryLoans,
+    activeLibraryLoans,
   ] = await Promise.all([
     // Raw aggregates tolerate legacy NULL userIds without Prisma decoding them as required strings.
     prisma.$queryRaw<AccountCounts[]>`
@@ -129,6 +134,8 @@ async function getAdminAggregates(context: CurrentContext) {
             id: true,
             name: true,
             gradeLevel: true,
+            strand: true,
+            capacity: true,
             adviser: { select: { firstName: true, middleName: true, lastName: true } },
           },
         })
@@ -139,13 +146,15 @@ async function getAdminAggregates(context: CurrentContext) {
           select: { id: true, sectionId: true },
         })
       : Promise.resolve([]),
-    prisma.libraryLoan.count({
-        where: { returnedOn: null, dueOn: { gte: parseDateString(context.today) } },
-    }),
-    prisma.libraryLoan.count({
-        where: { returnedOn: null, dueOn: { lt: parseDateString(context.today) } },
+    prisma.libraryLoan.findMany({
+      where: { returnedOn: null },
+      select: { dueOn: true, returnedOn: true },
     }),
   ]);
+  const { borrowed: borrowedLibraryLoans, overdue: overdueLibraryLoans } = summarizeActiveLibraryLoans(
+    activeLibraryLoans,
+    context.today,
+  );
   const activeStudents = Number(studentAccountCounts[0]?.activeCount ?? 0);
   const activeTeachers = Number(teacherAccountCounts[0]?.activeCount ?? 0);
   const studentsWithoutLogin = Number(studentAccountCounts[0]?.withoutLoginCount ?? 0);
@@ -263,11 +272,15 @@ async function getAdminAggregates(context: CurrentContext) {
   const sectionSizes = sections.map((section) => ({
     sectionId: section.id,
     label: `Grade ${section.gradeLevel} - ${section.name}`,
+    name: section.name,
     gradeLevel: section.gradeLevel,
+    strand: section.strand,
     students: enrolledBySection.get(section.id) ?? 0,
+    capacity: section.capacity,
     adviserName: section.adviser
       ? `${section.adviser.firstName}${section.adviser.middleName ? ` ${section.adviser.middleName}` : ""} ${section.adviser.lastName}`
       : null,
+    classOfferingCount: offeringsBySection.get(section.id) ?? 0,
   }));
 
   const attendanceByDate = new Map<string, Counts>();

@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { getGradeBucket } from "../src/modules/dashboard/dashboard.service.js";
-import { lastSchoolDays, selectCurrentTerm, type DashboardTerm } from "../src/modules/dashboard/dashboard.helpers.js";
+import {
+  lastSchoolDays,
+  selectCurrentTerm,
+  summarizeActiveLibraryLoans,
+  type DashboardTerm,
+} from "../src/modules/dashboard/dashboard.helpers.js";
 
 function term(id: string, startDate: string, endDate: string): DashboardTerm {
   return {
@@ -31,6 +36,26 @@ assert.deepEqual(selectCurrentTerm([current, future], "2024-12-31"), {
   source: "first",
 });
 assert.deepEqual(selectCurrentTerm([], "2025-01-01"), { term: null, source: null });
+
+assert.deepEqual(
+  summarizeActiveLibraryLoans([
+    { dueOn: new Date("2025-01-04T00:00:00.000Z"), returnedOn: null },
+    { dueOn: new Date("2025-01-05T00:00:00.000Z"), returnedOn: null },
+    { dueOn: new Date("2025-01-06T00:00:00.000Z"), returnedOn: null },
+    { dueOn: new Date("2025-01-04T00:00:00.000Z"), returnedOn: new Date("2025-01-05T00:00:00.000Z") },
+  ], "2025-01-05"),
+  { borrowed: 2, overdue: 1 },
+);
+assert.deepEqual(
+  summarizeActiveLibraryLoans([
+    { dueOn: new Date("2025-01-04T00:00:00.000Z"), returnedOn: null },
+    { dueOn: new Date("2025-01-04T00:00:00.000Z"), returnedOn: null },
+    { dueOn: new Date("2025-01-05T00:00:00.000Z"), returnedOn: null },
+    { dueOn: new Date("2025-01-07T00:00:00.000Z"), returnedOn: null },
+    { dueOn: new Date("2025-01-04T00:00:00.000Z"), returnedOn: new Date("2025-01-05T00:00:00.000Z") },
+  ], "2025-01-05"),
+  { borrowed: 2, overdue: 2 },
+);
 
 assert.deepEqual(
   lastSchoolDays(5, "2025-01-06", {

@@ -28,6 +28,7 @@ export interface ClassGradeSheet {
   teacher: { id: string; firstName: string; lastName: string };
   terms: GradeTermSummary[];
   roster: GradeRow[];
+  defaultTermId: string | null;
   editableTermIds: string[];
 }
 

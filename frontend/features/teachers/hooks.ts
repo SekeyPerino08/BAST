@@ -20,7 +20,10 @@ export function useTeacher(id: string) {
 }
 function useInvalidateTeachers() {
   const client = useQueryClient();
-  return () => client.invalidateQueries({ queryKey: teacherKeys.all });
+  return () => Promise.all([
+    client.invalidateQueries({ queryKey: teacherKeys.all }),
+    client.invalidateQueries({ queryKey: ["dashboard"] }),
+  ]);
 }
 export function useCreateTeacher() {
   const invalidate = useInvalidateTeachers();
@@ -42,6 +45,7 @@ export function useCreateTeacherAccount() {
     try {
       const result = (await createTeacherAccount(id, input)).data;
       await client.invalidateQueries({ queryKey: teacherKeys.all });
+      await client.invalidateQueries({ queryKey: ["dashboard"] });
       return result;
     } finally { setPending(false); }
   }

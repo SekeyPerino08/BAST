@@ -5,6 +5,10 @@ const spaces = normalizeSpaces;
 const name = z.string().transform(titleCaseName).pipe(z.string().min(1).max(60));
 const optionalText = (max: number) =>
   z.string().transform(spaces).transform((value) => value || null).pipe(z.string().max(max).nullable()).optional();
+const optionalName = z.string().nullish().transform((value) => {
+  if (!value) return null;
+  return titleCaseName(value);
+}).pipe(z.string().max(60).nullable()).optional();
 
 export const listTeachersQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -19,7 +23,7 @@ export const createTeacherSchema = z.object({
   employeeNo: z.string().trim().min(3).max(20).regex(/^[A-Za-z0-9-]+$/, "Employee number may contain only letters, numbers, and dashes"),
   firstName: name,
   lastName: name,
-  middleName: name.nullable().optional(),
+  middleName: optionalName,
   department: optionalText(100),
   contactNo: optionalText(30).refine((value) => value == null || /^[+]?[\d\s().-]{7,30}$/.test(value), "Enter a valid contact number"),
 });
@@ -27,7 +31,7 @@ export const createTeacherSchema = z.object({
 export const updateTeacherSchema = z.object({
   firstName: name.optional(),
   lastName: name.optional(),
-  middleName: name.nullable().optional(),
+  middleName: optionalName,
   department: optionalText(100),
   contactNo: optionalText(30).refine((value) => value == null || /^[+]?[\d\s().-]{7,30}$/.test(value), "Enter a valid contact number"),
 }).refine((value) => Object.values(value).some((field) => field !== undefined), {

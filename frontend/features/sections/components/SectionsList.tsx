@@ -36,8 +36,8 @@ export function SectionsList() {
     try { await deleteMutation.mutateAsync(deleting.id); toast.success("Section deleted"); setDeleting(null); }
     catch (error) {
       if (error instanceof ApiError && error.code === "SECTION_IN_USE") {
-        const details = error.details as { enrollmentCount?: number; classOfferingCount?: number } | undefined;
-        setDeleteError(`Section is in use: ${details?.enrollmentCount ?? 0} students and ${details?.classOfferingCount ?? 0} classes. Remove these records before deleting.`);
+        const details = error.details as { enrollmentCount?: number; classOfferingCount?: number; scheduleCount?: number } | undefined;
+        setDeleteError(`Section is in use: ${details?.enrollmentCount ?? 0} enrollment records, ${details?.classOfferingCount ?? 0} classes, and ${details?.scheduleCount ?? 0} schedules. Remove these records before deleting.`);
       } else setDeleteError("Could not delete this section. Please try again.");
     }
   }

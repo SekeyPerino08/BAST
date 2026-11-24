@@ -7,7 +7,7 @@ import { errorHandler } from "../src/middleware/errorHandler.js";
 const { prismaMocks } = vi.hoisted(() => ({
   prismaMocks: {
     $transaction: vi.fn(),
-    section: { findMany: vi.fn(), count: vi.fn() },
+    section: { findMany: vi.fn(), findUnique: vi.fn(), count: vi.fn() },
   },
 }));
 
@@ -97,5 +97,14 @@ describe("GET /api/sections", () => {
 
     expect(response.status).toBe(403);
     expect(prismaMocks.section.findMany).not.toHaveBeenCalled();
+  });
+
+  it("does not allow teachers to read section rosters through the section detail route", async () => {
+    const response = await request(createApp())
+      .get(`/api/sections/${section.id}`)
+      .set("x-test-role", "TEACHER");
+
+    expect(response.status).toBe(403);
+    expect(prismaMocks.section.findUnique).not.toHaveBeenCalled();
   });
 });

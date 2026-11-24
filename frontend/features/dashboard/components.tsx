@@ -127,6 +127,7 @@ export function ChartCard({
   rows,
   action,
   rowHref,
+  emptyMessage = "No data available yet.",
 }: Readonly<{
   title: string;
   description?: string;
@@ -135,6 +136,7 @@ export function ChartCard({
   rows: DashboardTableRow[];
   action?: ReactNode;
   rowHref?: (row: DashboardTableRow) => string | undefined;
+  emptyMessage?: string;
 }>) {
   const [showTable, setShowTable] = useState(false);
   return (
@@ -146,8 +148,16 @@ export function ChartCard({
         </div>
         {action}
       </div>
-      <div className="mt-4 h-[280px] min-w-0" role="img" aria-label={`${title}. ${rows.map((row) => columns.map((column) => `${column.label}: ${row[column.key] ?? "—"}`).join(", ")).join("; ")}`}>
-        {children}
+      <div
+        className="mt-4 flex h-[280px] min-w-0 items-center justify-center"
+        role={rows.length ? "img" : "status"}
+        aria-label={rows.length
+          ? `${title}. ${rows.map((row) => columns.map((column) => `${column.label}: ${row[column.key] ?? "—"}`).join(", ")).join("; ")}`
+          : undefined}
+      >
+        {rows.length
+          ? children
+          : <p className="px-4 text-center text-sm text-slate-500 dark:text-slate-400">{emptyMessage}</p>}
       </div>
       <details className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-700" open={showTable || undefined} onToggle={(event) => setShowTable((event.currentTarget as HTMLDetailsElement).open)}>
         <summary className="cursor-pointer text-sm font-semibold text-[#1d6a45] hover:underline dark:text-[#dfeee4]">View as table</summary>

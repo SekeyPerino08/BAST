@@ -8,13 +8,15 @@ const { prismaMocks, transactionMocks } = vi.hoisted(() => ({
   prismaMocks: {
     $transaction: vi.fn(),
     section: { findUnique: vi.fn() },
+    schoolYear: { findUnique: vi.fn() },
+    enrollment: { findMany: vi.fn(), count: vi.fn() },
   },
   transactionMocks: {
     $queryRaw: vi.fn(),
     section: { findUnique: vi.fn() },
     student: { findMany: vi.fn() },
     enrollment: { findMany: vi.fn(), count: vi.fn(), create: vi.fn(), update: vi.fn() },
-    auditEntry: { create: vi.fn() },
+    auditEntry: { create: vi.fn(), createMany: vi.fn(), findMany: vi.fn() },
   },
 }));
 
@@ -212,5 +214,46 @@ describe("POST /api/enrollments/bulk", () => {
     expect(unauthenticated.status).toBe(401);
     expect(nonAdmin.status).toBe(403);
     expect(prismaMocks.$transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /api/enrollments", () => {
+  afterEach(() => vi.clearAllMocks());
+
+  it("writes deduplicated view audits in a batch within the listing transaction", async () => {
+    prismaMocks.schoolYear.findUnique.mockResolvedValue({ id: schoolYearId });
+    prismaMocks.enrollment.findMany.mockResolvedValue([
+      { id: "enrollment-1", student: { id: studentIds[0] } },
+      { id: "enrollment-2", student: { id: studentIds[1] } },
+    ]);
+    prismaMocks.enrollment.count.mockResolvedValue(2);
+    prismaMocks.$transaction.mockImplementation(async (operation) => (
+      Array.isArray(operation) ? Promise.all(operation) : operation(transactionMocks)
+    ));
+    transactionMocks.$queryRaw.mockResolvedValue([]);
+    transactionMocks.auditEntry.findMany.mockResolvedValue([{ studentId: studentIds[1] }]);
+    transactionMocks.auditEntry.createMany.mockResolvedValue({ count: 1 });
+
+    const response = await request(createApp())
+      .get(`/api/enrollments?schoolYearId=${schoolYearId}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(2);
+    expect(prismaMocks.$transaction).toHaveBeenCalledTimes(2);
+    expect(transactionMocks.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(transactionMocks.$queryRaw.mock.calls[0][0].join("?")).toContain("::text AS locked");
+    expect(transactionMocks.auditEntry.findMany).toHaveBeenCalledTimes(1);
+    expect(transactionMocks.auditEntry.createMany).toHaveBeenCalledWith({
+      data: [{
+        actorUserId: "test-admin",
+        actorRole: "ADMIN",
+        action: "VIEW_ENROLLMENTS",
+        entityType: "Enrollment",
+        entityId: "enrollment-1",
+        studentId: studentIds[0],
+        ip: "127.0.0.1",
+      }],
+    });
+    expect(transactionMocks.auditEntry.create).not.toHaveBeenCalled();
   });
 });

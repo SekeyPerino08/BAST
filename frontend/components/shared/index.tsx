@@ -44,7 +44,7 @@ export function DataTablePagination({ page, pageSize, total, totalPages, onPage,
     <div className="flex flex-wrap items-center gap-3">
       <label className="flex items-center gap-2 text-sm text-slate-600">Rows
         <select aria-label="Rows per page" value={pageSize} onChange={(event) => onPageSize(Number(event.target.value))} className="rounded-md border border-slate-300 bg-white px-2 py-1.5">
-          {[10, 25, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}
+          {[10, 20, 25, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}
         </select>
       </label>
       <span className="text-sm text-slate-500">Page {page} of {totalPages}</span>

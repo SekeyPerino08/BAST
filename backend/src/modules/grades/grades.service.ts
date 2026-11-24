@@ -11,6 +11,8 @@ import {
   getGradeDescriptor,
   isPassing,
 } from "../../utils/grading.js";
+import { invalidateAdminDashboardCache, selectCurrentTerm } from "../dashboard/dashboard.helpers.js";
+import { todayInManila } from "../../utils/dates.js";
 import {
   gradeOverviewQuerySchema,
   gradeSummaryQuerySchema,
@@ -76,7 +78,15 @@ export async function getGradesSheet(classOfferingId: string, user: GradesUser) 
   const terms = await prisma.term.findMany({
     where: { schoolYearId: offering.schoolYearId },
     orderBy: { termNumber: "asc" },
-    select: { id: true, name: true, termNumber: true, gradesLocked: true, gradesReleasedAt: true },
+    select: {
+      id: true,
+      name: true,
+      termNumber: true,
+      startDate: true,
+      endDate: true,
+      gradesLocked: true,
+      gradesReleasedAt: true,
+    },
   });
   const roster = await prisma.student.findMany({
     where: {
@@ -113,8 +123,15 @@ export async function getGradesSheet(classOfferingId: string, user: GradesUser) 
   });
   return {
     classOffering: { ...offering },
-    terms: terms.map(({ termNumber, ...term }) => ({ ...term, order: termNumber, released: term.gradesReleasedAt !== null })),
+    terms: terms.map((term) => ({
+      id: term.id,
+      name: term.name,
+      order: term.termNumber,
+      gradesLocked: term.gradesLocked,
+      released: term.gradesReleasedAt !== null,
+    })),
     roster: rosterData,
+    defaultTermId: selectCurrentTerm(terms, todayInManila()).term?.id ?? null,
     editableTermIds: terms
       .filter((term) => (user.role === Role.ADMIN || !term.gradesLocked) && term.gradesReleasedAt === null)
       .map(({ id }) => id),
@@ -248,6 +265,7 @@ export async function saveClassGrades(
       return { counts, changes };
     });
 
+    invalidateAdminDashboardCache();
     await Promise.all([
       logAudit({
         userId: user.id,
@@ -558,6 +576,7 @@ export async function lockSchoolYearTerm(
       },
     });
   if (changed) {
+    invalidateAdminDashboardCache();
     await logAudit({
       userId: user.id,
       action: locked ? "TERM_LOCK" : "TERM_UNLOCK",
@@ -630,6 +649,7 @@ export async function releaseSchoolYearTerm(
   });
 
   if (result.changed) {
+    invalidateAdminDashboardCache();
     await logAudit({
       userId: user.id,
       action: released ? "TERM_RELEASE" : "TERM_UNRELEASE",

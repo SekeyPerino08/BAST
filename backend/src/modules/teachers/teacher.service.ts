@@ -11,6 +11,7 @@ import {
 import { logAudit } from "../../services/audit.service.js";
 import { AppError } from "../../utils/AppError.js";
 import { buildPaginationMeta, parsePagination } from "../../utils/pagination.js";
+import { invalidateAdminDashboardCache } from "../dashboard/dashboard.helpers.js";
 import {
   listTeachersQuerySchema,
   type CreateTeacherAccountInput,
@@ -147,7 +148,7 @@ export async function getTeacherById(id: string) {
 
 export async function createTeacher(input: CreateTeacherInput, request?: Request) {
   try {
-    return await prisma.$transaction(async (transaction) => {
+    const teacher = await prisma.$transaction(async (transaction) => {
       const teacherId = randomUUID();
       const user = await createLinkedPersonUser(transaction, {
         kind: "teacher",
@@ -173,6 +174,8 @@ export async function createTeacher(input: CreateTeacherInput, request?: Request
         account: { email: user.email, temporaryPassword: DEFAULT_PERSON_PASSWORD },
       };
     });
+    invalidateAdminDashboardCache();
+    return teacher;
   } catch (error) {
     handleTeacherError(error);
   }
@@ -183,6 +186,7 @@ export async function updateTeacher(id: string, input: UpdateTeacherInput, reque
     const before = await prisma.teacher.findUnique({ where: { id } });
     if (!before) throw new AppError("Teacher not found", 404);
     const teacher = await prisma.teacher.update({ where: { id }, data: input });
+    invalidateAdminDashboardCache();
     await logAudit({
       userId: request?.user?.id,
       action: "UPDATE",
@@ -209,6 +213,7 @@ export async function updateTeacherStatus(id: string, input: UpdateTeacherStatus
       if (teacher.userId) await setLinkedUserActive(transaction, teacher.userId, input.isActive);
       return { updated, before: teacher.isActive };
     });
+    invalidateAdminDashboardCache();
     await logAudit({
       userId: request?.user?.id,
       action: "STATUS_CHANGE",
@@ -229,6 +234,7 @@ export async function createTeacherAccount(id: string, input: CreateTeacherAccou
     personId: id,
     email: input.email,
   });
+  invalidateAdminDashboardCache();
   await logAudit({
     userId: request?.user?.id,
     action: "ACCOUNT_CREATED",

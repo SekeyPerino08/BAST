@@ -207,15 +207,32 @@ export function AdminDashboardView() {
       {dashboard.isError && <ErrorState title="Could not load the school dashboard" error={dashboard.error} retry={() => void dashboard.refetch()} />}
 
       {dashboard.isLoading && (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6" aria-label="Loading dashboard metrics">
-          {["Students", "Teachers", "Attendance", "Class sections", "Enrollment", "Library loans"].map((item) => (
-            <div key={item} className="h-36 animate-pulse rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
-              <div className="h-4 w-28 rounded bg-slate-200 dark:bg-slate-700" />
-              <div className="mt-6 h-8 w-20 rounded bg-slate-200 dark:bg-slate-700" />
-              <div className="mt-3 h-3 w-36 rounded bg-slate-100 dark:bg-slate-800" />
-            </div>
-          ))}
-        </div>
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6" aria-label="Loading dashboard metrics">
+            {["Students", "Teachers", "Attendance", "Class sections", "Enrollment", "Library loans"].map((item) => (
+              <div key={item} className="h-36 animate-pulse rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+                <div className="h-4 w-28 rounded bg-slate-200 dark:bg-slate-700" />
+                <div className="mt-6 h-8 w-20 rounded bg-slate-200 dark:bg-slate-700" />
+                <div className="mt-3 h-3 w-36 rounded bg-slate-100 dark:bg-slate-800" />
+              </div>
+            ))}
+          </div>
+          <div className="grid gap-5 xl:grid-cols-2" aria-label="Loading dashboard charts">
+            {["Enrollment overview", "Attendance trend"].map((title) => (
+              <div key={title} className="h-80 animate-pulse rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+                <div className="h-5 w-40 rounded bg-slate-200 dark:bg-slate-700" />
+                <div className="mt-3 h-3 w-56 rounded bg-slate-100 dark:bg-slate-800" />
+                <div className="mt-8 h-52 rounded-xl bg-slate-100 dark:bg-slate-800" />
+              </div>
+            ))}
+          </div>
+          <div className="h-[380px] animate-pulse rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900" aria-label="Loading section sizes">
+            <div className="h-5 w-32 rounded bg-slate-200 dark:bg-slate-700" />
+            <div className="mt-3 h-4 w-48 rounded bg-slate-100 dark:bg-slate-800" />
+            <div className="mt-5 h-10 w-32 rounded-lg bg-slate-100 dark:bg-slate-800" />
+            <div className="mt-4 space-y-3">{[1, 2, 3].map((row) => <div key={row} className="h-9 rounded bg-slate-100 dark:bg-slate-800" />)}</div>
+          </div>
+        </>
       )}
 
       {!dashboard.isLoading && data && (
@@ -226,7 +243,7 @@ export function AdminDashboardView() {
             <MetricCard label="Attendance recorded" value={data.attendanceToday.rate === null ? "—" : `${Math.round(data.attendanceToday.rate)}%`} note={`${data.attendanceToday.classesWithRecords} of ${data.attendanceToday.classesExpected} classes reporting`} icon={CalendarCheck} href="/admin/sections" />
             <MetricCard label="Grade completion" value={`${gradeProgress}%`} note={`${data.gradeProgress.gradedEntries.toLocaleString()} grade entries recorded`} icon={BookOpen} href="/admin/school-years" />
             <MetricCard label="Unassigned students" value={data.counts.unassignedStudents.toLocaleString()} note="Active students without enrollment" icon={UserRoundX} href="/admin/enrollment" attention={data.counts.unassignedStudents > 0} />
-            <MetricCard label="Overdue library loans" value={data.libraryLoans.overdue.toLocaleString()} note={`${data.libraryLoans.borrowed.toLocaleString()} not yet overdue`} icon={BookOpen} href="/admin/library-loans" attention={data.libraryLoans.overdue > 0} />
+            <MetricCard label="Overdue library loans" value={data.libraryLoans.overdue.toLocaleString()} note={`${data.libraryLoans.borrowed.toLocaleString()} active loans, not yet due`} icon={BookOpen} href="/admin/library-loans" attention={data.libraryLoans.overdue > 0} />
           </section>
 
           {!data.context && (
@@ -254,7 +271,7 @@ export function AdminDashboardView() {
                 <ProgressCard title="Attendance reporting today" value={attendanceCoverage} note={`${data.attendanceToday.classesWithRecords} of ${data.attendanceToday.classesExpected} classes have submitted attendance.`} href="/admin/sections" icon={CalendarCheck} />
                 <ProgressCard title="Current term grades" value={gradeProgress} note={`${data.gradeProgress.incompleteClasses} classes still have incomplete grade entries.`} href="/admin/school-years" icon={CheckCircle2} />
               </div>
-              {data.context && <SectionSizesChart data={data.sectionSizes} />}
+              {data.context && <SectionSizesChart data={data.sectionSizes} enrolledTotal={data.counts.enrolledStudents} />}
             </div>
 
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_3px_14px_rgba(16,39,71,0.045)] dark:border-slate-700 dark:bg-slate-900">

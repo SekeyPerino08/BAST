@@ -6,6 +6,7 @@ import { logAudit } from "../../services/audit.service.js";
 import { AppError } from "../../utils/AppError.js";
 import { buildPaginationMeta, parsePagination } from "../../utils/pagination.js";
 import { formatDateString, parseDateString, todayInManila } from "../../utils/dates.js";
+import { invalidateAdminDashboardCache } from "../dashboard/dashboard.helpers.js";
 import { calculateAttendanceRate, canEditAttendance } from "./attendance.rules.js";
 import {
   attendanceDateQuerySchema,
@@ -199,6 +200,7 @@ export async function saveClassAttendance(
     mapPrismaAttendanceError(error);
   }
 
+  invalidateAdminDashboardCache();
   const summary = countGroups(records.map(({ status }) => ({ status, _count: { _all: 1 } })));
   await logAudit({
     userId: user.id,

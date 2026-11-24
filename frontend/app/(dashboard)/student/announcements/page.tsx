@@ -11,7 +11,7 @@ export default function StudentAnnouncementsPage() {
           description="School and class updates published for your section and subjects."
           endpoint="/me/announcements"
           type="announcements"
-          emptyText="No school or class announcements are available right now."
+          emptyText="There are no announcements for your section or subjects yet."
         />
       </DashboardLayout>
     </RoleGuard>

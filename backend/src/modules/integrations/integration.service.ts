@@ -16,6 +16,7 @@ import { AppError } from "../../utils/AppError.js";
 import { writeCsv } from "../../utils/csv.js";
 import { buildPaginationMeta } from "../../utils/pagination.js";
 import { formatDateString, parseDateString, todayInManila } from "../../utils/dates.js";
+import { invalidateAdminDashboardCache } from "../dashboard/dashboard.helpers.js";
 import {
   alumniRecordSchema,
   libraryLoanSchema,
@@ -235,6 +236,9 @@ export async function syncFeed(
     }
     return { run: completed, rejects: savedRejects };
   });
+  if (mode === FeedImportMode.COMMIT && source === "library") {
+    invalidateAdminDashboardCache();
+  }
   return { data: result.run, rejects: result.rejects };
 }
 
@@ -253,6 +257,16 @@ export async function listSyncRuns(rawQuery: unknown) {
   return { data, meta: { page: query.page, pageSize: query.pageSize, total, totalPages: Math.ceil(total / query.pageSize) } };
 }
 
+export async function listLatestSyncRuns() {
+  const sources: IntegrationSource[] = ["lms", "library", "alumni"];
+  const data = await Promise.all(sources.map((source) => prisma.feedImportRun.findFirst({
+    where: { source },
+    orderBy: [{ startedAt: "desc" }, { id: "desc" }],
+    include: { runBy: { select: { id: true, email: true } } },
+  })));
+  return { data: data.filter((run) => run !== null) };
+}
+
 export async function getSyncRejects(id: string) {
   const run = await prisma.feedImportRun.findUnique({ where: { id }, select: { id: true } });
   if (!run) throw new AppError("Sync run not found", 404, "SYNC_RUN_NOT_FOUND");
@@ -260,6 +274,18 @@ export async function getSyncRejects(id: string) {
     where: { runId: id },
     orderBy: { rowNumber: "asc" },
   });
+}
+
+export async function exportSyncRejectsCsv(id: string) {
+  const rejects = await getSyncRejects(id);
+  return writeCsv(
+    rejects.map((item) => ({
+      rowNumber: item.rowNumber,
+      reason: item.reason,
+      receivedData: JSON.stringify(item.raw),
+    })),
+    ["rowNumber", "reason", "receivedData"],
+  );
 }
 
 async function findScopedStudent(id: string, user: IntegrationUser) {

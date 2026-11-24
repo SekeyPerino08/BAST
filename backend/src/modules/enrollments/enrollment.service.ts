@@ -1,9 +1,10 @@
 import { EnrollmentStatus, Prisma, StudentStatus } from "@prisma/client";
 import type { Request } from "express";
 import { prisma } from "../../lib/prisma.js";
-import { audit } from "../../audit.js";
+import { audit, auditStudentViews } from "../../audit.js";
 import { AppError } from "../../utils/AppError.js";
 import { buildPaginationMeta, parsePagination } from "../../utils/pagination.js";
+import { invalidateAdminDashboardCache } from "../dashboard/dashboard.helpers.js";
 import {
   listEnrollmentsQuerySchema,
   unassignedStudentsQuerySchema,
@@ -72,7 +73,7 @@ async function resolveSchoolYearId(schoolYearId?: string, transaction = prisma):
   return current.id;
 }
 
-async function enrollOne(
+export async function enrollOne(
   transaction: EnrollmentTransaction,
   studentId: string,
   section: { id: string; name: string; schoolYearId: string },
@@ -149,6 +150,7 @@ export async function createEnrollment(input: CreateEnrollmentInput, request?: R
       }
       return result;
     });
+    invalidateAdminDashboardCache();
     return enrollment;
   } catch (error) {
     if (isKnownError(error, "P2002")) {
@@ -173,7 +175,7 @@ export async function bulkEnroll(
   request?: Request,
 ) {
   try {
-    return await prisma.$transaction(async (transaction) => {
+    const result = await prisma.$transaction(async (transaction) => {
       await lockSectionEnrollment(transaction, input.sectionId);
       const section = await transaction.section.findUnique({
         where: { id: input.sectionId },
@@ -262,6 +264,8 @@ export async function bulkEnroll(
       }
       return { enrolled, skipped: [] };
     }, { timeout: 30000 });
+    invalidateAdminDashboardCache();
+    return result;
   } catch (error) {
     throwEnrollmentError(error);
   }
@@ -320,6 +324,7 @@ export async function transferEnrollment(id: string, input: TransferEnrollmentIn
       }
       return { updated, oldSection: enrollment.section, nextSection };
     });
+    invalidateAdminDashboardCache();
     return result.updated;
   } catch (error) {
     throwEnrollmentError(error);
@@ -357,6 +362,7 @@ export async function updateEnrollmentStatus(
       }
       return { updated, previousStatus: existing.status };
     });
+    invalidateAdminDashboardCache();
     return result.updated;
   } catch (error) {
     throwEnrollmentError(error);
@@ -393,9 +399,8 @@ export async function listEnrollments(rawQuery: unknown, request?: Request) {
         : { [query.sortBy]: query.order },
     { id: "asc" },
   ];
-  const result = await prisma.$transaction(async (transaction) => {
-    const [data, total] = await Promise.all([
-      transaction.enrollment.findMany({
+  const [data, total] = await prisma.$transaction([
+    prisma.enrollment.findMany({
       where,
       skip,
       take,
@@ -415,23 +420,23 @@ export async function listEnrollments(rawQuery: unknown, request?: Request) {
         schoolYear: { select: { id: true, name: true, isCurrent: true } },
       },
       }),
-      transaction.enrollment.count({ where }),
-    ]);
-    if (request) {
-      for (const enrollment of data) {
-        await audit(transaction, request, {
-          action: "VIEW_ENROLLMENTS",
-          entityType: "Enrollment",
-          entityId: enrollment.id,
-          studentId: enrollment.student.id,
-        });
-      }
-    }
-    return { data, total };
-  });
+    prisma.enrollment.count({ where }),
+  ]);
+  if (request) {
+    await prisma.$transaction((transaction) => auditStudentViews(
+      transaction,
+      request,
+      data.map((enrollment) => ({
+        action: "VIEW_ENROLLMENTS",
+        entityType: "Enrollment",
+        entityId: enrollment.id,
+        studentId: enrollment.student.id,
+      })),
+    ));
+  }
   return {
-    data: result.data,
-    meta: buildPaginationMeta(query.page, query.pageSize, result.total),
+    data,
+    meta: buildPaginationMeta(query.page, query.pageSize, total),
   };
 }
 

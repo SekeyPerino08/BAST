@@ -1,16 +1,13 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, CalendarDays, FileText, Inbox, NotebookPen, School } from "lucide-react";
+import { AlertCircle, CalendarDays, FileText, School } from "lucide-react";
 import { apiFetch } from "../../lib/api";
 
 type PortalType =
-  | "assignments"
   | "announcements"
   | "schedule"
-  | "materials"
   | "documents"
-  | "notifications"
   | "history";
 
 interface StudentPortalPageProps {
@@ -30,12 +27,6 @@ function formatDate(value: string | null | undefined) {
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-}
-
-function fullname(person: Record<string, unknown> | null | undefined) {
-  if (!person) return "Unknown";
-  const parts = [person.firstName, person.middleName, person.lastName].filter(Boolean) as string[];
-  return parts.length ? parts.join(" ") : "Unknown";
 }
 
 export function StudentPortalPage({ title, description, endpoint, type, emptyText }: StudentPortalPageProps) {
@@ -80,26 +71,8 @@ export function StudentPortalPage({ title, description, endpoint, type, emptyTex
           {items.map((item, index) => {
             const id = String(item.id ?? index);
             const subject = asRecord(item.subject);
-            const teacher = asRecord(item.teacher);
             const section = asRecord(item.section);
             const term = asRecord(item.term);
-            if (type === "assignments") {
-              return (
-                <article key={id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="rounded-full bg-[#edf7ef] px-2.5 py-1 text-xs font-semibold text-[#0d412e] dark:bg-[#183d2d] dark:text-[#dfeee4]">{String(item.status ?? "OPEN")}</span>
-                    <NotebookPen size={18} className="text-[#1d6a45] dark:text-[#dfeee4]" />
-                  </div>
-                  <h2 className="mt-4 text-xl font-semibold text-slate-900 dark:text-white">{String(item.title ?? "Untitled assignment")}</h2>
-                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{String(subject.code ?? "SUBJECT")} · {String(subject.name ?? "Subject")}</p>
-                  <div className="mt-4 space-y-2 text-sm text-slate-600 dark:text-slate-300">
-                    <p className="flex items-center gap-2"><CalendarDays size={15} /> Due: {formatDate(String(item.dueAt ?? ""))}</p>
-                    <p className="flex items-center gap-2"><FileText size={15} /> Teacher: {fullname(teacher)}</p>
-                  </div>
-                </article>
-              );
-            }
-
             if (type === "announcements") {
               return (
                 <article key={id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
@@ -129,20 +102,6 @@ export function StudentPortalPage({ title, description, endpoint, type, emptyTex
               );
             }
 
-            if (type === "materials") {
-              return (
-                <article key={id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 dark:bg-sky-950 dark:text-sky-200">{String(item.fileType ?? "FILE")}</span>
-                    <FileText size={18} className="text-sky-600" />
-                  </div>
-                  <h2 className="mt-4 text-xl font-semibold text-slate-900 dark:text-white">{String(item.title ?? "Learning material")}</h2>
-                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{String(item.fileName ?? "Attachment")}</p>
-                  <a href={String(item.fileUrl ?? "#")} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center text-sm font-semibold text-[#1d6a45] hover:underline dark:text-[#dfeee4]">Open file</a>
-                </article>
-              );
-            }
-
             if (type === "documents") {
               return (
                 <article key={id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
@@ -153,20 +112,6 @@ export function StudentPortalPage({ title, description, endpoint, type, emptyTex
                   <h2 className="mt-4 text-xl font-semibold text-slate-900 dark:text-white">{String(item.documentType ?? "Document request")}</h2>
                   <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{String(item.reason ?? "No reason given")}</p>
                   <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">Requested {formatDate(String(item.requestedAt ?? ""))}</p>
-                </article>
-              );
-            }
-
-            if (type === "notifications") {
-              return (
-                <article key={id} className={`rounded-2xl border p-5 shadow-sm ${item.isRead ? "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900" : "border-[#b9d7bf] bg-[#edf7ef] dark:border-[#315b43] dark:bg-[#183d2d]"}`}>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-100">{item.isRead ? "Read" : "New"}</span>
-                    <Inbox size={18} className="text-[#1d6a45] dark:text-[#dfeee4]" />
-                  </div>
-                  <h2 className="mt-4 text-xl font-semibold text-slate-900 dark:text-white">{String(item.title ?? "Notification")}</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{String(item.message ?? "No message.")}</p>
-                  <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">{formatDate(String(item.createdAt ?? ""))}</p>
                 </article>
               );
             }

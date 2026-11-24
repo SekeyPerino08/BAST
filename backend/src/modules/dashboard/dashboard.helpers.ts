@@ -100,12 +100,30 @@ export function lastSchoolDays(
   return days.reverse();
 }
 
+export function summarizeActiveLibraryLoans(
+  loans: readonly { dueOn: Date; returnedOn: Date | null }[],
+  today: string,
+): { borrowed: number; overdue: number } {
+  return loans.reduce((summary, loan) => {
+    if (loan.returnedOn !== null) return summary;
+    if (formatDateString(loan.dueOn) < today) summary.overdue += 1;
+    else summary.borrowed += 1;
+    return summary;
+  }, { borrowed: 0, overdue: 0 });
+}
+
 interface CacheEntry {
   expiresAt: number;
   value: unknown;
 }
 
 const cache = new Map<string, CacheEntry>();
+
+export function invalidateAdminDashboardCache(): void {
+  for (const key of cache.keys()) {
+    if (key.startsWith("dashboard:admin:")) cache.delete(key);
+  }
+}
 
 // This cache is per-process and is fine for one server; use Redis or remove it if the app is scaled out.
 export async function cacheFor<T>(key: string, ttlSeconds: number, fn: () => Promise<T>): Promise<T> {

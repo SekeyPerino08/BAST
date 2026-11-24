@@ -22,6 +22,7 @@ type Run = {
 };
 type SyncResult = { data: Run; rejects: Reject[] };
 type RunsResponse = { data: Run[]; meta: { total: number } };
+type LatestRunsResponse = { data: Run[] };
 
 export function DataSyncPage() {
   const queryClient = useQueryClient();
@@ -30,12 +31,23 @@ export function DataSyncPage() {
   const [error, setError] = useState("");
   const [batch, setBatch] = useState<"current" | "next">("current");
   const [confirmSource, setConfirmSource] = useState<Source | null>(null);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
 
   const runsQuery = useQuery({
     queryKey: ["integration-sync", "runs"],
     queryFn: () => apiFetch<RunsResponse>("/api/sync/runs?page=1&pageSize=25"),
   });
+  const latestRunsQuery = useQuery({
+    queryKey: ["integration-sync", "latest"],
+    queryFn: () => apiFetch<LatestRunsResponse>("/api/sync/runs/latest"),
+  });
+  const rejectsQuery = useQuery({
+    queryKey: ["integration-sync", "rejects", selectedRunId],
+    queryFn: () => apiFetch<{ data: Reject[] }>(`/api/sync/runs/${encodeURIComponent(selectedRunId ?? "")}/rejects`),
+    enabled: Boolean(selectedRunId),
+  });
   const runs = runsQuery.data?.data ?? [];
+  const latestRuns = latestRunsQuery.data?.data ?? [];
 
   async function runSync(source: Source, mode: "preview" | "commit") {
     setActive({ source, mode });
@@ -51,7 +63,7 @@ export function DataSyncPage() {
           queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
         ]);
       }
-      await runsQuery.refetch();
+      await Promise.all([runsQuery.refetch(), latestRunsQuery.refetch()]);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : "The sync could not be completed. Please try again.");
     } finally {
@@ -72,15 +84,19 @@ export function DataSyncPage() {
 
       {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error}</div>}
       <section className="grid gap-4 lg:grid-cols-3" aria-label="Integration sources">
-        {sources.map((source) => (
+        {sources.map((source) => {
+          const latest = latestRuns.find((run) => run.source === source.id);
+          return (
           <article key={source.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="font-semibold text-slate-900">{source.title}</h2><p className="mt-1 min-h-10 text-sm text-slate-500">{source.description}</p>
+            <p className="mt-3 text-xs text-slate-600">{latest ? <>Last run: {new Date(latest.startedAt).toLocaleString()} · {latest.rejected} rejected</> : "No runs recorded yet"}</p>
             <div className="mt-5 flex flex-wrap gap-2">
-              <button type="button" disabled={Boolean(active)} onClick={() => void runSync(source.id, "preview")} className="rounded-lg border border-indigo-200 px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-50">{active?.source === source.id && active.mode === "preview" ? "Previewing…" : "Preview"}</button>
+              <button type="button" disabled={Boolean(active)} onClick={() => void runSync(source.id, "preview")} className="rounded-lg border border-indigo-200 px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-50">{active?.source === source.id && active.mode === "preview" ? "Previewing…" : "Preview current data"}</button>
               <button type="button" disabled={Boolean(active)} onClick={() => setConfirmSource(source.id)} className="rounded-lg bg-indigo-700 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-800 disabled:opacity-50">{active?.source === source.id && active.mode === "commit" ? "Committing…" : "Commit"}</button>
             </div>
           </article>
-        ))}
+          );
+        })}
       </section>
 
       {result && <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -96,7 +112,14 @@ export function DataSyncPage() {
         {runsQuery.isError ? <ErrorState title="Could not load sync history" error={runsQuery.error} retry={() => void runsQuery.refetch()} />
           : runsQuery.isLoading ? <div className="animate-pulse space-y-3 p-5"><div className="h-5 rounded bg-slate-200" /><div className="h-5 rounded bg-slate-100" /><div className="h-5 rounded bg-slate-100" /></div>
             : !runs.length ? <EmptyState title="No sync runs yet" description="Preview a source to create the first run." />
-              : <div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-5 py-3">Source</th><th className="px-5 py-3">Mode</th><th className="px-5 py-3">Started</th><th className="px-5 py-3">Received</th><th className="px-5 py-3">Accepted</th><th className="px-5 py-3">Rejected</th><th className="px-5 py-3">Run by</th></tr></thead><tbody className="divide-y divide-slate-100">{runs.map((run) => <tr key={run.id}><td className="px-5 py-3 font-medium uppercase">{run.source}</td><td className="px-5 py-3">{run.mode.toLowerCase()}</td><td className="px-5 py-3">{new Date(run.startedAt).toLocaleString()}</td><td className="px-5 py-3">{run.received}</td><td className="px-5 py-3">{run.accepted}</td><td className="px-5 py-3">{run.rejected}</td><td className="px-5 py-3">{run.runBy?.email ?? "—"}</td></tr>)}</tbody></table></div>}
+            : <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-5 py-3">Source</th><th className="px-5 py-3">Mode</th><th className="px-5 py-3">Started</th><th className="px-5 py-3">Received</th><th className="px-5 py-3">Accepted</th><th className="px-5 py-3">Rejected</th><th className="px-5 py-3">Run by</th><th className="px-5 py-3">Rejects</th></tr></thead><tbody className="divide-y divide-slate-100">{runs.map((run) => <tr key={run.id}><td className="px-5 py-3 font-medium uppercase">{run.source}</td><td className="px-5 py-3">{run.mode.toLowerCase()}</td><td className="px-5 py-3">{new Date(run.startedAt).toLocaleString()}</td><td className="px-5 py-3">{run.received}</td><td className="px-5 py-3">{run.accepted}</td><td className={`px-5 py-3 ${run.rejected ? "font-semibold text-rose-700" : ""}`}>{run.rejected}</td><td className="px-5 py-3">{run.runBy?.email ?? "—"}</td><td className="px-5 py-3">{run.rejected ? <button type="button" onClick={() => setSelectedRunId((selected) => selected === run.id ? null : run.id)} className="font-semibold text-indigo-700 underline">{selectedRunId === run.id ? "Hide" : "Review"}</button> : "—"}</td></tr>)}</tbody></table></div>}
+        {selectedRunId && <div className="border-t border-slate-100">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3"><p className="text-sm font-semibold text-slate-800">Rejected records for run {selectedRunId}</p><a href={`/api/sync/runs/${encodeURIComponent(selectedRunId)}/rejects.csv`} className="text-sm font-semibold text-indigo-700 underline">Download CSV</a></div>
+          <p className="px-5 pb-3 text-xs text-slate-500">Correct these records in the source system, then preview the current source data before committing again.</p>
+          {rejectsQuery.isError ? <p role="alert" className="px-5 pb-4 text-sm text-rose-700">Could not load rejected records.</p>
+            : rejectsQuery.isLoading ? <p className="px-5 pb-4 text-sm text-slate-500">Loading rejected records…</p>
+            : <RejectsTable rejects={rejectsQuery.data?.data ?? []} />}
+        </div>}
       </section>
       {confirmSource && <ConfirmDialog
         title={`Commit ${confirmSource.toUpperCase()} batch?`}

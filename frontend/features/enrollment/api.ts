@@ -2,6 +2,8 @@ import { apiFetch } from "../../lib/api";
 import type {
   EnrollmentListParams,
   EnrollmentPlan,
+  EnrollmentGradeTarget,
+  EnrollmentCapacityRow,
   EnrollmentRequirement,
   EnrollmentStrandTarget,
   EnrollmentsPage,
@@ -54,6 +56,10 @@ export function fetchEnrollmentPlan(schoolYearId: string) {
   return apiFetch<{ data: EnrollmentPlan }>(`/api/enrollments/settings/${encodeURIComponent(schoolYearId)}`);
 }
 
+export function fetchEnrollmentCapacity(schoolYearId: string) {
+  return apiFetch<{ data: EnrollmentCapacityRow[] }>(`/api/enrollments/capacity/${encodeURIComponent(schoolYearId)}`);
+}
+
 export function saveEnrollmentPlan(
   schoolYearId: string,
   input: Pick<EnrollmentPlan, "registrationOpensAt" | "registrationClosesAt" | "firstDayOfClasses">
@@ -61,6 +67,7 @@ export function saveEnrollmentPlan(
       requirements: EnrollmentRequirement[];
       specialPolicies: EnrollmentPlan["specialPolicies"];
       targets: EnrollmentStrandTarget[];
+      gradeTargets: EnrollmentGradeTarget[];
     },
 ) {
   return apiFetch<{ data: EnrollmentPlan }>(`/api/enrollments/settings/${encodeURIComponent(schoolYearId)}`, {
