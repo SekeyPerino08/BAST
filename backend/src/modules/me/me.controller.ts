@@ -4,6 +4,7 @@ import { asyncHandler } from "../../utils/asyncHandler.js";
 import {
   createMyDocumentRequest,
   getMyAcademicHistory,
+  getMyAnnouncements,
   getMyDocumentRequests,
   getMyAdvisoryStudents,
   getMyClasses,
@@ -48,6 +49,11 @@ export const getMyAdvisoryStudentsController = asyncHandler(async (req, res) => 
 export const getMyEnrollmentController = asyncHandler(async (req, res) => {
   if (!req.user) throw new AppError("Not authenticated", 401);
   res.status(200).json(await getMyEnrollment(req.user.id));
+});
+
+export const getMyAnnouncementsController = asyncHandler(async (req, res) => {
+  if (!req.user) throw new AppError("Not authenticated", 401);
+  res.status(200).json(await getMyAnnouncements(req.user.id));
 });
 
 export const getMyScheduleController = asyncHandler(async (req, res) => {

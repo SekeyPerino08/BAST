@@ -1,4 +1,5 @@
 import {
+  AnnouncementCategory,
   AttendanceStatus,
   DocumentRequestStatus,
   DocumentRequestType,
@@ -323,6 +324,49 @@ async function getCurrentStudentSchoolYear(userId: string) {
     schoolYear,
     classOfferingIds: offeringIds.map(({ id }) => id),
     subjectIds: [...new Set(offeringIds.map(({ subjectId }) => subjectId))],
+  };
+}
+
+export async function getMyAnnouncements(userId: string) {
+  const { schoolYear, classOfferingIds, subjectIds } = await getCurrentStudentSchoolYear(userId);
+  if (!schoolYear) return { data: [] };
+
+  const announcements = await prisma.announcement.findMany({
+    where: {
+      OR: [
+        { category: AnnouncementCategory.SCHOOL },
+        { classOfferingId: { in: classOfferingIds } },
+        { subjectId: { in: subjectIds } },
+      ],
+    },
+    orderBy: { publishedAt: "desc" },
+    include: {
+      subject: { select: { id: true, code: true, name: true } },
+      classOffering: {
+        select: {
+          id: true,
+          section: { select: { id: true, name: true, gradeLevel: true } },
+          subject: { select: { id: true, code: true, name: true } },
+        },
+      },
+      createdBy: { select: { email: true, firstName: true, lastName: true } },
+    },
+  });
+
+  return {
+    data: announcements.map((announcement) => ({
+      id: announcement.id,
+      title: announcement.title,
+      body: announcement.body,
+      category: announcement.category,
+      isPinned: announcement.isPinned,
+      publishedAt: announcement.publishedAt,
+      expiresAt: announcement.expiresAt,
+      attachments: announcement.attachments,
+      subject: announcement.subject,
+      classOffering: announcement.classOffering,
+      createdBy: announcement.createdBy,
+    })),
   };
 }
 

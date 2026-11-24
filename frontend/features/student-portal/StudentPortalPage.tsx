@@ -5,6 +5,7 @@ import { AlertCircle, CalendarDays, FileText, Inbox, School } from "lucide-react
 import { apiFetch } from "../../lib/api";
 
 type PortalType =
+  | "announcements"
   | "schedule"
   | "materials"
   | "documents"
@@ -74,6 +75,20 @@ export function StudentPortalPage({ title, description, endpoint, type, emptyTex
             const subject = asRecord(item.subject);
             const section = asRecord(item.section);
             const term = asRecord(item.term);
+            if (type === "announcements") {
+              return (
+                <article key={id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-200">{String(item.category ?? "ANNOUNCEMENT")}</span>
+                    <School size={18} className="text-amber-600" />
+                  </div>
+                  <h2 className="mt-4 text-xl font-semibold text-slate-900 dark:text-white">{String(item.title ?? "Announcement")}</h2>
+                  <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{String(item.body ?? "No details provided.")}</p>
+                  <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">Published {formatDate(String(item.publishedAt ?? ""))}</p>
+                </article>
+              );
+            }
+
             if (type === "schedule") {
               return (
                 <article key={id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
